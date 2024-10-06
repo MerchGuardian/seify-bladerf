@@ -1,0 +1,37 @@
+[package]
+name = "bladerf"
+repository = "https://github.com/ryankurte/rust-bladerf"
+authors = ["Ryan Kurte <ryankurte@gmail.com>"]
+description = "WIP Rust wrapper for libbladerf"
+readme = "README.md"
+license = "MIT"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+unimplemented = []
+
+[workspace]
+members = [ ".", "sys" ]
+
+[dependencies]
+libc = "0.1.10"
+num-complex = "0.4.6"
+bladerf-sys = "0.1.0"
+thiserror = "1.0.64"
+bytemuck = "1.18.0"
+strum = { version = "0.26.3", features = ["derive", "strum_macros"] }
+
+[lib]
+name = "bladerf"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bladerf"
+path = "src/bin.rs"
+
+
+[patch.crates-io]
+bladerf-sys = { path = "./sys" }
+

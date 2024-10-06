@@ -1,0 +1,961 @@
+//! Safe bindings for libbladerf (wrapping bladerf-sys)
+//!
+//!
+#![allow(non_upper_case_globals)]
+#![deny(unsafe_op_in_unsafe_fn)]
+
+mod error;
+pub use error::{Error, Result};
+mod types;
+use ffi::{c_char, c_void, CStr, CString};
+use path::Path;
+use sync::RwLock;
+use types::*;
+
+use time::Duration;
+
+use std::*;
+
+use num_complex::Complex;
+
+use bladerf_sys::*;
+
+// Macro to simplify integer returns
+macro_rules! check_res {
+    ($e:expr) => (
+    	if $e < 0 {
+			return Err($crate::Error::from_bladerf_code($e as isize))
+		}
+	);
+}
+
+/// BladeRF device object
+pub struct BladeRF {
+    device: *mut bladerf,
+    format_sync: RwLock<Option<Format>>,
+}
+
+impl Drop for BladeRF {
+    fn drop(&mut self) {
+        unsafe { bladerf_close(self.device) }
+    }
+}
+
+pub fn set_usb_reset_on_open(enabled: bool) {
+    unsafe { bladerf_set_usb_reset_on_open(enabled) };
+}
+
+impl BladeRF {
+    /// List attached BladeRF devices
+    pub fn get_device_list() -> Result<Vec<DevInfo>> {
+        let mut devices: *mut bladerf_devinfo = std::ptr::null_mut();
+
+        let n = unsafe { bladerf_get_device_list(&mut devices as *mut *mut _) } as isize;
+        check_res!(n);
+
+        assert!(!devices.is_null());
+        // SAFETY: bladerf wrote to devices
+        let ffi_devs = unsafe { std::slice::from_raw_parts(devices, n as usize) };
+        let devs: Vec<DevInfo> = ffi_devs.iter().map(Clone::clone).map(Into::into).collect();
+
+        unsafe { bladerf_free_device_list(devices) };
+
+        Ok(devs)
+    }
+
+    pub fn open() -> Result<Self> {
+        let mut device = std::ptr::null_mut();
+        let res = unsafe { bladerf_open(&mut device as *mut *mut _, ptr::null()) };
+        check_res!(res);
+        Ok(Self {
+            device,
+            format_sync: RwLock::new(None),
+        })
+    }
+
+    /// Open a BladeRF device by identifier
+    pub fn open_identifier(id: &str) -> Result<Self> {
+        let mut device = std::ptr::null_mut();
+        let c_string = ffi::CString::new(id)
+            .map_err(|e| Error::msg(format!("Invalid c string `{id}`: {e:?}")))?;
+        let res = unsafe { bladerf_open(&mut device as *mut *mut _, c_string.as_ptr()) };
+
+        check_res!(res);
+        Ok(Self {
+            device,
+            format_sync: RwLock::new(None),
+        })
+    }
+
+    /// Open a BladeRF device by devinfo object
+    pub fn open_with_devinfo(devinfo: &DevInfo) -> Result<Self> {
+        let mut devinfo_ptr = devinfo.0.clone();
+        let mut device = std::ptr::null_mut();
+
+        let res = unsafe {
+            bladerf_open_with_devinfo(&mut device as *mut *mut _, &mut devinfo_ptr as *mut _)
+        };
+
+        check_res!(res);
+        Ok(Self {
+            device,
+            format_sync: RwLock::new(None),
+        })
+    }
+
+    // Device Properties and Information
+    /// http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___i_n_f_o.html
+
+    pub fn get_serial(&self) -> Result<String> {
+        unsafe {
+            // Create raw data array for serial return
+            let mut serial_data = [0i8; BLADERF_SERIAL_LENGTH as usize];
+
+            // Call underlying c method
+            let res = bladerf_get_serial(self.device, serial_data.as_mut_ptr().cast());
+
+            check_res!(res);
+            let serial_cstr = CStr::from_ptr(serial_data.as_ptr());
+            let serial_str = serial_cstr
+                .to_str()
+                .map_err(|e| Error::msg(format!("Serial number is not UTF-8: {e:?}")))?;
+
+            Ok(serial_str.to_string())
+        }
+    }
+
+    pub fn get_fpga_size(&self) -> Result<bladerf_fpga_size> {
+        let mut fpga_size: bladerf_fpga_size = bladerf_fpga_size_BLADERF_FPGA_UNKNOWN;
+        let res = unsafe { bladerf_get_fpga_size(self.device, &mut fpga_size) };
+        check_res!(res);
+        Ok(fpga_size)
+    }
+
+    pub fn fw_version(&self) -> Result<Version> {
+        let mut version = bladerf_version {
+            major: 0,
+            minor: 0,
+            patch: 0,
+            describe: 0 as *const i8,
+        };
+
+        let res = unsafe { bladerf_fw_version(self.device, &mut version) };
+        check_res!(res);
+
+        // SAFETY: came from bladerf ffi
+        Ok(unsafe { Version::from_ffi(&version) })
+    }
+
+    pub fn is_fpga_configured(&self) -> Result<bool> {
+        let res = unsafe { bladerf_is_fpga_configured(self.device) };
+        check_res!(res);
+
+        if res > 0 {
+            Ok(true)
+        } else if res == 0 {
+            Ok(false)
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub fn fpga_version(&self) -> Result<Version> {
+        let mut version = bladerf_version {
+            major: 0,
+            minor: 0,
+            patch: 0,
+            describe: 0 as *const i8,
+        };
+
+        let res = unsafe { bladerf_fpga_version(self.device, &mut version) };
+        check_res!(res);
+
+        // SAFETY: came from bladerf ffi
+        Ok(unsafe { Version::from_ffi(&version) })
+    }
+
+    // RX & TX Module Control
+    // http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___m_o_d_u_l_e.html
+
+    pub fn enable_module(&self, module: bladerf_module, enable: bool) -> Result<()> {
+        let res = unsafe { bladerf_enable_module(self.device, module, enable) };
+        check_res!(res);
+        Ok(())
+    }
+
+    // Gain Control
+    // http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___g_a_i_n.html
+
+    // Sampling Control
+
+    pub fn set_sample_rate(&self, module: bladerf_module, rate: u32) -> Result<u32> {
+        let mut actual: u32 = 0;
+
+        let res = unsafe { bladerf_set_sample_rate(self.device, module, rate, &mut actual) };
+        check_res!(res);
+        Ok(actual)
+    }
+
+    pub fn set_rational_sample_rate(
+        &self,
+        module: bladerf_module,
+        rate: bladerf_rational_rate,
+    ) -> Result<RationalRate> {
+        let mut rate = rate;
+        let mut actual = bladerf_rational_rate {
+            integer: 0,
+            num: 0,
+            den: 0,
+        };
+        let res = unsafe {
+            bladerf_set_rational_sample_rate(self.device, module, &mut rate, &mut actual)
+        };
+        check_res!(res);
+        Ok(actual.into())
+    }
+
+    pub fn get_sample_rate(&self, module: bladerf_module) -> Result<u32> {
+        let mut rate: u32 = 0;
+
+        let res = unsafe { bladerf_get_sample_rate(self.device, module, &mut rate) };
+        check_res!(res);
+        Ok(rate)
+    }
+
+    pub fn get_rational_sample_rate(&self, module: bladerf_module) -> Result<RationalRate> {
+        let mut rate = bladerf_rational_rate {
+            integer: 0,
+            num: 0,
+            den: 0,
+        };
+
+        let res = unsafe { bladerf_get_rational_sample_rate(self.device, module, &mut rate) };
+        check_res!(res);
+        Ok(rate.into())
+    }
+
+    pub fn set_sampling(&self, sampling: Sampling) -> Result<()> {
+        let res = unsafe { bladerf_set_sampling(self.device, sampling as bladerf_sampling) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_sampling(&self) -> Result<Sampling> {
+        let mut sampling = bladerf_sampling_BLADERF_SAMPLING_UNKNOWN;
+        let res = unsafe { bladerf_get_sampling(self.device, &mut sampling) };
+        check_res!(res);
+        Sampling::try_from(sampling)
+    }
+
+    pub fn set_rx_mux(&self, mux: RxMux) -> Result<()> {
+        let res = unsafe { bladerf_set_rx_mux(self.device, mux as bladerf_rx_mux) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_rx_mux(&self) -> Result<RxMux> {
+        let mut mux = bladerf_rx_mux_BLADERF_RX_MUX_INVALID;
+        let res = unsafe { bladerf_get_rx_mux(self.device, &mut mux) };
+        check_res!(res);
+        RxMux::try_from(mux)
+    }
+
+    /// Configure bandwidth
+
+    pub fn set_bandwidth(&self, ch: bladerf_channel, bandwidth: u32) -> Result<u32> {
+        let mut actual: u32 = 0;
+        let res = unsafe { bladerf_set_bandwidth(self.device, ch, bandwidth, &mut actual) };
+        check_res!(res);
+        Ok(actual)
+    }
+
+    pub fn get_bandwidth(&self, ch: bladerf_channel) -> Result<u32> {
+        let mut bandwidth: u32 = 0;
+        let res = unsafe { bladerf_get_bandwidth(self.device, ch, &mut bandwidth) };
+        check_res!(res);
+        Ok(bandwidth)
+    }
+
+    pub fn set_lpf_mode(&self, ch: bladerf_channel, lpf_mode: LPFMode) -> Result<()> {
+        let res = unsafe { bladerf_set_lpf_mode(self.device, ch, lpf_mode as bladerf_lpf_mode) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_lpf_mode(&self, ch: bladerf_channel) -> Result<LPFMode> {
+        let mut lpf_mode = bladerf_lpf_mode_BLADERF_LPF_NORMAL;
+        let res = unsafe { bladerf_get_lpf_mode(self.device, ch, &mut lpf_mode) };
+        check_res!(res);
+        LPFMode::try_from(lpf_mode)
+    }
+
+    /// Set frequency band
+
+    pub fn select_band(&self, ch: bladerf_channel, frequency: u64) -> Result<()> {
+        let res = unsafe { bladerf_select_band(self.device, ch, frequency) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn set_frequency(&self, ch: bladerf_channel, frequency: u64) -> Result<()> {
+        let res = unsafe { bladerf_set_frequency(self.device, ch, frequency) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_frequency(&self, ch: bladerf_channel) -> Result<u64> {
+        let mut freq: u64 = 0;
+        let res = unsafe { bladerf_get_frequency(self.device, ch, &mut freq) };
+        check_res!(res);
+        Ok(freq)
+    }
+
+    pub fn schedule_retune(
+        &self,
+        ch: bladerf_channel,
+        time: u64,
+        frequency: u64,
+        quick_tune: Option<&mut QuickTune>,
+    ) -> Result<()> {
+        let quick_tune_ptr = quick_tune
+            .map(|qt| qt as *mut QuickTune as *mut bladerf_quick_tune)
+            .unwrap_or(ptr::null_mut());
+        let res =
+            unsafe { bladerf_schedule_retune(self.device, ch, time, frequency, quick_tune_ptr) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn cancel_scheduled_retune(&self, ch: bladerf_channel) -> Result<()> {
+        let res = unsafe { bladerf_cancel_scheduled_retunes(self.device, ch) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_quick_tune(&self, ch: bladerf_channel) -> Result<QuickTune> {
+        let mut quick_tune = QuickTune {
+            freqsel: 0,
+            vcocap: 0,
+            nint: 0,
+            nfrac: 0,
+            flags: 0,
+        };
+        let res = unsafe {
+            bladerf_get_quick_tune(
+                self.device,
+                ch,
+                &mut quick_tune as *mut QuickTune as *mut bladerf_quick_tune,
+            )
+        };
+        check_res!(res);
+        Ok(quick_tune)
+    }
+
+    pub fn set_tuning_mode(&self, mode: TuningMode) -> Result<()> {
+        let res = unsafe { bladerf_set_tuning_mode(self.device, mode as bladerf_tuning_mode) };
+        check_res!(res);
+        Ok(())
+    }
+
+    // **Loopback Functions**
+
+    /// Get loopback modes
+    pub fn get_loopback_modes(&self) -> Result<Vec<LoopbackModeInfo>> {
+        let mut modes_ptr: *const bladerf_loopback_modes = ptr::null();
+        let num_modes = unsafe { bladerf_get_loopback_modes(self.device, &mut modes_ptr) };
+        if num_modes < 0 {
+            return Err(Error::from_bladerf_code(num_modes as isize));
+        }
+        if modes_ptr.is_null() || num_modes == 0 {
+            return Ok(Vec::new());
+        }
+        // SAFETY: modes_ptr points to an array of num_modes elements
+        let modes_slice = unsafe { slice::from_raw_parts(modes_ptr, num_modes as usize) };
+        let loopback_modes: Vec<LoopbackModeInfo> = modes_slice
+            .iter()
+            .map(|m| LoopbackModeInfo::from(*m))
+            .collect();
+        Ok(loopback_modes)
+    }
+
+    /// Test if a given loopback mode is supported on this device
+    pub fn is_loopback_mode_supported(&self, mode: Loopback) -> Result<bool> {
+        let supported =
+            unsafe { bladerf_is_loopback_mode_supported(self.device, mode as bladerf_loopback) };
+        Ok(supported)
+    }
+
+    /// See: http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___l_o_o_p_b_a_c_k.html
+    pub fn set_loopback(&self, loopback: Loopback) -> Result<()> {
+        let res = unsafe { bladerf_set_loopback(self.device, loopback as bladerf_loopback) };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Fetch loopback state
+    pub fn get_loopback(&self) -> Result<Loopback> {
+        unsafe {
+            let mut loopback = bladerf_loopback_BLADERF_LB_NONE;
+
+            let res = bladerf_get_loopback(self.device, &mut loopback);
+            check_res!(res);
+
+            Loopback::try_from(loopback)
+        }
+    }
+
+    // SMB Clock Port Control
+    // **Gain Control Functions**
+
+    /// Set overall system gain
+    pub fn set_gain(&self, ch: bladerf_channel, gain: Gain) -> Result<()> {
+        let res = unsafe { bladerf_set_gain(self.device, ch, gain) };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Get overall system gain
+    pub fn get_gain(&self, ch: bladerf_channel) -> Result<Gain> {
+        let mut gain: Gain = 0;
+        let res = unsafe { bladerf_get_gain(self.device, ch, &mut gain) };
+        check_res!(res);
+        Ok(gain)
+    }
+
+    /// Set gain control mode
+    pub fn set_gain_mode(&self, ch: bladerf_channel, mode: GainMode) -> Result<()> {
+        let res = unsafe { bladerf_set_gain_mode(self.device, ch, mode as bladerf_gain_mode) };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Get gain control mode
+    pub fn get_gain_mode(&self, ch: bladerf_channel) -> Result<GainMode> {
+        let mut mode = bladerf_gain_mode_BLADERF_GAIN_DEFAULT;
+        let res = unsafe { bladerf_get_gain_mode(self.device, ch, &mut mode) };
+        check_res!(res);
+        GainMode::try_from(mode)
+    }
+
+    /// Get available gain control modes
+    pub fn get_gain_modes(&self, ch: bladerf_channel) -> Result<Vec<GainModeInfo>> {
+        let mut modes_ptr: *const bladerf_gain_modes = ptr::null();
+        let num_modes = unsafe { bladerf_get_gain_modes(self.device, ch, &mut modes_ptr) };
+        if num_modes < 0 {
+            return Err(Error::from_bladerf_code(num_modes as isize));
+        }
+        if modes_ptr.is_null() || num_modes == 0 {
+            return Ok(Vec::new());
+        }
+        // SAFETY: modes_ptr points to an array of num_modes elements
+        let modes_slice = unsafe { slice::from_raw_parts(modes_ptr, num_modes as usize) };
+        let gain_modes: Vec<GainModeInfo> =
+            modes_slice.iter().map(|m| GainModeInfo::from(*m)).collect();
+        Ok(gain_modes)
+    }
+
+    /// Get range of overall system gain
+    pub fn get_gain_range(&self, ch: bladerf_channel) -> Result<Range> {
+        let mut range_ptr: *const bladerf_range = ptr::null();
+        let res = unsafe { bladerf_get_gain_range(self.device, ch, &mut range_ptr) };
+        check_res!(res);
+        if range_ptr.is_null() {
+            return Err(Error::msg("bladerf_get_gain_range returned null pointer"));
+        }
+        let range = unsafe { &*range_ptr };
+        Ok(Range::from(range))
+    }
+
+    /// Set the gain for a specific gain stage
+    pub fn set_gain_stage(&self, ch: bladerf_channel, stage: &str, gain: Gain) -> Result<()> {
+        let stage_cstr = CString::new(stage).map_err(|_| Error::msg("Invalid stage string"))?;
+        let res = unsafe { bladerf_set_gain_stage(self.device, ch, stage_cstr.as_ptr(), gain) };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Get the gain for a specific gain stage
+    pub fn get_gain_stage(&self, ch: bladerf_channel, stage: &str) -> Result<Gain> {
+        let stage_cstr = CString::new(stage).map_err(|_| Error::msg("Invalid stage string"))?;
+        let mut gain: Gain = 0;
+        let res =
+            unsafe { bladerf_get_gain_stage(self.device, ch, stage_cstr.as_ptr(), &mut gain) };
+        check_res!(res);
+        Ok(gain)
+    }
+
+    /// Get gain range of a specific gain stage
+    pub fn get_gain_stage_range(&self, ch: bladerf_channel, stage: &str) -> Result<Range> {
+        let stage_cstr = CString::new(stage).map_err(|_| Error::msg("Invalid stage string"))?;
+        let mut range_ptr: *const bladerf_range = ptr::null();
+        let res = unsafe {
+            bladerf_get_gain_stage_range(self.device, ch, stage_cstr.as_ptr(), &mut range_ptr)
+        };
+        check_res!(res);
+        if range_ptr.is_null() {
+            return Err(Error::msg(
+                "bladerf_get_gain_stage_range returned null pointer",
+            ));
+        }
+        let range = unsafe { &*range_ptr };
+        Ok(Range::from(range))
+    }
+
+    /// Get a list of available gain stages
+    pub fn get_gain_stages(&self, ch: bladerf_channel) -> Result<Vec<String>> {
+        // First, call with count = 0 to get the number of stages
+        let num_stages = unsafe { bladerf_get_gain_stages(self.device, ch, ptr::null_mut(), 0) };
+        check_res!(num_stages);
+        let num_stages = num_stages as usize;
+        if num_stages == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Allocate an array to hold the pointers
+        let mut stages: Vec<*const c_char> = vec![ptr::null(); num_stages];
+        let res =
+            unsafe { bladerf_get_gain_stages(self.device, ch, stages.as_mut_ptr(), num_stages) };
+        check_res!(res);
+
+        // Now, convert the pointers to Rust strings
+        let stages: Vec<_> = stages
+            .into_iter()
+            .flat_map(|ptr| {
+                if ptr.is_null() {
+                    None
+                } else {
+                    unsafe { CStr::from_ptr(ptr).to_str() }
+                        .ok()
+                        .map(ToString::to_string)
+                }
+            })
+            .collect();
+
+        Ok(stages)
+    }
+
+    // **Trigger Functions**
+
+    /// Initialize a trigger
+    pub fn trigger_init(&self, ch: bladerf_channel, signal: TriggerSignal) -> Result<Trigger> {
+        let mut trigger = Trigger {
+            channel: ch,
+            role: TriggerRole::Invalid,
+            signal,
+            options: 0,
+        };
+        let res = unsafe {
+            bladerf_trigger_init(
+                self.device,
+                ch,
+                signal as bladerf_trigger_signal,
+                &mut trigger as *mut Trigger as *mut bladerf_trigger,
+            )
+        };
+        check_res!(res);
+        Ok(trigger)
+    }
+
+    /// Configure and (dis)arm a trigger on the specified device
+    pub fn trigger_arm(&self, trigger: &Trigger, arm: bool) -> Result<()> {
+        let res = unsafe {
+            bladerf_trigger_arm(
+                self.device,
+                trigger as *const Trigger as *const bladerf_trigger,
+                arm,
+                0,
+                0,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Fire a trigger event
+    pub fn trigger_fire(&self, trigger: &Trigger) -> Result<()> {
+        let res = unsafe {
+            bladerf_trigger_fire(
+                self.device,
+                trigger as *const Trigger as *const bladerf_trigger,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Query the fire request status of a master trigger
+    pub fn trigger_state(&self, trigger: &Trigger) -> Result<(bool, bool, bool)> {
+        let mut is_armed = false;
+        let mut has_fired = false;
+        let mut fire_requested = false;
+        let mut resv1 = 0u64;
+        let mut resv2 = 0u64;
+        let res = unsafe {
+            bladerf_trigger_state(
+                self.device,
+                trigger as *const Trigger as *const bladerf_trigger,
+                &mut is_armed,
+                &mut has_fired,
+                &mut fire_requested,
+                &mut resv1,
+                &mut resv2,
+            )
+        };
+        check_res!(res);
+        Ok((is_armed, has_fired, fire_requested))
+    }
+
+    // Triggers and Synchronisation
+
+    // **Correction Functions**
+
+    /// Set the value of the specified correction parameter
+    pub fn set_correction(
+        &self,
+        ch: bladerf_channel,
+        corr: Correction,
+        value: CorrectionValue,
+    ) -> Result<()> {
+        let res =
+            unsafe { bladerf_set_correction(self.device, ch, corr as bladerf_correction, value) };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Obtain the current value of the specified correction parameter
+    pub fn get_correction(&self, ch: bladerf_channel, corr: Correction) -> Result<CorrectionValue> {
+        let mut value: CorrectionValue = 0;
+        let res = unsafe {
+            bladerf_get_correction(self.device, ch, corr as bladerf_correction, &mut value)
+        };
+        check_res!(res);
+        Ok(value)
+    }
+
+    // Corrections and Calibration
+
+    // Corrections and calibration
+
+    // Expansion boards
+
+    // Expansion IO control
+
+    // Miscellaneous
+
+    // Sample formats and metadata
+    pub fn abc() {}
+
+    // Asynchronous data transmission and reception
+
+    // Synchronous data transmission and reception
+
+    /// Configure the device for synchronous data transfer
+    pub fn sync_config(
+        &self,
+        layout: ChannelLayout,
+        format: Format,
+        num_buffers: u32,
+        buffer_size: u32,
+        num_transfers: u32,
+        stream_timeout: Duration,
+    ) -> Result<()> {
+        let stream_timeout_ms = stream_timeout.as_millis() as u32;
+        let res = unsafe {
+            bladerf_sync_config(
+                self.device,
+                // Bindgen not precise with #define types
+                layout as i32 as u32,
+                format as i32 as u32,
+                num_buffers,
+                buffer_size,
+                num_transfers,
+                stream_timeout_ms,
+            )
+        };
+        check_res!(res);
+
+        // Store the configured format
+        let mut fmt = self.format_sync.write().unwrap();
+        *fmt = Some(format);
+
+        Ok(())
+    }
+
+    /// Transmit IQ samples synchronously
+    pub fn sync_tx<T>(
+        &self,
+        data: &[T],
+        metadata: Option<&mut Metadata>,
+        timeout: Duration,
+    ) -> Result<()>
+    where
+        T: SampleFormat,
+    {
+        let format_guard = self.format_sync.read().unwrap();
+        let format = format_guard.ok_or_else(|| Error::msg("Format not configured"))?;
+
+        T::check_compatability(format)?;
+
+        let timeout_ms = timeout.as_millis() as u32;
+        let mut bladerf_meta = bladerf_metadata {
+            timestamp: 0,
+            flags: 0,
+            status: 0,
+            actual_count: 0,
+            reserved: [0u8; 32],
+        };
+        let meta_ptr = if let Some(meta) = &metadata {
+            bladerf_meta.timestamp = meta.timestamp;
+            bladerf_meta.flags = meta.flags;
+            &mut bladerf_meta as *mut bladerf_metadata
+        } else {
+            std::ptr::null_mut()
+        };
+
+        let res = unsafe {
+            bladerf_sync_tx(
+                self.device,
+                data.as_ptr() as *const c_void,
+                data.len() as u32,
+                meta_ptr,
+                timeout_ms,
+            )
+        };
+
+        if !meta_ptr.is_null() {
+            if let Some(meta) = metadata {
+                *meta = Metadata::from(&bladerf_meta);
+            }
+        }
+
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Receive IQ samples synchronously
+    pub fn sync_rx<T>(
+        &self,
+        data: &mut [T],
+        metadata: Option<&mut Metadata>,
+        timeout: Duration,
+    ) -> Result<()>
+    where
+        T: SampleFormat,
+    {
+        let format_guard = self.format_sync.read().unwrap();
+        let format = format_guard.ok_or_else(|| Error::msg("Format not configured"))?;
+
+        T::check_compatability(format)?;
+
+        let timeout_ms = timeout.as_millis() as u32;
+        let mut bladerf_meta = bladerf_metadata {
+            timestamp: 0,
+            flags: 0,
+            status: 0,
+            actual_count: 0,
+            reserved: [0u8; 32],
+        };
+        let meta_ptr = if let Some(meta) = &metadata {
+            bladerf_meta.timestamp = meta.timestamp;
+            bladerf_meta.flags = meta.flags;
+            &mut bladerf_meta as *mut bladerf_metadata
+        } else {
+            std::ptr::null_mut()
+        };
+
+        let res = unsafe {
+            bladerf_sync_rx(
+                self.device,
+                data.as_mut_ptr() as *mut c_void,
+                data.len() as u32,
+                meta_ptr,
+                timeout_ms,
+            )
+        };
+
+        if !meta_ptr.is_null() {
+            if let Some(meta) = metadata {
+                *meta = Metadata::from(&bladerf_meta);
+            }
+        }
+
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Retrieve the current timestamp
+    pub fn get_timestamp(&self, dir: Direction) -> Result<u64> {
+        let mut timestamp: u64 = 0;
+        let res = unsafe { bladerf_get_timestamp(self.device, dir.into(), &mut timestamp) };
+        check_res!(res);
+        Ok(timestamp)
+    }
+
+    // Device loading and programming
+
+    pub fn load_fpga(&self, bitstream_path: &Path) -> Result<()> {
+        let bitstream_path = CString::new(bitstream_path.as_os_str().as_encoded_bytes())
+            .map_err(|e| Error::msg(format!("Invalid path for cstring: {e:?}")))?;
+
+        let res = unsafe { bladerf_load_fpga(self.device, bitstream_path.as_ptr()) };
+        check_res!(res);
+        Ok(())
+    }
+
+    // **Bias Tee Control**
+
+    pub fn get_bias_tee(&self, ch: bladerf_channel) -> Result<bool> {
+        let mut enable = false;
+        let res = unsafe { bladerf_get_bias_tee(self.device, ch, &mut enable) };
+        check_res!(res);
+        Ok(enable)
+    }
+
+    pub fn set_bias_tee(&self, ch: bladerf_channel, enable: bool) -> Result<()> {
+        let res = unsafe { bladerf_set_bias_tee(self.device, ch, enable) };
+        check_res!(res);
+        Ok(())
+    }
+
+    /*
+    // Higher level control
+    pub fn configure_module(&self, module: Channel, config: ModuleConfig) {
+        self.set_frequency(self, module, config.frequency).unwrap();
+        self.set_sample_rate(self, module as i32, config.sample_rate)
+            .unwrap();
+        self.set_bandwidth(self, module as i32, config.bandwidth)
+            .unwrap();
+        self.set_gain(self, module as i32, config.lna_gain).unwrap();
+
+        // unsure whether this is still required / doesn't sem correct
+        match module {
+            Channel::Rx0 => {
+                BladeRF::set_rxvga1(self, config.vga1).unwrap();
+                BladeRF::set_rxvga2(self, config.vga2).unwrap();
+            }
+            Channel::Tx0 => {
+                BladeRF::set_txvga1(self, config.vga1).unwrap();
+                BladeRF::set_txvga2(self, config.vga2).unwrap();
+            }
+            Channel::Rx1 => {
+                BladeRF::set_rxvga1(self, config.vga1).unwrap();
+                BladeRF::set_rxvga2(self, config.vga2).unwrap();
+            }
+            Channel::Tx1 => {
+                BladeRF::set_txvga1(self, config.vga1).unwrap();
+                BladeRF::set_txvga2(self, config.vga2).unwrap();
+            }
+        };
+    }
+    */
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_list_devices() {
+        let devices = BladeRF::get_device_list().expect("");
+        println!("Discovered devices: {:?}", devices.len());
+    }
+
+    #[test]
+    fn test_open() {
+        let _device = BladeRF::open().unwrap();
+    }
+
+    #[test]
+    fn test_open_devinfo() {
+        let devices = BladeRF::get_device_list().unwrap();
+        assert!(!devices.is_empty());
+        let _device = BladeRF::open_with_devinfo(&devices[0]).unwrap();
+    }
+
+    #[test]
+    fn test_get_fw_version() {
+        let device = BladeRF::open().unwrap();
+
+        let version = device.fw_version().unwrap();
+        println!("FW Version {:?}", version);
+    }
+
+    #[test]
+    fn test_get_fpga_version() {
+        let device = BladeRF::open().unwrap();
+
+        let version = device.fpga_version().unwrap();
+        println!("FPGA Version {:?}", version);
+    }
+
+    #[test]
+    fn test_get_serial() {
+        let device = BladeRF::open().unwrap();
+
+        let serial = device.get_serial().unwrap();
+        println!("Serial: {:?}", serial);
+        assert!(serial.len() == 33);
+    }
+
+    #[test]
+    fn test_fpga_loaded() {
+        let device = BladeRF::open().unwrap();
+
+        let loaded = device.is_fpga_configured().unwrap();
+        assert_eq!(true, loaded);
+    }
+
+    #[test]
+    fn test_loopback_modes() {
+        let device = BladeRF::open().unwrap();
+
+        // Check initial is none
+        let loopback = device.get_loopback().unwrap();
+        assert!(loopback == Loopback::None);
+
+        // Set and check loopback modes
+        device.set_loopback(Loopback::Firmware).unwrap();
+        let loopback = device.get_loopback().unwrap();
+        assert!(loopback == Loopback::Firmware);
+
+        // Reset
+        device.set_loopback(Loopback::None).unwrap();
+
+        let loopback = device.get_loopback().unwrap();
+        assert!(loopback == Loopback::None);
+    }
+
+    #[test]
+    fn test_set_freq() {
+        let device = BladeRF::open().unwrap();
+
+        let freq: u64 = 915000000;
+
+        // Set and check frequency
+        device
+            .set_frequency(ChannelLayout::Rx1 as i32, freq)
+            .unwrap();
+        let actual_freq = device.get_frequency(ChannelLayout::Rx1 as i32).unwrap();
+        let diff = freq as i64 - actual_freq as i64;
+        assert!(i64::abs(diff) < 10);
+    }
+
+    #[test]
+    fn test_set_sampling() {
+        let device = BladeRF::open().unwrap();
+
+        let desired = Sampling::Internal;
+        // Set and check frequency
+        if let Err(e) = device.set_sampling(desired) {
+            if e != Error::Unsupported {
+                panic!("unexpected error of value when calling set_sampling {e:?}",);
+            } else {
+                return;
+            }
+        };
+
+        let actual = device.get_sampling().unwrap();
+
+        assert_eq!(desired, actual);
+    }
+}
