@@ -7,17 +7,15 @@
 mod error;
 pub use error::{Error, Result};
 mod types;
+pub use types::*;
+
 use ffi::{c_char, c_void, CStr, CString};
 use path::Path;
+use std::*;
 use sync::RwLock;
-use types::*;
-
 use time::Duration;
 
-use std::*;
-
-use num_complex::Complex;
-
+pub use bladerf_sys as sys;
 use bladerf_sys::*;
 
 // Macro to simplify integer returns
@@ -45,25 +43,25 @@ pub fn set_usb_reset_on_open(enabled: bool) {
     unsafe { bladerf_set_usb_reset_on_open(enabled) };
 }
 
+/// List attached BladeRF devices
+pub fn get_device_list() -> Result<Vec<DevInfo>> {
+    let mut devices: *mut bladerf_devinfo = std::ptr::null_mut();
+
+    let n = unsafe { bladerf_get_device_list(&mut devices as *mut *mut _) } as isize;
+    check_res!(n);
+
+    assert!(!devices.is_null());
+    // SAFETY: bladerf wrote to devices
+    let ffi_devs = unsafe { std::slice::from_raw_parts(devices, n as usize) };
+    let devs: Vec<DevInfo> = ffi_devs.iter().map(Clone::clone).map(Into::into).collect();
+
+    unsafe { bladerf_free_device_list(devices) };
+
+    Ok(devs)
+}
+
 impl BladeRF {
-    /// List attached BladeRF devices
-    pub fn get_device_list() -> Result<Vec<DevInfo>> {
-        let mut devices: *mut bladerf_devinfo = std::ptr::null_mut();
-
-        let n = unsafe { bladerf_get_device_list(&mut devices as *mut *mut _) } as isize;
-        check_res!(n);
-
-        assert!(!devices.is_null());
-        // SAFETY: bladerf wrote to devices
-        let ffi_devs = unsafe { std::slice::from_raw_parts(devices, n as usize) };
-        let devs: Vec<DevInfo> = ffi_devs.iter().map(Clone::clone).map(Into::into).collect();
-
-        unsafe { bladerf_free_device_list(devices) };
-
-        Ok(devs)
-    }
-
-    pub fn open() -> Result<Self> {
+    pub fn open_first() -> Result<Self> {
         let mut device = std::ptr::null_mut();
         let res = unsafe { bladerf_open(&mut device as *mut *mut _, ptr::null()) };
         check_res!(res);
@@ -131,7 +129,7 @@ impl BladeRF {
         Ok(fpga_size)
     }
 
-    pub fn fw_version(&self) -> Result<Version> {
+    pub fn firmware_version(&self) -> Result<Version> {
         let mut version = bladerf_version {
             major: 0,
             minor: 0,
@@ -177,8 +175,8 @@ impl BladeRF {
     // RX & TX Module Control
     // http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___m_o_d_u_l_e.html
 
-    pub fn enable_module(&self, module: bladerf_module, enable: bool) -> Result<()> {
-        let res = unsafe { bladerf_enable_module(self.device, module, enable) };
+    pub fn enable_module(&self, channel: Channel, enable: bool) -> Result<()> {
+        let res = unsafe { bladerf_enable_module(self.device, channel as bladerf_module, enable) };
         check_res!(res);
         Ok(())
     }
@@ -188,17 +186,19 @@ impl BladeRF {
 
     // Sampling Control
 
-    pub fn set_sample_rate(&self, module: bladerf_module, rate: u32) -> Result<u32> {
+    pub fn set_sample_rate(&self, channel: Channel, rate: u32) -> Result<u32> {
         let mut actual: u32 = 0;
 
-        let res = unsafe { bladerf_set_sample_rate(self.device, module, rate, &mut actual) };
+        let res = unsafe {
+            bladerf_set_sample_rate(self.device, channel as bladerf_module, rate, &mut actual)
+        };
         check_res!(res);
         Ok(actual)
     }
 
     pub fn set_rational_sample_rate(
         &self,
-        module: bladerf_module,
+        channel: Channel,
         rate: bladerf_rational_rate,
     ) -> Result<RationalRate> {
         let mut rate = rate;
@@ -208,28 +208,36 @@ impl BladeRF {
             den: 0,
         };
         let res = unsafe {
-            bladerf_set_rational_sample_rate(self.device, module, &mut rate, &mut actual)
+            bladerf_set_rational_sample_rate(
+                self.device,
+                channel as bladerf_module,
+                &mut rate,
+                &mut actual,
+            )
         };
         check_res!(res);
         Ok(actual.into())
     }
 
-    pub fn get_sample_rate(&self, module: bladerf_module) -> Result<u32> {
+    pub fn get_sample_rate(&self, channel: Channel) -> Result<u32> {
         let mut rate: u32 = 0;
 
-        let res = unsafe { bladerf_get_sample_rate(self.device, module, &mut rate) };
+        let res =
+            unsafe { bladerf_get_sample_rate(self.device, channel as bladerf_channel, &mut rate) };
         check_res!(res);
         Ok(rate)
     }
 
-    pub fn get_rational_sample_rate(&self, module: bladerf_module) -> Result<RationalRate> {
+    pub fn get_rational_sample_rate(&self, channel: Channel) -> Result<RationalRate> {
         let mut rate = bladerf_rational_rate {
             integer: 0,
             num: 0,
             den: 0,
         };
 
-        let res = unsafe { bladerf_get_rational_sample_rate(self.device, module, &mut rate) };
+        let res = unsafe {
+            bladerf_get_rational_sample_rate(self.device, channel as bladerf_module, &mut rate)
+        };
         check_res!(res);
         Ok(rate.into())
     }
@@ -262,57 +270,75 @@ impl BladeRF {
 
     /// Configure bandwidth
 
-    pub fn set_bandwidth(&self, ch: bladerf_channel, bandwidth: u32) -> Result<u32> {
+    pub fn set_bandwidth(&self, channel: Channel, bandwidth: u32) -> Result<u32> {
         let mut actual: u32 = 0;
-        let res = unsafe { bladerf_set_bandwidth(self.device, ch, bandwidth, &mut actual) };
+        let res = unsafe {
+            bladerf_set_bandwidth(
+                self.device,
+                channel as bladerf_channel,
+                bandwidth,
+                &mut actual,
+            )
+        };
         check_res!(res);
         Ok(actual)
     }
 
-    pub fn get_bandwidth(&self, ch: bladerf_channel) -> Result<u32> {
+    pub fn get_bandwidth(&self, ch: Channel) -> Result<u32> {
         let mut bandwidth: u32 = 0;
-        let res = unsafe { bladerf_get_bandwidth(self.device, ch, &mut bandwidth) };
+        let res =
+            unsafe { bladerf_get_bandwidth(self.device, ch as bladerf_channel, &mut bandwidth) };
         check_res!(res);
         Ok(bandwidth)
     }
 
-    pub fn set_lpf_mode(&self, ch: bladerf_channel, lpf_mode: LPFMode) -> Result<()> {
-        let res = unsafe { bladerf_set_lpf_mode(self.device, ch, lpf_mode as bladerf_lpf_mode) };
+    pub fn set_lpf_mode(&self, channel: Channel, lpf_mode: LPFMode) -> Result<()> {
+        let res = unsafe {
+            bladerf_set_lpf_mode(
+                self.device,
+                channel as bladerf_channel,
+                lpf_mode as bladerf_lpf_mode,
+            )
+        };
         check_res!(res);
         Ok(())
     }
 
-    pub fn get_lpf_mode(&self, ch: bladerf_channel) -> Result<LPFMode> {
+    pub fn get_lpf_mode(&self, channel: Channel) -> Result<LPFMode> {
         let mut lpf_mode = bladerf_lpf_mode_BLADERF_LPF_NORMAL;
-        let res = unsafe { bladerf_get_lpf_mode(self.device, ch, &mut lpf_mode) };
+        let res =
+            unsafe { bladerf_get_lpf_mode(self.device, channel as bladerf_channel, &mut lpf_mode) };
         check_res!(res);
         LPFMode::try_from(lpf_mode)
     }
 
     /// Set frequency band
 
-    pub fn select_band(&self, ch: bladerf_channel, frequency: u64) -> Result<()> {
-        let res = unsafe { bladerf_select_band(self.device, ch, frequency) };
+    pub fn select_band(&self, channel: Channel, frequency: u64) -> Result<()> {
+        let res =
+            unsafe { bladerf_select_band(self.device, channel as bladerf_channel, frequency) };
         check_res!(res);
         Ok(())
     }
 
-    pub fn set_frequency(&self, ch: bladerf_channel, frequency: u64) -> Result<()> {
-        let res = unsafe { bladerf_set_frequency(self.device, ch, frequency) };
+    pub fn set_frequency(&self, channel: Channel, frequency: u64) -> Result<()> {
+        let res =
+            unsafe { bladerf_set_frequency(self.device, channel as bladerf_channel, frequency) };
         check_res!(res);
         Ok(())
     }
 
-    pub fn get_frequency(&self, ch: bladerf_channel) -> Result<u64> {
+    pub fn get_frequency(&self, channel: Channel) -> Result<u64> {
         let mut freq: u64 = 0;
-        let res = unsafe { bladerf_get_frequency(self.device, ch, &mut freq) };
+        let res =
+            unsafe { bladerf_get_frequency(self.device, channel as bladerf_channel, &mut freq) };
         check_res!(res);
         Ok(freq)
     }
 
     pub fn schedule_retune(
         &self,
-        ch: bladerf_channel,
+        channel: Channel,
         time: u64,
         frequency: u64,
         quick_tune: Option<&mut QuickTune>,
@@ -320,19 +346,27 @@ impl BladeRF {
         let quick_tune_ptr = quick_tune
             .map(|qt| qt as *mut QuickTune as *mut bladerf_quick_tune)
             .unwrap_or(ptr::null_mut());
+        let res = unsafe {
+            bladerf_schedule_retune(
+                self.device,
+                channel as bladerf_channel,
+                time,
+                frequency,
+                quick_tune_ptr,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn cancel_scheduled_retune(&self, channel: Channel) -> Result<()> {
         let res =
-            unsafe { bladerf_schedule_retune(self.device, ch, time, frequency, quick_tune_ptr) };
+            unsafe { bladerf_cancel_scheduled_retunes(self.device, channel as bladerf_channel) };
         check_res!(res);
         Ok(())
     }
 
-    pub fn cancel_scheduled_retune(&self, ch: bladerf_channel) -> Result<()> {
-        let res = unsafe { bladerf_cancel_scheduled_retunes(self.device, ch) };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn get_quick_tune(&self, ch: bladerf_channel) -> Result<QuickTune> {
+    pub fn get_quick_tune(&self, channel: Channel) -> Result<QuickTune> {
         let mut quick_tune = QuickTune {
             freqsel: 0,
             vcocap: 0,
@@ -343,7 +377,7 @@ impl BladeRF {
         let res = unsafe {
             bladerf_get_quick_tune(
                 self.device,
-                ch,
+                channel as bladerf_channel,
                 &mut quick_tune as *mut QuickTune as *mut bladerf_quick_tune,
             )
         };
@@ -408,39 +442,48 @@ impl BladeRF {
     // **Gain Control Functions**
 
     /// Set overall system gain
-    pub fn set_gain(&self, ch: bladerf_channel, gain: Gain) -> Result<()> {
-        let res = unsafe { bladerf_set_gain(self.device, ch, gain) };
+    pub fn set_gain(&self, channel: Channel, gain: Gain) -> Result<()> {
+        let res = unsafe { bladerf_set_gain(self.device, channel as bladerf_channel, gain) };
         check_res!(res);
         Ok(())
     }
 
     /// Get overall system gain
-    pub fn get_gain(&self, ch: bladerf_channel) -> Result<Gain> {
+    pub fn get_gain(&self, channel: Channel) -> Result<Gain> {
         let mut gain: Gain = 0;
-        let res = unsafe { bladerf_get_gain(self.device, ch, &mut gain) };
+        let res = unsafe { bladerf_get_gain(self.device, channel as bladerf_channel, &mut gain) };
         check_res!(res);
         Ok(gain)
     }
 
     /// Set gain control mode
-    pub fn set_gain_mode(&self, ch: bladerf_channel, mode: GainMode) -> Result<()> {
-        let res = unsafe { bladerf_set_gain_mode(self.device, ch, mode as bladerf_gain_mode) };
+    pub fn set_gain_mode(&self, channel: Channel, mode: GainMode) -> Result<()> {
+        let res = unsafe {
+            bladerf_set_gain_mode(
+                self.device,
+                channel as bladerf_channel,
+                mode as bladerf_gain_mode,
+            )
+        };
         check_res!(res);
         Ok(())
     }
 
     /// Get gain control mode
-    pub fn get_gain_mode(&self, ch: bladerf_channel) -> Result<GainMode> {
+    pub fn get_gain_mode(&self, channel: Channel) -> Result<GainMode> {
         let mut mode = bladerf_gain_mode_BLADERF_GAIN_DEFAULT;
-        let res = unsafe { bladerf_get_gain_mode(self.device, ch, &mut mode) };
+        let res =
+            unsafe { bladerf_get_gain_mode(self.device, channel as bladerf_channel, &mut mode) };
         check_res!(res);
         GainMode::try_from(mode)
     }
 
     /// Get available gain control modes
-    pub fn get_gain_modes(&self, ch: bladerf_channel) -> Result<Vec<GainModeInfo>> {
+    pub fn get_gain_modes(&self, channel: Channel) -> Result<Vec<GainModeInfo>> {
         let mut modes_ptr: *const bladerf_gain_modes = ptr::null();
-        let num_modes = unsafe { bladerf_get_gain_modes(self.device, ch, &mut modes_ptr) };
+        let num_modes = unsafe {
+            bladerf_get_gain_modes(self.device, channel as bladerf_channel, &mut modes_ptr)
+        };
         if num_modes < 0 {
             return Err(Error::from_bladerf_code(num_modes as isize));
         }
@@ -455,9 +498,11 @@ impl BladeRF {
     }
 
     /// Get range of overall system gain
-    pub fn get_gain_range(&self, ch: bladerf_channel) -> Result<Range> {
+    pub fn get_gain_range(&self, channel: Channel) -> Result<Range> {
         let mut range_ptr: *const bladerf_range = ptr::null();
-        let res = unsafe { bladerf_get_gain_range(self.device, ch, &mut range_ptr) };
+        let res = unsafe {
+            bladerf_get_gain_range(self.device, channel as bladerf_channel, &mut range_ptr)
+        };
         check_res!(res);
         if range_ptr.is_null() {
             return Err(Error::msg("bladerf_get_gain_range returned null pointer"));
@@ -467,44 +512,61 @@ impl BladeRF {
     }
 
     /// Set the gain for a specific gain stage
-    pub fn set_gain_stage(&self, ch: bladerf_channel, stage: &str, gain: Gain) -> Result<()> {
+    pub fn set_gain_stage(&self, channel: Channel, stage: &str, gain: Gain) -> Result<()> {
         let stage_cstr = CString::new(stage).map_err(|_| Error::msg("Invalid stage string"))?;
-        let res = unsafe { bladerf_set_gain_stage(self.device, ch, stage_cstr.as_ptr(), gain) };
+        let res = unsafe {
+            bladerf_set_gain_stage(
+                self.device,
+                channel as bladerf_channel,
+                stage_cstr.as_ptr(),
+                gain,
+            )
+        };
         check_res!(res);
         Ok(())
     }
 
     /// Get the gain for a specific gain stage
-    pub fn get_gain_stage(&self, ch: bladerf_channel, stage: &str) -> Result<Gain> {
+    pub fn get_gain_stage(&self, channel: Channel, stage: &str) -> Result<Gain> {
         let stage_cstr = CString::new(stage).map_err(|_| Error::msg("Invalid stage string"))?;
         let mut gain: Gain = 0;
-        let res =
-            unsafe { bladerf_get_gain_stage(self.device, ch, stage_cstr.as_ptr(), &mut gain) };
+        let res = unsafe {
+            bladerf_get_gain_stage(
+                self.device,
+                channel as bladerf_channel,
+                stage_cstr.as_ptr(),
+                &mut gain,
+            )
+        };
         check_res!(res);
         Ok(gain)
     }
 
     /// Get gain range of a specific gain stage
-    pub fn get_gain_stage_range(&self, ch: bladerf_channel, stage: &str) -> Result<Range> {
+    pub fn get_gain_stage_range(&self, channel: Channel, stage: &str) -> Result<Range> {
         let stage_cstr = CString::new(stage).map_err(|_| Error::msg("Invalid stage string"))?;
         let mut range_ptr: *const bladerf_range = ptr::null();
         let res = unsafe {
-            bladerf_get_gain_stage_range(self.device, ch, stage_cstr.as_ptr(), &mut range_ptr)
+            bladerf_get_gain_stage_range(
+                self.device,
+                channel as bladerf_channel,
+                stage_cstr.as_ptr(),
+                &mut range_ptr,
+            )
         };
         check_res!(res);
-        if range_ptr.is_null() {
-            return Err(Error::msg(
-                "bladerf_get_gain_stage_range returned null pointer",
-            ));
-        }
-        let range = unsafe { &*range_ptr };
-        Ok(Range::from(range))
+        assert!(!range_ptr.is_null());
+
+        // SAFETY: non-null, set by libusb
+        Ok(Range::from(unsafe { &*range_ptr }))
     }
 
     /// Get a list of available gain stages
-    pub fn get_gain_stages(&self, ch: bladerf_channel) -> Result<Vec<String>> {
+    pub fn get_gain_stages(&self, channel: Channel) -> Result<Vec<String>> {
         // First, call with count = 0 to get the number of stages
-        let num_stages = unsafe { bladerf_get_gain_stages(self.device, ch, ptr::null_mut(), 0) };
+        let num_stages = unsafe {
+            bladerf_get_gain_stages(self.device, channel as bladerf_channel, ptr::null_mut(), 0)
+        };
         check_res!(num_stages);
         let num_stages = num_stages as usize;
         if num_stages == 0 {
@@ -513,8 +575,14 @@ impl BladeRF {
 
         // Allocate an array to hold the pointers
         let mut stages: Vec<*const c_char> = vec![ptr::null(); num_stages];
-        let res =
-            unsafe { bladerf_get_gain_stages(self.device, ch, stages.as_mut_ptr(), num_stages) };
+        let res = unsafe {
+            bladerf_get_gain_stages(
+                self.device,
+                channel as bladerf_channel,
+                stages.as_mut_ptr(),
+                num_stages,
+            )
+        };
         check_res!(res);
 
         // Now, convert the pointers to Rust strings
@@ -537,23 +605,23 @@ impl BladeRF {
     // **Trigger Functions**
 
     /// Initialize a trigger
-    pub fn trigger_init(&self, ch: bladerf_channel, signal: TriggerSignal) -> Result<Trigger> {
-        let mut trigger = Trigger {
-            channel: ch,
-            role: TriggerRole::Invalid,
-            signal,
+    pub fn trigger_init(&self, channel: Channel, signal: TriggerSignal) -> Result<Trigger> {
+        let mut trigger = bladerf_trigger {
+            channel: 0,
+            role: 0,
+            signal: 0,
             options: 0,
         };
         let res = unsafe {
             bladerf_trigger_init(
                 self.device,
-                ch,
+                channel as bladerf_channel,
                 signal as bladerf_trigger_signal,
-                &mut trigger as *mut Trigger as *mut bladerf_trigger,
+                &mut trigger as *mut bladerf_trigger,
             )
         };
         check_res!(res);
-        Ok(trigger)
+        trigger.try_into()
     }
 
     /// Configure and (dis)arm a trigger on the specified device
@@ -612,21 +680,32 @@ impl BladeRF {
     /// Set the value of the specified correction parameter
     pub fn set_correction(
         &self,
-        ch: bladerf_channel,
+        channel: Channel,
         corr: Correction,
         value: CorrectionValue,
     ) -> Result<()> {
-        let res =
-            unsafe { bladerf_set_correction(self.device, ch, corr as bladerf_correction, value) };
+        let res = unsafe {
+            bladerf_set_correction(
+                self.device,
+                channel as bladerf_channel,
+                corr as bladerf_correction,
+                value,
+            )
+        };
         check_res!(res);
         Ok(())
     }
 
     /// Obtain the current value of the specified correction parameter
-    pub fn get_correction(&self, ch: bladerf_channel, corr: Correction) -> Result<CorrectionValue> {
+    pub fn get_correction(&self, channel: Channel, corr: Correction) -> Result<CorrectionValue> {
         let mut value: CorrectionValue = 0;
         let res = unsafe {
-            bladerf_get_correction(self.device, ch, corr as bladerf_correction, &mut value)
+            bladerf_get_correction(
+                self.device,
+                channel as bladerf_channel,
+                corr as bladerf_correction,
+                &mut value,
+            )
         };
         check_res!(res);
         Ok(value)
@@ -652,7 +731,7 @@ impl BladeRF {
     /// Configure the device for synchronous data transfer
     pub fn sync_config(
         &self,
-        layout: ChannelLayout,
+        channel: Channel,
         format: Format,
         num_buffers: u32,
         buffer_size: u32,
@@ -664,8 +743,8 @@ impl BladeRF {
             bladerf_sync_config(
                 self.device,
                 // Bindgen not precise with #define types
-                layout as i32 as u32,
-                format as i32 as u32,
+                channel as bladerf_channel_layout,
+                format as bladerf_format,
                 num_buffers,
                 buffer_size,
                 num_transfers,
@@ -793,8 +872,34 @@ impl BladeRF {
 
     // Device loading and programming
 
-    pub fn load_fpga(&self, bitstream_path: &Path) -> Result<()> {
-        let bitstream_path = CString::new(bitstream_path.as_os_str().as_encoded_bytes())
+    /// Write FX3 firmware to the bladeRF’s SPI flash
+    /// NOTE: This will require a power cycle to take effect
+    pub fn flash_firmware(&self, firmware_path: impl AsRef<Path>) -> Result<()> {
+        let bitstream_path = CString::new(firmware_path.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(|e| Error::msg(format!("Invalid path for cstring: {e:?}")))?;
+
+        let res = unsafe { bladerf_flash_firmware(self.device, bitstream_path.as_ptr()) };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Reset the device, causing it to reload its firmware from flash
+    pub fn device_reset(self) -> Result<()> {
+        let res = unsafe { bladerf_device_reset(self.device) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn load_fpga_from_env(&self) -> Result<()> {
+        let var_name = "BLADERF_RS_FPGA_BITSTREAM_PATH";
+        let path = std::env::var(var_name)
+            .map_err(|e| Error::msg(format!("Failed to read env var {var_name}: {e:?}")))?;
+
+        self.load_fpga(Path::new(&path))
+    }
+
+    pub fn load_fpga(&self, bitstream_path: impl AsRef<Path>) -> Result<()> {
+        let bitstream_path = CString::new(bitstream_path.as_ref().as_os_str().as_encoded_bytes())
             .map_err(|e| Error::msg(format!("Invalid path for cstring: {e:?}")))?;
 
         let res = unsafe { bladerf_load_fpga(self.device, bitstream_path.as_ptr()) };
@@ -802,87 +907,102 @@ impl BladeRF {
         Ok(())
     }
 
-    // **Bias Tee Control**
+    pub fn flash_fpga(&self, bitstream_path: impl AsRef<Path>) -> Result<()> {
+        let bitstream_path = CString::new(bitstream_path.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(|e| Error::msg(format!("Invalid path for cstring: {e:?}")))?;
 
-    pub fn get_bias_tee(&self, ch: bladerf_channel) -> Result<bool> {
-        let mut enable = false;
-        let res = unsafe { bladerf_get_bias_tee(self.device, ch, &mut enable) };
-        check_res!(res);
-        Ok(enable)
-    }
-
-    pub fn set_bias_tee(&self, ch: bladerf_channel, enable: bool) -> Result<()> {
-        let res = unsafe { bladerf_set_bias_tee(self.device, ch, enable) };
+        let res = unsafe { bladerf_flash_fpga(self.device, bitstream_path.as_ptr()) };
         check_res!(res);
         Ok(())
     }
 
-    /*
-    // Higher level control
-    pub fn configure_module(&self, module: Channel, config: ModuleConfig) {
-        self.set_frequency(self, module, config.frequency).unwrap();
-        self.set_sample_rate(self, module as i32, config.sample_rate)
-            .unwrap();
-        self.set_bandwidth(self, module as i32, config.bandwidth)
-            .unwrap();
-        self.set_gain(self, module as i32, config.lna_gain).unwrap();
-
-        // unsure whether this is still required / doesn't sem correct
-        match module {
-            Channel::Rx0 => {
-                BladeRF::set_rxvga1(self, config.vga1).unwrap();
-                BladeRF::set_rxvga2(self, config.vga2).unwrap();
-            }
-            Channel::Tx0 => {
-                BladeRF::set_txvga1(self, config.vga1).unwrap();
-                BladeRF::set_txvga2(self, config.vga2).unwrap();
-            }
-            Channel::Rx1 => {
-                BladeRF::set_rxvga1(self, config.vga1).unwrap();
-                BladeRF::set_rxvga2(self, config.vga2).unwrap();
-            }
-            Channel::Tx1 => {
-                BladeRF::set_txvga1(self, config.vga1).unwrap();
-                BladeRF::set_txvga2(self, config.vga2).unwrap();
-            }
-        };
+    pub fn erase_stored_fpga(&self) -> Result<()> {
+        let res = unsafe { bladerf_erase_stored_fpga(self.device) };
+        check_res!(res);
+        Ok(())
     }
-    */
+
+    pub fn get_fw_log(&self, path: impl AsRef<Path>) -> Result<()> {
+        let log_path = CString::new(path.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(|e| Error::msg(format!("Invalid path for cstring: {e:?}")))?;
+        let res = unsafe { bladerf_get_fw_log(self.device, log_path.as_ptr()) };
+        check_res!(res);
+        Ok(())
+    }
+
+    // **Bias Tee Control**
+
+    pub fn get_bias_tee(&self, channel: Channel) -> Result<bool> {
+        let mut enable = false;
+        let res =
+            unsafe { bladerf_get_bias_tee(self.device, channel as bladerf_channel, &mut enable) };
+        check_res!(res);
+        Ok(enable)
+    }
+
+    pub fn set_bias_tee(&self, channel: Channel, enable: bool) -> Result<()> {
+        let res = unsafe { bladerf_set_bias_tee(self.device, channel as bladerf_channel, enable) };
+        check_res!(res);
+        Ok(())
+    }
+
+    // Higher level control of one RF module
+    pub fn configure_module(&self, channel: Channel, config: ModuleConfig) -> Result<()> {
+        self.set_frequency(channel, config.frequency)?;
+        self.set_sample_rate(channel, config.sample_rate)?;
+        self.set_bandwidth(channel, config.bandwidth)?;
+        self.set_gain(channel, config.gain)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Prevent tests running in parallel from messing stuff up
+    // Also use parking_lot since we dont care about poisoning since tests are independent
+    static DEV_MUTEX: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 
     #[test]
     fn test_list_devices() {
-        let devices = BladeRF::get_device_list().expect("");
+        let _m = DEV_MUTEX.lock();
+
+        let devices = get_device_list().expect("");
         println!("Discovered devices: {:?}", devices.len());
     }
 
     #[test]
     fn test_open() {
-        let _device = BladeRF::open().unwrap();
+        let _m = DEV_MUTEX.lock();
+
+        let _device = BladeRF::open_first().unwrap();
     }
 
     #[test]
     fn test_open_devinfo() {
-        let devices = BladeRF::get_device_list().unwrap();
+        let _m = DEV_MUTEX.lock();
+
+        let devices = get_device_list().unwrap();
         assert!(!devices.is_empty());
         let _device = BladeRF::open_with_devinfo(&devices[0]).unwrap();
     }
 
     #[test]
     fn test_get_fw_version() {
-        let device = BladeRF::open().unwrap();
+        let _m = DEV_MUTEX.lock();
 
-        let version = device.fw_version().unwrap();
+        let device = BladeRF::open_first().unwrap();
+
+        let version = device.firmware_version().unwrap();
         println!("FW Version {:?}", version);
     }
 
     #[test]
     fn test_get_fpga_version() {
-        let device = BladeRF::open().unwrap();
+        let _m = DEV_MUTEX.lock();
+
+        let device = BladeRF::open_first().unwrap();
 
         let version = device.fpga_version().unwrap();
         println!("FPGA Version {:?}", version);
@@ -890,7 +1010,9 @@ mod tests {
 
     #[test]
     fn test_get_serial() {
-        let device = BladeRF::open().unwrap();
+        let _m = DEV_MUTEX.lock();
+
+        let device = BladeRF::open_first().unwrap();
 
         let serial = device.get_serial().unwrap();
         println!("Serial: {:?}", serial);
@@ -899,7 +1021,9 @@ mod tests {
 
     #[test]
     fn test_fpga_loaded() {
-        let device = BladeRF::open().unwrap();
+        let _m = DEV_MUTEX.lock();
+
+        let device = BladeRF::open_first().unwrap();
 
         let loaded = device.is_fpga_configured().unwrap();
         assert_eq!(true, loaded);
@@ -907,7 +1031,9 @@ mod tests {
 
     #[test]
     fn test_loopback_modes() {
-        let device = BladeRF::open().unwrap();
+        let _m = DEV_MUTEX.lock();
+
+        let device = BladeRF::open_first().unwrap();
 
         // Check initial is none
         let loopback = device.get_loopback().unwrap();
@@ -927,22 +1053,24 @@ mod tests {
 
     #[test]
     fn test_set_freq() {
-        let device = BladeRF::open().unwrap();
+        let _m = DEV_MUTEX.lock();
+
+        let device = BladeRF::open_first().unwrap();
 
         let freq: u64 = 915000000;
 
         // Set and check frequency
-        device
-            .set_frequency(ChannelLayout::Rx1 as i32, freq)
-            .unwrap();
-        let actual_freq = device.get_frequency(ChannelLayout::Rx1 as i32).unwrap();
+        device.set_frequency(Channel::Rx1, freq).unwrap();
+        let actual_freq = device.get_frequency(Channel::Rx1).unwrap();
         let diff = freq as i64 - actual_freq as i64;
         assert!(i64::abs(diff) < 10);
     }
 
     #[test]
     fn test_set_sampling() {
-        let device = BladeRF::open().unwrap();
+        let _m = DEV_MUTEX.lock();
+
+        let device = BladeRF::open_first().unwrap();
 
         let desired = Sampling::Internal;
         // Set and check frequency

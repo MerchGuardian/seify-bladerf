@@ -1,24 +1,22 @@
-use std::ffi::CStr;
-use std::os::raw::c_void;
+use std::{cmp, ffi::CStr};
 
-use crate::{Error, Result};
+use crate::{BladeRF, Error, Result};
 use bladerf_sys::*;
 use bytemuck::cast_slice;
 use num_complex::Complex;
 use strum::FromRepr;
 
-// BladeRF module config object
+/// BladeRF module config object
 #[derive(Clone, Debug)]
 pub struct ModuleConfig {
     pub frequency: u64,
     pub sample_rate: u32,
     pub bandwidth: u32,
-    pub lna_gain: i32,
-    pub vga1: i32,
-    pub vga2: i32,
+    /// Set overall system gain
+    pub gain: i32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Version {
     pub major: u16,
     pub minor: u16,
@@ -49,6 +47,50 @@ impl Version {
         }
     }
 }
+
+impl std::fmt::Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(desc) = self.describe {
+            f.write_fmt(format_args!(
+                "v{}.{}.{} ({})",
+                self.major, self.minor, self.patch, desc
+            ))
+        } else {
+            f.write_fmt(format_args!(
+                "v{}.{}.{}",
+                self.major, self.minor, self.patch,
+            ))
+        }
+    }
+}
+
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Version {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        let major_ord = self.major.cmp(&other.major);
+        if major_ord != cmp::Ordering::Equal {
+            return major_ord;
+        }
+        let minor_ord = self.minor.cmp(&other.minor);
+        if minor_ord != cmp::Ordering::Equal {
+            return minor_ord;
+        }
+        self.patch.cmp(&other.patch)
+    }
+}
+
+impl PartialEq for Version {
+    fn eq(&self, other: &Self) -> bool {
+        self.major == other.major && self.minor == other.minor && self.patch == other.patch
+    }
+}
+
+impl Eq for Version {}
 
 pub struct RationalRate {
     /// Integer portion
@@ -114,6 +156,10 @@ impl DevInfo {
     pub fn product(&self) -> String {
         String::from_utf8_lossy(cast_slice(&self.0.product)).to_string()
     }
+
+    pub fn open(&self) -> Result<BladeRF> {
+        BladeRF::open_with_devinfo(self)
+    }
 }
 
 impl From<bladerf_devinfo> for DevInfo {
@@ -130,14 +176,14 @@ pub struct Config {
 
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(i32)]
-pub enum ChannelLayout {
+pub enum Channel {
     Rx1 = bladerf_channel_layout_BLADERF_RX_X1 as i32,
     Rx2 = bladerf_channel_layout_BLADERF_RX_X2 as i32,
     Tx1 = bladerf_channel_layout_BLADERF_TX_X1 as i32,
     Tx2 = bladerf_channel_layout_BLADERF_TX_X2 as i32,
 }
 
-impl TryFrom<bladerf_channel> for ChannelLayout {
+impl TryFrom<bladerf_channel> for Channel {
     type Error = Error;
 
     fn try_from(channel: bladerf_channel) -> Result<Self> {
@@ -407,19 +453,20 @@ impl From<bladerf_gain_modes> for GainModeInfo {
 /// Range struct to represent `bladerf_range`
 #[derive(Debug)]
 pub struct Range {
-    pub min: i64,
-    pub max: i64,
-    pub step: i64,
-    pub scale: f32,
+    // Min dB
+    pub min: f64,
+    // Max dB
+    pub max: f64,
+    // Step dB
+    pub step: f64,
 }
 
 impl From<&bladerf_range> for Range {
     fn from(range: &bladerf_range) -> Self {
         Self {
-            min: range.min,
-            max: range.max,
-            step: range.step,
-            scale: range.scale,
+            min: range.min as f64 * range.scale as f64,
+            max: range.max as f64 * range.scale as f64,
+            step: range.step as f64 * range.scale as f64,
         }
     }
 }
@@ -493,12 +540,24 @@ impl TryFrom<bladerf_trigger_signal> for TriggerSignal {
 }
 
 /// Trigger configuration
-#[repr(C)]
 pub struct Trigger {
-    pub channel: bladerf_channel,
+    pub channel: Channel,
     pub role: TriggerRole,
     pub signal: TriggerSignal,
     pub options: u64,
+}
+
+impl TryFrom<bladerf_trigger> for Trigger {
+    type Error = Error;
+
+    fn try_from(t: bladerf_trigger) -> Result<Self> {
+        Ok(Self {
+            channel: t.channel.try_into()?,
+            role: t.role.try_into()?,
+            signal: t.signal.try_into()?,
+            options: t.options,
+        })
+    }
 }
 
 /// Supported sample types from the bladeRF.
@@ -528,5 +587,99 @@ unsafe impl SampleFormat for Complex<i16> {
 unsafe impl SampleFormat for Complex<i8> {
     fn is_compatible(format: Format) -> bool {
         matches!(format, Format::Sc8Q7)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version_cmp() {
+        let v1 = Version {
+            major: 2,
+            minor: 0,
+            patch: 0,
+            describe: None,
+        };
+        let v2 = Version {
+            major: 1,
+            minor: 5,
+            patch: 10,
+            describe: None,
+        };
+
+        assert!(v1 > v2);
+        assert!(v2 < v1);
+
+        let v1 = Version {
+            major: 1,
+            minor: 6,
+            patch: 0,
+            describe: None,
+        };
+        let v2 = Version {
+            major: 1,
+            minor: 5,
+            patch: 10,
+            describe: None,
+        };
+
+        assert!(v1 > v2);
+        assert!(v2 < v1);
+
+        let v1 = Version {
+            major: 1,
+            minor: 5,
+            patch: 11,
+            describe: None,
+        };
+        let v2 = Version {
+            major: 1,
+            minor: 5,
+            patch: 10,
+            describe: None,
+        };
+
+        assert!(v1 > v2);
+        assert!(v2 < v1);
+
+        let v1 = Version {
+            major: 1,
+            minor: 5,
+            patch: 10,
+            describe: Some("test"),
+        };
+        let v2 = Version {
+            major: 1,
+            minor: 5,
+            patch: 10,
+            describe: Some("another test"),
+        };
+
+        assert_eq!(v1, v2);
+
+        let v1 = Version {
+            major: 1,
+            minor: 5,
+            patch: 11,
+            describe: None,
+        };
+        let v2 = Version {
+            major: 1,
+            minor: 6,
+            patch: 0,
+            describe: None,
+        };
+        let v3 = Version {
+            major: 2,
+            minor: 0,
+            patch: 0,
+            describe: None,
+        };
+
+        assert!(v1 < v2);
+        assert!(v2 < v3);
+        assert!(v1 < v3);
     }
 }
