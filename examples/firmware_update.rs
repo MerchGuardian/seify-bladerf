@@ -16,7 +16,7 @@ pub fn main() -> anyhow::Result<()> {
 
     let desired_firmware_version = Version {
         major: 2,
-        minor: 5,
+        minor: 4,
         patch: 0,
         describe: None,
     };

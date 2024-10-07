@@ -24,14 +24,15 @@
         };
         xa4-bitstream = pkgs.fetchurl {
           # See: https://www.nuand.com/fpga_images/
-          url = "https://www.nuand.com/fpga/v0.15.3/hostedxA4.rbf";
+          # url = "https://www.nuand.com/fpga/v0.11.1/hostedxA4.rbf";
+          url = "https://www.nuand.com/fpga/hostedxA4-latest.rbf";
           # nix hash to-sri --type sha256 eaa415650b6b00e75f1e28c2a860d8f90577b1f4648b2f7b88a65745f464a6db
           sha256 = "sha256-6qQVZQtrAOdfHijCqGDY+QV3sfRkiy97iKZXRfRkpts=";
         };
         fx3-firmware = pkgs.fetchurl {
           # See: https://www.nuand.com/fx3_images/
-          # Annoyingly there is no explicit url for 2.5.0, so one day he will update and the hash check will fail...
-          url = "https://www.nuand.com/fx3/bladeRF_fw_latest.img";
+          # url = "https://www.nuand.com/fx3/bladeRF_fw_v2.4.0.img";
+          url = "http://www.nuand.com/fx3/latest.img";
           sha256 = "sha256-Zw0cp6ocYAfrCZADUcOqmX5L4xbbwKL8FTKpCNAswKk=";
         };
       in with pkgs; {
