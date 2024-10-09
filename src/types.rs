@@ -150,6 +150,7 @@ impl DevInfo {
         self.0.instance
     }
     pub fn manufacturer(&self) -> String {
+        // TODO: This seems to be `Nuandwn>` instead of `Nuandwn` (what bladeRF-cli --probe gets).
         String::from_utf8_lossy(cast_slice(&self.0.manufacturer)).to_string()
     }
     pub fn product(&self) -> String {

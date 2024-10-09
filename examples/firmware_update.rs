@@ -4,6 +4,10 @@ use anyhow::Context;
 use bladerf::*;
 
 pub fn main() -> anyhow::Result<()> {
+    println!(
+        "libbladerf version: {}",
+        bladerf::version().context("Failed to obtain bladerf version")?
+    );
     let devices = get_device_list().context("Failed to list BladeRF devices")?;
     println!("Discovered {} devices", devices.len());
 

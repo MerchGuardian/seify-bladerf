@@ -2,6 +2,10 @@ use anyhow::Context;
 use bladerf::*;
 
 pub fn main() -> anyhow::Result<()> {
+    println!(
+        "libbladerf version: {}",
+        bladerf::version().context("Failed to obtain bladerf version")?
+    );
     let devices = get_device_list().context("Failed to list BladeRF devices")?;
     println!("Discovered {} devices", devices.len());
 
@@ -19,14 +23,22 @@ pub fn main() -> anyhow::Result<()> {
         dev.load_fpga_from_env()
             .context("Failed to load FPGA bitstream")?;
 
-        print_device_info(&dev).context("Failed to print device information")?;
-        print_loopback_info(&dev).context("Failed to print loopback information")?;
-        print_sampling_info(&dev).context("Failed to print sampling information")?;
+        let _ = print_device_info(&dev)
+            .context("Failed to print device information")
+            .map_err(|e| println!("{e:?}"));
+        println!();
+        let _ = print_loopback_info(&dev)
+            .context("Failed to print loopback information")
+            .map_err(|e| println!("{e:?}"));
+        println!();
+        let _ = print_sampling_info(&dev)
+            .context("Failed to print sampling information")
+            .map_err(|e| println!("{e:?}"));
         println!();
 
         for ch in [Channel::Rx1, Channel::Rx2, Channel::Tx1, Channel::Tx2] {
-            print_channel_info(&dev, ch)
-                .context(format!("Failed to print channel information for {:?}", ch))?;
+            let _ = print_channel_info(&dev, ch)
+                .context(format!("Failed to print channel information for {:?}", ch));
         }
     }
 

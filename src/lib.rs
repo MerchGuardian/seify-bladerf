@@ -27,6 +27,20 @@ macro_rules! check_res {
 	);
 }
 
+/// Returns the version of the linked `libbladerf` library.
+pub fn version() -> Result<Version> {
+    let mut version = bladerf_version {
+        major: 0,
+        minor: 0,
+        patch: 0,
+        describe: std::ptr::null(),
+    };
+    unsafe { bladerf_version(&mut version as *mut _) };
+
+    // SAFETY: came from bladerf ffi
+    Ok(unsafe { Version::from_ffi(&version) })
+}
+
 /// BladeRF device object
 pub struct BladeRF {
     device: *mut bladerf,
@@ -99,6 +113,21 @@ impl BladeRF {
             device,
             format_sync: RwLock::new(None),
         })
+    }
+
+    pub fn info(&self) -> Result<DevInfo> {
+        let mut info = bladerf_devinfo {
+            backend: 0,
+            serial: [0; 33],
+            usb_bus: 0,
+            usb_addr: 0,
+            instance: 0,
+            manufacturer: [0; 33],
+            product: [0; 33],
+        };
+        let res = unsafe { bladerf_get_devinfo(self.device, &mut info as *mut _) };
+        check_res!(res);
+        Ok(info.into())
     }
 
     // Device Properties and Information
@@ -175,7 +204,15 @@ impl BladeRF {
     // RX & TX Module Control
     // http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___m_o_d_u_l_e.html
 
-    pub fn enable_module(&self, channel: Channel, enable: bool) -> Result<()> {
+    pub fn enable_module(&self, channel: Channel) -> Result<()> {
+        self.set_module_enabled(channel, true)
+    }
+
+    pub fn disenable_module(&self, channel: Channel) -> Result<()> {
+        self.set_module_enabled(channel, false)
+    }
+
+    pub fn set_module_enabled(&self, channel: Channel, enable: bool) -> Result<()> {
         let res = unsafe { bladerf_enable_module(self.device, channel as bladerf_module, enable) };
         check_res!(res);
         Ok(())
