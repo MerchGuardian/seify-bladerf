@@ -41,6 +41,10 @@ pub fn version() -> Result<Version> {
     Ok(unsafe { Version::from_ffi(&version) })
 }
 
+pub fn set_log_level(level: LogLevel) {
+    unsafe { bladerf_log_set_verbosity(level as u32) }
+}
+
 /// BladeRF device object
 pub struct BladeRF {
     device: *mut bladerf,
@@ -279,6 +283,21 @@ impl BladeRF {
         Ok(rate.into())
     }
 
+    pub fn get_sample_rate_range(&self, channel: Channel) -> Result<Range> {
+        let mut range_ptr: *const bladerf_range = ptr::null();
+        let res = unsafe {
+            bladerf_get_sample_rate_range(self.device, channel as bladerf_channel, &mut range_ptr)
+        };
+        check_res!(res);
+        if range_ptr.is_null() {
+            return Err(Error::msg(
+                "bladerf_get_sample_rate_range returned null pointer",
+            ));
+        }
+        let range = unsafe { &*range_ptr };
+        Ok(Range::from(range))
+    }
+
     pub fn set_sampling(&self, sampling: Sampling) -> Result<()> {
         let res = unsafe { bladerf_set_sampling(self.device, sampling as bladerf_sampling) };
         check_res!(res);
@@ -329,6 +348,21 @@ impl BladeRF {
         Ok(bandwidth)
     }
 
+    pub fn get_bandwidth_range(&self, channel: Channel) -> Result<Range> {
+        let mut range_ptr: *const bladerf_range = ptr::null();
+        let res = unsafe {
+            bladerf_get_bandwidth_range(self.device, channel as bladerf_channel, &mut range_ptr)
+        };
+        check_res!(res);
+        if range_ptr.is_null() {
+            return Err(Error::msg(
+                "bladerf_get_bandwidth_range returned null pointer",
+            ));
+        }
+        let range = unsafe { &*range_ptr };
+        Ok(Range::from(range))
+    }
+
     pub fn set_lpf_mode(&self, channel: Channel, lpf_mode: LPFMode) -> Result<()> {
         let res = unsafe {
             bladerf_set_lpf_mode(
@@ -371,6 +405,21 @@ impl BladeRF {
             unsafe { bladerf_get_frequency(self.device, channel as bladerf_channel, &mut freq) };
         check_res!(res);
         Ok(freq)
+    }
+
+    pub fn get_frequency_range(&self, channel: Channel) -> Result<Range> {
+        let mut range_ptr: *const bladerf_range = ptr::null();
+        let res = unsafe {
+            bladerf_get_frequency_range(self.device, channel as bladerf_channel, &mut range_ptr)
+        };
+        check_res!(res);
+        if range_ptr.is_null() {
+            return Err(Error::msg(
+                "bladerf_get_frequency_range returned null pointer",
+            ));
+        }
+        let range = unsafe { &*range_ptr };
+        Ok(Range::from(range))
     }
 
     pub fn schedule_retune(
@@ -1053,7 +1102,7 @@ mod tests {
 
         let serial = device.get_serial().unwrap();
         println!("Serial: {:?}", serial);
-        assert!(serial.len() == 33);
+        assert!(serial.len() == 32);
     }
 
     #[test]

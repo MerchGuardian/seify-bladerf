@@ -21,8 +21,3 @@ impl bladerf_devinfo {
             .unwrap_or("".to_string())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    // TODO: any useful binding tests?
-}

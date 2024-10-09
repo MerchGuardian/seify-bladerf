@@ -91,6 +91,18 @@ impl PartialEq for Version {
 
 impl Eq for Version {}
 
+#[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
+#[repr(u32)]
+pub enum LogLevel {
+    Verbose = bladerf_log_level_BLADERF_LOG_LEVEL_VERBOSE,
+    Debug = bladerf_log_level_BLADERF_LOG_LEVEL_DEBUG,
+    Info = bladerf_log_level_BLADERF_LOG_LEVEL_INFO,
+    Warning = bladerf_log_level_BLADERF_LOG_LEVEL_WARNING,
+    Error = bladerf_log_level_BLADERF_LOG_LEVEL_ERROR,
+    Critical = bladerf_log_level_BLADERF_LOG_LEVEL_CRITICAL,
+    Silent = bladerf_log_level_BLADERF_LOG_LEVEL_SILENT,
+}
+
 pub struct RationalRate {
     /// Integer portion
     pub integer: u64,
@@ -181,6 +193,15 @@ pub enum Channel {
     Rx2 = bladerf_channel_layout_BLADERF_RX_X2 as i32,
     Tx1 = bladerf_channel_layout_BLADERF_TX_X1 as i32,
     Tx2 = bladerf_channel_layout_BLADERF_TX_X2 as i32,
+}
+
+impl Channel {
+    pub fn is_rx(&self) -> bool {
+        matches!(self, Channel::Rx1 | Channel::Rx2)
+    }
+    pub fn is_tx(&self) -> bool {
+        matches!(self, Channel::Tx1 | Channel::Tx2)
+    }
 }
 
 impl TryFrom<bladerf_channel> for Channel {
@@ -453,12 +474,18 @@ impl From<bladerf_gain_modes> for GainModeInfo {
 /// Range struct to represent `bladerf_range`
 #[derive(Debug)]
 pub struct Range {
-    // Min dB
     pub min: f64,
-    // Max dB
     pub max: f64,
-    // Step dB
     pub step: f64,
+}
+
+impl std::fmt::Display for Range {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{:.0}..{:.0} (step {:.0})",
+            self.min, self.max, self.step,
+        ))
+    }
 }
 
 impl From<&bladerf_range> for Range {

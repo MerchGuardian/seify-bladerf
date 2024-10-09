@@ -38,7 +38,8 @@ pub fn main() -> anyhow::Result<()> {
 
         for ch in [Channel::Rx1, Channel::Rx2, Channel::Tx1, Channel::Tx2] {
             let _ = print_channel_info(&dev, ch)
-                .context(format!("Failed to print channel information for {:?}", ch));
+                .context(format!("Failed to print channel information for {:?}", ch))
+                .map_err(|e| println!("{e:?}"));
         }
     }
 
@@ -77,51 +78,76 @@ fn print_device_info(dev: &BladeRF) -> anyhow::Result<()> {
 fn print_channel_info(dev: &BladeRF, channel: Channel) -> anyhow::Result<()> {
     println!("  Channel {channel:?}");
 
+    // frequency
     let freq = dev
         .get_frequency(channel)
         .context("Failed to retrieve frequency")?;
     println!("    Frequency: {freq} Hz");
 
+    let frequency_range = dev
+        .get_frequency_range(channel)
+        .context("Failed to reterve frequency range")?;
+    println!("    Bandwidth range: {frequency_range}");
+
+    // bandwidth
     let bw = dev
         .get_bandwidth(channel)
         .context("Failed to retrieve bandwidth")?;
     println!("    Bandwidth: {bw} Hz");
 
-    let lpf_mode = dev
-        .get_lpf_mode(channel)
-        .context("Failed to retrieve LPF mode")?;
-    println!("    LPF Mode: {lpf_mode:?}");
+    let bandwidth_range = dev
+        .get_bandwidth_range(channel)
+        .context("Failed to reterve bandwidth range")?;
+    println!("    Bandwidth range: {bandwidth_range}");
 
-    let gain = dev.get_gain(channel).context("Failed to retrieve gain")?;
-    println!("    Gain: {gain} dB");
+    // sample rate
+    let sample_rate = dev
+        .get_sample_rate(channel)
+        .context("Failed to reterve sample rate")?;
+    println!("    Sample rate: {sample_rate} Hz");
 
-    let modes = dev
-        .get_gain_modes(channel)
-        .context("Failed to retrieve gain modes")?;
-    println!("    Gain Modes:");
-    for mode_info in modes {
-        println!("      Mode: {} ({:?})", mode_info.name, mode_info.mode);
-    }
+    let sample_rate_range = dev
+        .get_sample_rate_range(channel)
+        .context("Failed to reterve sample rate range")?;
+    println!("    Sample rate range: {sample_rate_range}");
 
-    let stages = dev
-        .get_gain_stages(channel)
-        .context("Failed to retrieve gain stages")?;
-    println!("    Gain Stages:");
-    for stage in stages {
-        println!("      Stage: {stage}");
+    if channel.is_rx() {
+        let gain = dev.get_gain(channel).context("Failed to retrieve gain")?;
+        println!("    Gain: {gain} dB");
 
-        let gain = dev
-            .get_gain_stage(channel, &stage)
-            .context(format!("Failed to retrieve gain for stage {stage}"))?;
-        println!("        Gain: {gain} dB");
+        let modes = dev
+            .get_gain_modes(channel)
+            .context("Failed to retrieve gain modes")?;
+        println!("    Gain Modes:");
+        for mode_info in modes {
+            println!("      Mode: {} ({:?})", mode_info.name, mode_info.mode);
+        }
 
-        let range = dev
-            .get_gain_stage_range(channel, &stage)
-            .context(format!("Failed to retrieve gain range for stage {stage}"))?;
-        println!(
-            "        Range: min = {:.2} dB, max = {:.2} dB, step = {:.2} dB",
-            range.min, range.max, range.step
-        );
+        let stages = dev
+            .get_gain_stages(channel)
+            .context("Failed to retrieve gain stages")?;
+        println!("    Gain Stages:");
+        for stage in stages {
+            println!("      Stage: {stage}");
+
+            let gain = dev
+                .get_gain_stage(channel, &stage)
+                .context(format!("Failed to retrieve gain for stage {stage}"))?;
+            println!("        Gain: {gain} dB");
+
+            let range = dev
+                .get_gain_stage_range(channel, &stage)
+                .context(format!("Failed to retrieve gain range for stage {stage}"))?;
+            println!(
+                "        Range: min = {:.2} dB, max = {:.2} dB, step = {:.2} dB",
+                range.min, range.max, range.step
+            );
+        }
+
+        // let lpf_mode = dev
+        //     .get_lpf_mode(channel)
+        //     .context("Failed to retrieve LPF mode")?;
+        // println!("    LPF Mode: {lpf_mode:?}");
     }
 
     println!();
@@ -150,10 +176,10 @@ fn print_loopback_info(dev: &BladeRF) -> anyhow::Result<()> {
 }
 
 fn print_sampling_info(dev: &BladeRF) -> anyhow::Result<()> {
-    let sampling = dev
-        .get_sampling()
-        .context("Failed to retrieve sampling mode")?;
-    println!("  Sampling Mode: {:?}", sampling);
+    // let sampling = dev
+    //     .get_sampling()
+    //     .context("Failed to retrieve sampling mode")?;
+    // println!("  Sampling Mode: {:?}", sampling);
 
     let rx_mux = dev.get_rx_mux().context("Failed to retrieve RX Mux mode")?;
     println!("  RX Mux Mode: {:?}", rx_mux);
