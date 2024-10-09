@@ -479,6 +479,13 @@ pub struct Range {
     pub step: f64,
 }
 
+impl Range {
+    pub fn contains(&self, query: impl Into<u64>) -> bool {
+        let steps = (query.into() as f64 - self.min) / self.step;
+        steps % 1.0 < 1e-8
+    }
+}
+
 impl std::fmt::Display for Range {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(

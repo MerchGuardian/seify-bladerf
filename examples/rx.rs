@@ -9,14 +9,36 @@ pub fn rx(device: &bladerf::BladeRF) -> anyhow::Result<()> {
         .load_fpga_from_env()
         .context("Failed to load FPGA bitstream")?;
 
+    let frequency_hz = 915_000_000;
+    let sample_rate_hz = 20_000_000;
+    let bandwidth_hz = 5_000_000;
+
+    // TODO: Move this validation into the library
+    let supported_freqs = device.get_frequency_range(Channel::Rx1).unwrap();
+    let supported_sample_rates = device.get_sample_rate_range(Channel::Rx1).unwrap();
+    let supported_bandwidths = device.get_bandwidth_range(Channel::Rx1).unwrap();
+    assert!(
+        supported_freqs.contains(frequency_hz),
+        "{frequency_hz} not in {supported_freqs}"
+    );
+    assert!(
+        supported_sample_rates.contains(sample_rate_hz),
+        "{sample_rate_hz} not in {supported_sample_rates}"
+    );
+    assert!(
+        supported_bandwidths.contains(bandwidth_hz),
+        "{bandwidth_hz} not in {supported_bandwidths}"
+    );
+
     let init_params = || -> Result<()> {
-        dbg!();
-        device.set_frequency(Channel::Rx1, 915_000_000)?;
-        dbg!();
-        device.set_sample_rate(Channel::Rx1, 20_000_000)?;
-        dbg!();
-        device.set_bandwidth(Channel::Rx1, 5_000_000)?;
-        dbg!();
+        device.set_frequency(Channel::Rx1, frequency_hz)?;
+
+        // Fails here:
+        // Maybe try to compile the same firmware as the host lib?
+        device
+            .set_sample_rate(Channel::Rx1, sample_rate_hz)
+            .unwrap();
+        device.set_bandwidth(Channel::Rx1, bandwidth_hz)?;
         // device.set_gain(Channel::Rx1, 0)?;
         // device.set_gain_mode(Channel::Rx1, GainMode::Default)?;
 
