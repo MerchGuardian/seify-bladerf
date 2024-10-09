@@ -1,7 +1,6 @@
 use std::{cmp, ffi::CStr};
 
-use crate::{BladeRF, Error, Result};
-use bladerf_sys::*;
+use crate::{sys::*, BladeRF, Error, Result};
 use bytemuck::cast_slice;
 use num_complex::Complex;
 use strum::FromRepr;

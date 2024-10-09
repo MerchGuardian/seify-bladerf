@@ -7,6 +7,7 @@ fn main() {
     // Link shared library
     // NOTE: the lib in nix is called libbladeRF.so
     println!("cargo:rustc-link-lib=bladeRF");
+    println!("cargo:rerun-if-env-changed=BLADERF_INCLUDE_PATH");
 
     let mut builder = Builder::default()
         .header("wrapper.h")

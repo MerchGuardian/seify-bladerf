@@ -15,8 +15,8 @@ use std::*;
 use sync::RwLock;
 use time::Duration;
 
-pub use bladerf_sys as sys;
-use bladerf_sys::*;
+pub use libbladerf_sys as sys;
+use sys::*;
 
 // Macro to simplify integer returns
 macro_rules! check_res {

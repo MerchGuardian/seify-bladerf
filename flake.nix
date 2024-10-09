@@ -22,6 +22,10 @@
         rust-pkgs = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
         };
+        fx3-sdk = with pkgs; import ./fx3-sdk.nix {
+          inherit lib requireFile autoPatchelfHook stdenv gnutar libusb1;
+          inherit (pkgs.stdenv) mkDerivation;
+        };
         xa4-bitstream = pkgs.fetchurl {
           # See: https://www.nuand.com/fpga_images/
           # url = "https://www.nuand.com/fpga/v0.11.1/hostedxA4.rbf";
@@ -43,9 +47,11 @@
             RUSTFLAGS="-L ${libbladeRF}/lib";
             BLADERF_RS_FPGA_BITSTREAM_PATH="${xa4-bitstream}";
             BLADERF_RS_FX3_FIRMWARE_PATH="${fx3-firmware}";
+            ABC="${fx3-sdk}";
 
             packages = [
               rust-pkgs
+              gcc-arm-embedded-6
             ];
           };
         };
