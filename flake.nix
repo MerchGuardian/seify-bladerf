@@ -19,7 +19,7 @@
           ];
           inherit system;
         };
-        rust-pkgs = pkgs.rust-bin.stable.latest.default.override {
+        rust-pkgs = pkgs.rust-bin.nightly.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
         };
         bladerf = import ./bladerf.nix {
