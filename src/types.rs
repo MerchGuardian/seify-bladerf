@@ -1,8 +1,9 @@
-use std::{cmp, ffi::CStr};
-
 use crate::{sys::*, BladeRF, Error, Result};
+
 use bytemuck::cast_slice;
+use enum_map::Enum;
 use num_complex::Complex;
+use std::{cmp, ffi::CStr};
 use strum::FromRepr;
 
 /// BladeRF module config object
@@ -150,7 +151,7 @@ impl DevInfo {
         self.0.backend.try_into()
     }
     pub fn serial(&self) -> String {
-        String::from_utf8_lossy(cast_slice(&self.0.serial)).to_string()
+        String::from_utf8_lossy(cast_slice(&self.0.serial[..32])).to_string()
     }
     pub fn usb_bus(&self) -> Option<u8> {
         Some(self.0.usb_bus)
@@ -162,7 +163,7 @@ impl DevInfo {
         self.0.instance
     }
     pub fn manufacturer(&self) -> String {
-        // TODO: This seems to be `Nuandwn>` instead of `Nuandwn` (what bladeRF-cli --probe gets).
+        // TODO: This seems to be `Nuandwn>` instead of `Nuandwn` (what bladeRF-cli --probe gets)
         String::from_utf8_lossy(cast_slice(&self.0.manufacturer)).to_string()
     }
     pub fn product(&self) -> String {
@@ -186,7 +187,7 @@ pub struct Config {
     pub rx: ModuleConfig,
 }
 
-#[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Enum, FromRepr, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Channel {
     Rx1 = bladerf_channel_layout_BLADERF_RX_X1 as i32,
