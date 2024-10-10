@@ -17,6 +17,7 @@ members = ["libbladerf-sys"]
 
 [dependencies]
 bytemuck = "1.18.0"
+egui_plot = "0.29.0"
 enum-map = "2.7.3"
 libbladerf-sys = { version = "0.1.0", path = "./libbladerf-sys" }
 log = "0.4.22"
@@ -27,5 +28,6 @@ thiserror = "1.0.64"
 
 [dev-dependencies]
 anyhow = "1.0.89"
+eframe = "0.29.1"
 tempfile = "3.13.0"
 
