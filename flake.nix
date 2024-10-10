@@ -32,27 +32,15 @@
             shellHook = ''
               export LIBCLANG_PATH="${llvmPackages_14.clang.cc.lib}/lib";
 
-              # libbladeRF
               export BLADERF_INCLUDE_PATH="${bladerf.libbladerf}/include";
               export BLADERF_RS_FPGA_BITSTREAM_PATH="${bladerf.xa4-bitstream}";
               export BLADERF_RS_FX3_FIRMWARE_PATH="${bladerf.fx3-firmware}";
               export RUSTFLAGS="-L ${bladerf.libbladerf}/lib";
               export PATH="${bladerf.libbladerf}/bin:$PATH";
-
-              # gui stuff
-              export LD_LIBRARY_PATH=${udev}/lib:$LD_LIBRARY_PATH
-              export LD_LIBRARY_PATH=${alsaLib}/lib:$LD_LIBRARY_PATH
-              export LD_LIBRARY_PATH=${libxkbcommon}/lib:$LD_LIBRARY_PATH
-              export LD_LIBRARY_PATH=${xorg.libX11}/lib:$LD_LIBRARY_PATH
-              export LD_LIBRARY_PATH=${xorg.libXcursor}/lib:$LD_LIBRARY_PATH
-              export LD_LIBRARY_PATH=${xorg.libXrandr}/lib:$LD_LIBRARY_PATH
-              export LD_LIBRARY_PATH=${xorg.libXi}/lib:$LD_LIBRARY_PATH
-              export LD_LIBRARY_PATH=${vulkan-loader}/lib:$LD_LIBRARY_PATH
             '';
 
             packages = [
               rust-pkgs
-              pkg-config
             ];
           };
         };
