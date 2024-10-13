@@ -26,9 +26,13 @@ pub struct Version {
 }
 
 impl Version {
+    /// Converts the ffi type `bladerf_version` to `Self`.
+    /// 
+    /// # Safety
     /// `version` must come from a bladerf ffi call.
     /// More specifically:
-    /// `version.describe` must be a null-terminated, immutable, statically-allocated, string
+    /// `version.describe` must be a null-terminated, immutable, statically-allocated (always valid),
+    /// string.
     pub unsafe fn from_ffi(version: &bladerf_version) -> Self {
         let describe = if !version.describe.is_null() {
             // SAFETY: bladefr docs on field say do not try to modify or free this,
@@ -602,6 +606,13 @@ impl TryFrom<bladerf_trigger> for Trigger {
 }
 
 /// Supported sample types from the bladeRF.
+///
+/// # Safety
+/// `is_compatible` must only return true if it is valid to re-interpret bytes from the device as `Self`.
+///
+/// Currently this is only implemented for:
+/// - `Format::Sc16Q11` => `Complex<i16>`
+/// - `Format::Sc8Q7` => `Complex<i8>`
 pub unsafe trait SampleFormat: Sized {
     /// Returns true if this data type is commutable with the given format enum
     fn is_compatible(format: Format) -> bool;

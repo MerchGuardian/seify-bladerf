@@ -102,7 +102,7 @@ impl BladeRF {
     }
 
     // Device Properties and Information
-    /// http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___i_n_f_o.html
+    // http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___i_n_f_o.html
 
     pub fn get_serial(&self) -> Result<String> {
         unsafe {
@@ -148,12 +148,10 @@ impl BladeRF {
         let res = unsafe { bladerf_is_fpga_configured(self.device) };
         check_res!(res);
 
-        if res > 0 {
-            Ok(true)
-        } else if res == 0 {
-            Ok(false)
-        } else {
-            unreachable!()
+        match res {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => panic!("bladerf_is_fpga_configured returned invalid value: {res}"),
         }
     }
 
@@ -295,7 +293,7 @@ impl BladeRF {
         RxMux::try_from(mux)
     }
 
-    /// Configure bandwidth
+    // Configure bandwidth
 
     pub fn set_bandwidth(&self, channel: Channel, bandwidth: u32) -> Result<u32> {
         let mut actual: u32 = 0;
@@ -355,7 +353,6 @@ impl BladeRF {
     }
 
     /// Set frequency band
-
     pub fn select_band(&self, channel: Channel, frequency: u64) -> Result<()> {
         let res =
             unsafe { bladerf_select_band(self.device, channel as bladerf_channel, frequency) };
@@ -476,7 +473,7 @@ impl BladeRF {
         Ok(supported)
     }
 
-    /// See: http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___l_o_o_p_b_a_c_k.html
+    /// See: <http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___l_o_o_p_b_a_c_k.html>
     pub fn set_loopback(&self, loopback: Loopback) -> Result<()> {
         let res = unsafe { bladerf_set_loopback(self.device, loopback as bladerf_loopback) };
         check_res!(res);
@@ -947,6 +944,7 @@ impl BladeRF {
         Ok(())
     }
 
+    /// Uploads the fpga bitstream file from the path in env var `BLADERF_RS_FPGA_BITSTREAM_PATH`.
     pub fn load_fpga_from_env(&self) -> Result<()> {
         let var_name = "BLADERF_RS_FPGA_BITSTREAM_PATH";
         let path = std::env::var(var_name)

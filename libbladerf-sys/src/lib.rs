@@ -3,21 +3,8 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
-
-use std::ffi::CStr;
+#![allow(rustdoc::invalid_html_tags)]
+#![allow(rustdoc::bare_urls)]
+#![allow(rustdoc::broken_intra_doc_links)]
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-
-impl bladerf_devinfo {
-    /// Fetch serial string
-    pub fn serial(&self) -> String {
-        let mut s = [0u8; 33];
-        for i in 0..self.serial.len() {
-            s[i] = self.serial[i] as u8;
-        }
-
-        CStr::from_bytes_until_nul(&s)
-            .map(|v| v.to_string_lossy().into_owned())
-            .unwrap_or("".to_string())
-    }
-}
