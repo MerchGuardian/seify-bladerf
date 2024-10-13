@@ -199,8 +199,10 @@ fn tx(
     let samples_per_bit = c.sample_rate_hz / c.bit_rate;
 
     // Define preamble and sync word
-    let preamble = [1, 0, 1, 0, 1, 0, 1, 0, // 0xAA
-        1, 0, 1, 0, 1, 0, 1, 0];
+    let preamble = [
+        1, 0, 1, 0, 1, 0, 1, 0, // 0xAA
+        1, 0, 1, 0, 1, 0, 1, 0,
+    ];
     let sync_word = [0, 1, 0, 1, 0, 1, 0, 1];
 
     // Define the bitstream to send (e.g., "Hello")
@@ -336,7 +338,12 @@ fn tui_app() -> anyhow::Result<()> {
     IS_RAW_MODE.store(true, Ordering::Release);
     // Setup terminal
     let mut stdout = stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture, cursor::Hide)?;
+    execute!(
+        stdout,
+        EnterAlternateScreen,
+        EnableMouseCapture,
+        cursor::Hide
+    )?;
     terminal::enable_raw_mode()?;
 
     std::panic::set_hook(Box::new(|info| {
@@ -445,19 +452,24 @@ fn tui_app() -> anyhow::Result<()> {
         {
             let ui = ui_state.lock();
 
-            use std::io::{Write, stdout};
-            use crossterm::{QueueableCommand, cursor};
+            use crossterm::{cursor, QueueableCommand};
+            use std::io::{stdout, Write};
 
             let mut stdout = stdout();
 
-            stdout.queue(cursor::MoveTo(0, 0))?
-            .queue(Clear(ClearType::All)).unwrap();
+            stdout
+                .queue(cursor::MoveTo(0, 0))?
+                .queue(Clear(ClearType::All))
+                .unwrap();
 
             let current_threshold = OOK_THRESHOLD.load(Ordering::Acquire);
             // Render UI elements
             let lines = [
                 "Press 'q' to exit.".to_string(),
-                format!("Current Threshold: {} - {threshold_textbox}", current_threshold),
+                format!(
+                    "Current Threshold: {} - {threshold_textbox}",
+                    current_threshold
+                ),
                 format!("TX Stats: {}", ui.tx_stats),
                 format!("RX Stats: {}", ui.rx_stats),
                 format!("IQ Samples: {}", ui.iq_samples),
@@ -467,8 +479,9 @@ fn tui_app() -> anyhow::Result<()> {
                 ui.hex_output.to_string(),
             ];
             for (i, line) in lines.into_iter().enumerate() {
-                stdout.queue(cursor::MoveTo(0, i as u16))?
-                .queue(Print(line))?;
+                stdout
+                    .queue(cursor::MoveTo(0, i as u16))?
+                    .queue(Print(line))?;
             }
             stdout.flush().unwrap();
         }
@@ -496,7 +509,6 @@ fn tui_app() -> anyhow::Result<()> {
                 }
             }
         }
-    
     }
     RUNNING.store(false, Ordering::Release);
 
@@ -505,7 +517,12 @@ fn tui_app() -> anyhow::Result<()> {
     sender.join().unwrap()?;
 
     // Cleanup
-    execute!(stdout, LeaveAlternateScreen, DisableMouseCapture, cursor::Show)?;
+    execute!(
+        stdout,
+        LeaveAlternateScreen,
+        DisableMouseCapture,
+        cursor::Show
+    )?;
     terminal::disable_raw_mode()?;
     IS_RAW_MODE.store(false, Ordering::Release);
 
@@ -518,8 +535,5 @@ pub fn main() -> anyhow::Result<()> {
     bladerf::set_log_level(bladerf::LogLevel::Info);
     bladerf::set_usb_reset_on_open(true);
 
-    
-
     tui_app()
 }
-

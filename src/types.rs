@@ -27,7 +27,7 @@ pub struct Version {
 
 impl Version {
     /// Converts the ffi type `bladerf_version` to `Self`.
-    /// 
+    ///
     /// # Safety
     /// `version` must come from a bladerf ffi call.
     /// More specifically:
@@ -383,8 +383,7 @@ impl TryFrom<bladerf_rx_mux> for RxMux {
     type Error = Error;
 
     fn try_from(value: bladerf_rx_mux) -> Result<Self> {
-        Self::from_repr(value)
-            .ok_or_else(|| Error::msg(format!("Invalid RxMux value: {value}")))
+        Self::from_repr(value).ok_or_else(|| Error::msg(format!("Invalid RxMux value: {value}")))
     }
 }
 
