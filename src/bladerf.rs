@@ -29,7 +29,7 @@ unsafe impl Sync for BladeRF {}
 
 impl Drop for BladeRF {
     fn drop(&mut self) {
-        let enabled_modules = self.enabled_modules.get_mut().clone();
+        let enabled_modules = *self.enabled_modules.get_mut();
         for (channel, enabled) in enabled_modules {
             if enabled {
                 if let Err(e) = self.disable_module(channel) {
@@ -71,7 +71,7 @@ impl BladeRF {
 
     /// Open a BladeRF device by devinfo object
     pub fn open_with_devinfo(devinfo: &DevInfo) -> Result<Self> {
-        let mut devinfo_ptr = devinfo.0.clone();
+        let mut devinfo_ptr = devinfo.0;
         let mut device = std::ptr::null_mut();
 
         let res = unsafe {
@@ -134,7 +134,7 @@ impl BladeRF {
             major: 0,
             minor: 0,
             patch: 0,
-            describe: 0 as *const i8,
+            describe: std::ptr::null::<i8>(),
         };
 
         let res = unsafe { bladerf_fw_version(self.device, &mut version) };
@@ -162,7 +162,7 @@ impl BladeRF {
             major: 0,
             minor: 0,
             patch: 0,
-            describe: 0 as *const i8,
+            describe: std::ptr::null::<i8>(),
         };
 
         let res = unsafe { bladerf_fpga_version(self.device, &mut version) };
@@ -1083,7 +1083,7 @@ mod tests {
         let device = BladeRF::open_first().unwrap();
 
         let loaded = device.is_fpga_configured().unwrap();
-        assert_eq!(true, loaded);
+        assert!(loaded);
     }
 
     #[test]

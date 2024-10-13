@@ -221,6 +221,12 @@ pub struct Metadata {
     // Add other fields as necessary
 }
 
+impl Default for Metadata {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Metadata {
     pub fn new() -> Self {
         Self {
@@ -239,11 +245,11 @@ impl From<&bladerf_metadata> for Metadata {
     }
 }
 
-impl Into<bladerf_metadata> for &Metadata {
-    fn into(self) -> bladerf_metadata {
+impl From<&Metadata> for bladerf_metadata {
+    fn from(val: &Metadata) -> Self {
         bladerf_metadata {
-            timestamp: self.timestamp,
-            flags: self.flags,
+            timestamp: val.timestamp,
+            flags: val.flags,
             status: 0,
             actual_count: 0,
             reserved: [0u8; 32],
@@ -312,7 +318,7 @@ impl From<bladerf_loopback_modes> for LoopbackModeInfo {
             .ok();
         Self {
             name,
-            mode: Loopback::from_repr(mode_info.mode as u32).unwrap_or(Loopback::None),
+            mode: Loopback::from_repr(mode_info.mode).unwrap_or(Loopback::None),
         }
     }
 }
@@ -373,7 +379,7 @@ impl TryFrom<bladerf_rx_mux> for RxMux {
     type Error = Error;
 
     fn try_from(value: bladerf_rx_mux) -> Result<Self> {
-        Self::from_repr(value as i32)
+        Self::from_repr(value)
             .ok_or_else(|| Error::msg(format!("Invalid RxMux value: {value}")))
     }
 }
@@ -417,7 +423,7 @@ impl TryFrom<bladerf_tuning_mode> for TuningMode {
     type Error = Error;
 
     fn try_from(value: bladerf_tuning_mode) -> Result<Self> {
-        Self::from_repr(value as i32)
+        Self::from_repr(value)
             .ok_or_else(|| Error::msg(format!("Invalid TuningMode value: {value}")))
     }
 }
@@ -542,7 +548,7 @@ impl TryFrom<bladerf_trigger_role> for TriggerRole {
     type Error = Error;
 
     fn try_from(value: bladerf_trigger_role) -> Result<Self> {
-        Self::from_repr(value as i32)
+        Self::from_repr(value)
             .ok_or_else(|| Error::msg(format!("Invalid TriggerRole value: {value}")))
     }
 }
@@ -569,7 +575,7 @@ impl TryFrom<bladerf_trigger_signal> for TriggerSignal {
     type Error = Error;
 
     fn try_from(value: bladerf_trigger_signal) -> Result<Self> {
-        Self::from_repr(value as i32)
+        Self::from_repr(value)
             .ok_or_else(|| Error::msg(format!("Invalid TriggerSignal value: {value}")))
     }
 }

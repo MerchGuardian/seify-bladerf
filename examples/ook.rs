@@ -1,5 +1,4 @@
 use std::{
-    fs::File,
     io::{stdout, Write},
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -12,7 +11,7 @@ use std::{
 use anyhow::Context;
 use bladerf::{Channel, Format, GainMode, Loopback};
 use crossterm::{
-    cursor::{self, MoveTo},
+    cursor::{self},
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     style::Print,
@@ -200,13 +199,9 @@ fn tx(
     let samples_per_bit = c.sample_rate_hz / c.bit_rate;
 
     // Define preamble and sync word
-    let preamble = vec![
-        1, 0, 1, 0, 1, 0, 1, 0, // 0xAA
-        1, 0, 1, 0, 1, 0, 1, 0, // 0xAA
-    ];
-    let sync_word = vec![
-        0, 1, 0, 1, 0, 1, 0, 1, // 0x55
-    ];
+    let preamble = [1, 0, 1, 0, 1, 0, 1, 0, // 0xAA
+        1, 0, 1, 0, 1, 0, 1, 0];
+    let sync_word = [0, 1, 0, 1, 0, 1, 0, 1];
 
     // Define the bitstream to send (e.g., "Hello")
     let message = b"Hello";
@@ -313,7 +308,7 @@ fn setup(device: &bladerf::BladeRF, c: &Config) -> anyhow::Result<()> {
         c.timeout,
     )?;
 
-    c.write(&device, Channel::Rx2)
+    c.write(device, Channel::Rx2)
         .context("Failed to write parameters for Rx2")?;
 
     device.enable_module(Channel::Rx2)?;
@@ -329,7 +324,7 @@ fn setup(device: &bladerf::BladeRF, c: &Config) -> anyhow::Result<()> {
         c.timeout,
     )?;
 
-    c.write(&device, Channel::Tx1)
+    c.write(device, Channel::Tx1)
         .context("Failed to write parameters for Tx1")?;
 
     device.enable_module(Channel::Tx1)?;
@@ -393,7 +388,7 @@ fn tui_app() -> anyhow::Result<()> {
 
     let start = Instant::now();
     let device = 'outer: loop {
-        for info in bladerf::get_device_list().unwrap_or(vec![]) {
+        for info in bladerf::get_device_list().unwrap_or_default() {
             println!("Found: {:?}", info.serial());
             if info.serial() == serial_number {
                 if let Ok(dev) = info.open() {
@@ -461,15 +456,15 @@ fn tui_app() -> anyhow::Result<()> {
             let current_threshold = OOK_THRESHOLD.load(Ordering::Acquire);
             // Render UI elements
             let lines = [
-                format!("Press 'q' to exit."),
+                "Press 'q' to exit.".to_string(),
                 format!("Current Threshold: {} - {threshold_textbox}", current_threshold),
                 format!("TX Stats: {}", ui.tx_stats),
                 format!("RX Stats: {}", ui.rx_stats),
                 format!("IQ Samples: {}", ui.iq_samples),
-                format!("\nReceived Text:"),
-                format!("{}", ui.text_output),
-                format!("\nReceived Hex:"),
-                format!("{}", ui.hex_output),
+                "\nReceived Text:".to_string(),
+                ui.text_output.to_string(),
+                "\nReceived Hex:".to_string(),
+                ui.hex_output.to_string(),
             ];
             for (i, line) in lines.into_iter().enumerate() {
                 stdout.queue(cursor::MoveTo(0, i as u16))?
@@ -494,7 +489,7 @@ fn tui_app() -> anyhow::Result<()> {
                         }
                         threshold_textbox.clear();
                     }
-                    KeyCode::Char(c) if c.is_digit(10) => {
+                    KeyCode::Char(c) if c.is_ascii_digit() => {
                         threshold_textbox.push(c);
                     }
                     _ => {}
@@ -523,8 +518,8 @@ pub fn main() -> anyhow::Result<()> {
     bladerf::set_log_level(bladerf::LogLevel::Info);
     bladerf::set_usb_reset_on_open(true);
 
-    let r = tui_app();
+    
 
-    r
+    tui_app()
 }
 
