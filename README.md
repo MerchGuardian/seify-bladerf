@@ -21,6 +21,6 @@ Enter a nix shell with:
 ```
 nix develop
 ```
-This will bring in cargo, rustc, libclang, etc. and will automatically download and set `BLADERF_RS_FPGA_BITSTREAM_PATH`, `BLADERF_RS_FX3_FIRMWARE_PATH`, based on the versions locked in [./bladerf.nix](bladerf.nix).
-`BLADERF_INCLUDE_PATH` will also be set to a nix store path to facilitate running bindgen in [build.rs](libbladerf-sys/build.rs).
+This will bring in cargo, rustc, libclang, etc. and will automatically download and set `BLADERF_RS_FPGA_BITSTREAM_PATH` and `BLADERF_RS_FX3_FIRMWARE_PATH` based on the versions locked in [bladerf.nix](bladerf.nix).
+`BLADERF_INCLUDE_PATH` will also be set to a nix store path to facilitate running bindgen in `libbladerf-sys`'s [build.rs](libbladerf-sys/build.rs).
 
