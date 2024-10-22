@@ -23,9 +23,15 @@
           extensions = [ "rust-src" "rust-analyzer" ];
         };
         bladerf = import ./bladerf.nix {
-          inherit (pkgs) fetchurl fetchFromGitHub fetchpatch libbladeRF;
+          inherit (pkgs) fetchurl fetchFromGitHub fetchpatch libbladeRF symlinkJoin;
         };
       in with pkgs; {
+        packages = {
+          libbladerf = bladerf.libbladerf;
+          xa4-bitstream = bladerf.xa4-bitstream;
+          fx3-firmware = bladerf.fx3-firmware;
+        };
+
         devShells = {
           default = pkgs.mkShell {
             

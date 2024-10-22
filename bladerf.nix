@@ -1,4 +1,4 @@
-{ fetchurl, fetchFromGitHub, fetchpatch, libbladeRF }:
+{ fetchurl, fetchFromGitHub, fetchpatch, libbladeRF, symlinkJoin }:
 rec {
   xa4-bitstream = fetchurl {
     # See: https://www.nuand.com/fpga_images/

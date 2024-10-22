@@ -440,16 +440,12 @@ pub type Gain = i32;
 pub enum GainMode {
     /// Device-specific default (automatic, when available)
     Default = bladerf_gain_mode_BLADERF_GAIN_DEFAULT as i32,
-
     /// Manual gain control
     Manual = bladerf_gain_mode_BLADERF_GAIN_MGC as i32,
-
     /// Automatic gain control, fast attack (advanced)
     FastAttackAgc = bladerf_gain_mode_BLADERF_GAIN_FASTATTACK_AGC as i32,
-
     /// Automatic gain control, slow attack (advanced)
     SlowAttackAgc = bladerf_gain_mode_BLADERF_GAIN_SLOWATTACK_AGC as i32,
-
     /// Automatic gain control, hybrid attack (advanced)
     HybridAgc = bladerf_gain_mode_BLADERF_GAIN_HYBRID_AGC as i32,
 }

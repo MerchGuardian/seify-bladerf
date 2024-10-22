@@ -17,6 +17,8 @@ macro_rules! check_res {
 	);
 }
 
+pub const FPGA_BITSTREAM_VAR_NAME: &str = "BLADERF_RS_FPGA_BITSTREAM_PATH";
+
 /// BladeRF device object
 pub struct BladeRF {
     device: *mut bladerf,
@@ -105,21 +107,17 @@ impl BladeRF {
     // http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___i_n_f_o.html
 
     pub fn get_serial(&self) -> Result<String> {
-        unsafe {
-            // Create raw data array for serial return
-            let mut serial_data = [0i8; BLADERF_SERIAL_LENGTH as usize];
+        let mut serial_data = [0i8; BLADERF_SERIAL_LENGTH as usize];
 
-            // Call underlying c method
-            let res = bladerf_get_serial(self.device, serial_data.as_mut_ptr().cast());
+        let res = unsafe { bladerf_get_serial(self.device, serial_data.as_mut_ptr().cast()) };
 
-            check_res!(res);
-            let serial_cstr = CStr::from_ptr(serial_data.as_ptr());
-            let serial_str = serial_cstr
-                .to_str()
-                .map_err(|e| Error::msg(format!("Serial number is not UTF-8: {e:?}")))?;
+        check_res!(res);
+        let serial_cstr = unsafe { CStr::from_ptr(serial_data.as_ptr()) };
+        let serial_str = serial_cstr
+            .to_str()
+            .map_err(|e| Error::msg(format!("Serial number is not UTF-8: {e:?}")))?;
 
-            Ok(serial_str.to_string())
-        }
+        Ok(serial_str.to_string())
     }
 
     pub fn get_fpga_size(&self) -> Result<bladerf_fpga_size> {
@@ -589,7 +587,7 @@ impl BladeRF {
                 self.device,
                 channel as bladerf_channel,
                 stage_cstr.as_ptr(),
-                &mut gain,
+                &mut gain as *mut bladerf_gain,
             )
         };
         check_res!(res);
@@ -944,11 +942,13 @@ impl BladeRF {
         Ok(())
     }
 
-    /// Uploads the fpga bitstream file from the path in env var `BLADERF_RS_FPGA_BITSTREAM_PATH`.
+    /// Uploads the fpga bitstream file from the path in env var [`FPGA_BITSTREAM_VAR_NAME`].
     pub fn load_fpga_from_env(&self) -> Result<()> {
-        let var_name = "BLADERF_RS_FPGA_BITSTREAM_PATH";
-        let path = std::env::var(var_name)
-            .map_err(|e| Error::msg(format!("Failed to read env var {var_name}: {e:?}")))?;
+        let path = std::env::var(FPGA_BITSTREAM_VAR_NAME).map_err(|e| {
+            Error::msg(format!(
+                "Failed to read env var {FPGA_BITSTREAM_VAR_NAME}: {e:?}"
+            ))
+        })?;
 
         self.load_fpga(Path::new(&path))
     }
