@@ -48,7 +48,7 @@ rec {
   };
   libbladerf = stdenvNoCC.mkDerivation rec {
     pname = "libbladeRF";
-    version = "2.5.0";
+    version = "master";
 
     src = bladerf-src;
 
@@ -67,6 +67,8 @@ rec {
       "-DENABLE_BACKEND_LIBUSB=ON"
       "-DCMAKE_FIND_ROOT_PATH=${libusb};${ndk}/sysroot"
       "-DCMAKE_INSTALL_PREFIX=$out"
+      "-DBUILD_DOCUMENTATION=OFF"
+      "-DVERSION_INFO_OVERRIDE=foxhunter-${builtins.substring 0 7 src.rev}"
     ];
 
     preConfigure = ''
