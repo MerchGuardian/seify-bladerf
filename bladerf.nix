@@ -1,4 +1,4 @@
-{ fetchurl, fetchFromGitHub, fetchpatch, libbladeRF, symlinkJoin }:
+{ bladerf-src, fetchurl, fetchFromGitHub, fetchpatch, libbladeRF, symlinkJoin }:
 rec {
   xa4-bitstream = fetchurl {
     # See: https://www.nuand.com/fpga_images/
@@ -12,14 +12,8 @@ rec {
   };
   libbladerf = libbladeRF.overrideAttrs (oldAttrs: rec {
     version = "master";
-    src = fetchFromGitHub {
-      owner = "Nuand";
-      repo = "bladeRF";
-      rev = "e50f28fba3c09aadbe503c4144796a07ff119dc6";
-      sha256 = "sha256-ygOLxweX9rODYQxAA+RJdP4ZGe6JPR/a9FPoq13o1n4=";
-      fetchSubmodules = true;
-    };
-    # bladeRF-fsk support for BladeRf 2.0 micro
+    src = bladerf-src;
+    # bladeRF-fsk (cli) support for BladeRf 2.0 micro
     patches = oldAttrs.patches or [] ++ [
       (fetchpatch {
         url = "https://github.com/Nuand/bladeRF/commit/2db141bf6225abd3cc51e64da14461739bab35dc.patch";
@@ -29,5 +23,5 @@ rec {
     cmakeFlags = oldAttrs.cmakeFlags or [] ++ [
       "-DVERSION_INFO_OVERRIDE=foxhunter-${builtins.substring 0 7 src.rev}"
     ];
-  });
+  }); 
 }

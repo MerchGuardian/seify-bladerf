@@ -14,22 +14,48 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
+          inherit system;
+          config = {
+            allowUnfree = true;
+            android_sdk.accept_license = true;
+          };
           overlays = [
             (import rust-overlay)
           ];
-          inherit system;
         };
         rust-pkgs = pkgs.rust-bin.nightly.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
         };
+        ndkVersion = "25.1.8937393";
+        androidPackages = pkgs.androidenv.composeAndroidPackages {
+          includeNDK = true;
+          ndkVersions = [ ndkVersion ];
+          abiVersions = [ "arm64-v8a" ];
+        };
+        androidSdk = androidPackages.androidsdk;
+        ndk = "${androidSdk}/libexec/android-sdk/ndk/${ndkVersion}";
+        bladerf-src = pkgs.fetchFromGitHub {
+          owner = "MerchGuardian";
+          repo = "bladeRF";
+          rev = "32a6022cfa5c6fcdb6f6c70d428eede0e19567fb";
+          sha256 = "sha256-ygOLxweX9rODYQxAA+RJdP4ZGe6JPR/a9FPoq13o1n4=";
+          fetchSubmodules = true;
+        };
         bladerf = import ./bladerf.nix {
+          inherit bladerf-src;
           inherit (pkgs) fetchurl fetchFromGitHub fetchpatch libbladeRF symlinkJoin;
+        };
+        android = import ./android.nix {
+          inherit ndk bladerf-src;
+          inherit (pkgs) stdenvNoCC autoreconfHook fetchFromGitHub libtool lib cmake pkg-config git;
         };
       in with pkgs; {
         packages = {
           libbladerf = bladerf.libbladerf;
           xa4-bitstream = bladerf.xa4-bitstream;
           fx3-firmware = bladerf.fx3-firmware;
+          libbladerf-android = android.libbladerf;
+          libusb-android = android.libusb;
         };
 
         devShells = {
