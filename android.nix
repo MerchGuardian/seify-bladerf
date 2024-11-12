@@ -27,19 +27,8 @@ rec {
       mkdir -p $out/lib
       mkdir -p $out/include/libusb-1.0
 
-      # mkdir -p $out/lib/arm64-v8a
-      # mkdir -p $out/lib/armeabi-v7a
-      # mkdir -p $out/lib/x86
-      # mkdir -p $out/lib/x86_64
-
-      # # Copy the built library and headers to $out
-
-      # cp -v ../libs/arm64-v8a/libusb1.0.so $out/lib/arm64-v8a
-      # cp -v ../libs/armeabi-v7a/libusb1.0.so $out/lib/armeabi-v7a
-      # cp -v ../libs/x86/libusb1.0.so $out/lib/x86
-      # cp -v ../libs/x86_64/libusb1.0.so $out/lib/x86_64
-
-      # Copy just arm v8 for now. Looks like cmake can only handle one so at a time
+      # Copy just arm v8 for now. Looks like cmake can only handle one so at a time anyway
+      # NOTE: Downstream users will expect `libusb-1.0` (with dash)
       cp -v ../libs/arm64-v8a/libusb1.0.so $out/lib/libusb-1.0.so
 
       cp -v ../../libusb/libusb.h $out/include/libusb-1.0/
