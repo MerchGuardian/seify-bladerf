@@ -1,8 +1,8 @@
 [package]
 name = "libbladerf-sys"
-repository = "https://github.com/ryankurte/rust-bladerf"
+repository = "https://github.com/MerchGuardian/seify-bladerf"
 description = "WIP Rust wrapper for libbladerf"
-authors = ["Ryan Kurte <ryankurte@gmail.com>"]
+authors = ["Troy Neubauer <troy@foxhunter.ai>", "Ryan Kurte <ryankurte@gmail.com>"]
 readme = "README.md"
 license = "MIT"
 version = "0.1.0"
@@ -10,7 +10,7 @@ edition = "2021"
 
 [dependencies]
 
-
 [build-dependencies]
+anyhow = "1.0.93"
 bindgen = "0.70.1"
-
+build-target = "0.4.0"

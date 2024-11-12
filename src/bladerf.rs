@@ -112,7 +112,7 @@ impl BladeRF {
         let res = unsafe { bladerf_get_serial(self.device, serial_data.as_mut_ptr().cast()) };
 
         check_res!(res);
-        let serial_cstr = unsafe { CStr::from_ptr(serial_data.as_ptr()) };
+        let serial_cstr = unsafe { CStr::from_ptr(serial_data.as_ptr().cast()) };
         let serial_str = serial_cstr
             .to_str()
             .map_err(|e| Error::msg(format!("Serial number is not UTF-8: {e:?}")))?;
@@ -132,7 +132,7 @@ impl BladeRF {
             major: 0,
             minor: 0,
             patch: 0,
-            describe: std::ptr::null::<i8>(),
+            describe: std::ptr::null(),
         };
 
         let res = unsafe { bladerf_fw_version(self.device, &mut version) };
@@ -158,7 +158,7 @@ impl BladeRF {
             major: 0,
             minor: 0,
             patch: 0,
-            describe: std::ptr::null::<i8>(),
+            describe: std::ptr::null(),
         };
 
         let res = unsafe { bladerf_fpga_version(self.device, &mut version) };
