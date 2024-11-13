@@ -6,9 +6,9 @@ rec {
 
     src = fetchFromGitHub {
       owner = "libusb";
-      repo = "libusba";
+      repo = "libusb";
       rev = "v${version}";
-      hash = "sha256-J6LRlDp+JOCTAooY5yWNENSwslp3HZ8/MRwKQfxEMaM=";
+      hash = "sha256-OtzYxWwiba0jRK9X+4deWWDDTeZWlysEt0qMyGUarDo=";
     };
 
     # NDK contains all build inputs

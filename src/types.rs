@@ -146,6 +146,12 @@ impl TryFrom<bladerf_backend> for Backend {
     }
 }
 
+impl From<Backend> for bladerf_backend {
+    fn from(value: Backend) -> Self {
+        value as i32 as bladerf_backend
+    }
+}
+
 /// Information about a bladerf device connect to the system
 #[derive(Clone, Debug)]
 pub struct DevInfo(pub(crate) bladerf_devinfo);
