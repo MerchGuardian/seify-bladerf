@@ -18,6 +18,7 @@ macro_rules! check_res {
 }
 
 pub const FPGA_BITSTREAM_VAR_NAME: &str = "BLADERF_RS_FPGA_BITSTREAM_PATH";
+pub const DEFAULT_FPGA_BITSTREAM: &[u8] = include_bytes!(env!("BLADERF_RS_FPGA_BITSTREAM_PATH"));
 
 /// BladeRF device object
 pub struct BladeRF {
