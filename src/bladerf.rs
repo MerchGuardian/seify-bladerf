@@ -974,14 +974,21 @@ impl BladeRF {
             ))
         })?;
 
-        self.load_fpga(Path::new(&path))
+        self.load_fpga_path(Path::new(&path))
     }
 
-    pub fn load_fpga(&self, bitstream_path: impl AsRef<Path>) -> Result<()> {
+    pub fn load_fpga_path(&self, bitstream_path: impl AsRef<Path>) -> Result<()> {
         let bitstream_path = CString::new(bitstream_path.as_ref().as_os_str().as_encoded_bytes())
             .map_err(|e| Error::msg(format!("Invalid path for cstring: {e:?}")))?;
 
         let res = unsafe { bladerf_load_fpga(self.device, bitstream_path.as_ptr()) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn load_fpga_buffer(&self, bitstream: &[u8]) -> Result<()> {
+        let res =
+            unsafe { bladerf_load_fpga_buffer(self.device, bitstream.as_ptr(), bitstream.len()) };
         check_res!(res);
         Ok(())
     }
