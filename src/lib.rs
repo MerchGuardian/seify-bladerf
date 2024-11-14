@@ -81,15 +81,18 @@ pub fn set_log_callback(cb: Option<impl Fn(LogLevel, &str) + Send + 'static>) {
         b
     });
 
+    log::info!("About to set log cb fn to {fn_ptr:?}");
     unsafe {
         set_log_callback_fn(fn_ptr);
     }
+    log::info!("set log cb fn SUCCESSFULLY");
 }
 
 /// Sets the log callback to send events to the [`log`] crate.
 ///
 /// To reset call [`set_log_callback`] or [`set_log_callback_fn`] with `None`.
 fn log_crate_callback(level: LogLevel, msg: &str) {
+    panic!("Log cb called!");
     match level {
         LogLevel::Verbose => log::trace!("{msg}"),
         LogLevel::Debug => log::debug!("{msg}"),

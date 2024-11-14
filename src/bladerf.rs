@@ -47,6 +47,7 @@ impl Drop for BladeRF {
 
 impl BladeRF {
     pub fn open_first() -> Result<Self> {
+        log::info!("Opening first bladerf");
         let mut device = std::ptr::null_mut();
         let res = unsafe { bladerf_open(&mut device as *mut *mut _, ptr::null()) };
         check_res!(res);

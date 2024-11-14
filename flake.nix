@@ -37,8 +37,8 @@
         bladerf-src = pkgs.fetchFromGitHub {
           owner = "MerchGuardian";
           repo = "bladeRF";
-          rev = "67f5d683b53196f761ec3cb9f84bdd3f6c96d49a";
-          sha256 = "sha256-PvOlMLhTAiJDwLMToTh4AVXdEgLkp/FO/uV651hgGWc=";
+          rev = "b2f2c8884a514a77c5f306b884916b74f61b9296";
+          sha256 = "sha256-/mgxbPcYyXmhI/6y4NJsZmDHbaog9NyarpxzD66doKM=";
           fetchSubmodules = true;
         };
         bladerf = import ./bladerf.nix {
