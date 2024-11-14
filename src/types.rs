@@ -108,6 +108,14 @@ pub enum LogLevel {
     Silent = bladerf_log_level_BLADERF_LOG_LEVEL_SILENT,
 }
 
+impl TryFrom<bladerf_log_level> for LogLevel {
+    type Error = Error;
+
+    fn try_from(level: bladerf_log_level) -> Result<Self> {
+        Self::from_repr(level).ok_or_else(|| format!("Invalid bladerf log level: {level}").into())
+    }
+}
+
 pub struct RationalRate {
     /// Integer portion
     pub integer: u64,
