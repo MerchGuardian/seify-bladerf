@@ -57,7 +57,8 @@ rec {
       "-DCMAKE_FIND_ROOT_PATH=${libusb};${ndk}/sysroot"
       "-DCMAKE_INSTALL_PREFIX=$out"
       "-DBUILD_DOCUMENTATION=OFF"
-      "-DVERSION_INFO_OVERRIDE=foxhunter-${builtins.substring 0 7 src.rev}"
+      # FIXME: HACK
+      "-DVERSION_INFO_OVERRIDE=foxhunter-${builtins.substring 0 7 /*src.rev */ "DEADBEEF"}"
     ];
 
     preConfigure = ''

@@ -21,7 +21,8 @@ rec {
       })
     ];
     cmakeFlags = oldAttrs.cmakeFlags or [] ++ [
-      "-DVERSION_INFO_OVERRIDE=foxhunter-${builtins.substring 0 7 src.rev}"
+      # FIXME: HACK
+      "-DVERSION_INFO_OVERRIDE=foxhunter-${builtins.substring 0 7 /*src.rev*/ "DEADBEEF"}"
     ];
   }); 
 }

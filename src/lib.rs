@@ -9,7 +9,7 @@ use std::ffi::c_char;
 
 pub use error::{Error, Result};
 mod types;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 pub use types::*;
 #[macro_use]
 mod bladerf;
@@ -43,7 +43,8 @@ pub unsafe fn set_log_callback_fn(
     unsafe { bladerf_set_log_callback(cb) }
 }
 
-static CB_DATA: Mutex<Option<Box<dyn Fn(LogLevel, &str) + Send + 'static>>> = Mutex::new(None);
+static CB_DATA: RwLock<Option<Box<dyn Fn(LogLevel, &str) + Send + Sync + 'static>>> =
+    RwLock::new(None);
 
 unsafe extern "C" fn log_cb_trampoline(level: bladerf_log_level, msg: *const c_char, len: usize) {
     let Ok(level) = LogLevel::try_from(level)
@@ -55,7 +56,9 @@ unsafe extern "C" fn log_cb_trampoline(level: bladerf_log_level, msg: *const c_c
     let bytes = unsafe { std::slice::from_raw_parts(msg.cast(), len) };
     match std::str::from_utf8(bytes) {
         Ok(s) => {
-            if let Some(cb) = CB_DATA.lock().as_ref() {
+            // Bladerf always includes newlines. Our log callback expects trimmed lines
+            let s = s.trim();
+            if let Some(cb) = CB_DATA.read().as_ref() {
                 cb(level, s);
             }
         }
@@ -70,16 +73,18 @@ unsafe extern "C" fn log_cb_trampoline(level: bladerf_log_level, msg: *const c_c
 /// Sets the log callback to a rust native `Fn`.
 ///
 /// This method incurs additional overhead compared to [`set_log_callback_fn`].
-pub fn set_log_callback(cb: Option<impl Fn(LogLevel, &str) + Send + 'static>) {
+pub fn set_log_callback(cb: Option<impl Fn(LogLevel, &str) + Send + Sync + 'static>) {
     let fn_ptr = cb.as_ref().map(|_| {
         log_cb_trampoline as unsafe extern "C" fn(bladerf_log_level, *const c_char, usize)
     });
 
-    let mut guard = CB_DATA.lock();
-    *guard = cb.map(|cb| {
-        let b: Box<dyn Fn(LogLevel, &str) + Send + 'static> = Box::new(cb);
-        b
-    });
+    {
+        let mut guard = CB_DATA.write();
+        *guard = cb.map(|cb| {
+            let b: Box<dyn Fn(LogLevel, &str) + Send + Sync + 'static> = Box::new(cb);
+            b
+        });
+    }
 
     log::info!("About to set log cb fn to {fn_ptr:?}");
     unsafe {
@@ -92,7 +97,6 @@ pub fn set_log_callback(cb: Option<impl Fn(LogLevel, &str) + Send + 'static>) {
 ///
 /// To reset call [`set_log_callback`] or [`set_log_callback_fn`] with `None`.
 fn log_crate_callback(level: LogLevel, msg: &str) {
-    panic!("Log cb called!");
     match level {
         LogLevel::Verbose => log::trace!("{msg}"),
         LogLevel::Debug => log::debug!("{msg}"),

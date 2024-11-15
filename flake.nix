@@ -4,13 +4,18 @@
 
     flake-utils.url = "github:numtide/flake-utils";
 
+    bladerf-src = {
+      url = "git+file:/home/troy/foxhunter/seify-bladerf/bladeRF?submodules=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }@inputs:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, bladerf-src, ... }@inputs:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
@@ -34,13 +39,13 @@
         };
         androidSdk = androidPackages.androidsdk;
         ndk = "${androidSdk}/libexec/android-sdk/ndk/${ndkVersion}";
-        bladerf-src = pkgs.fetchFromGitHub {
-          owner = "MerchGuardian";
-          repo = "bladeRF";
-          rev = "b2f2c8884a514a77c5f306b884916b74f61b9296";
-          sha256 = "sha256-/mgxbPcYyXmhI/6y4NJsZmDHbaog9NyarpxzD66doKM=";
-          fetchSubmodules = true;
-        };
+        # bladerf-src = pkgs.fetchFromGitHub {
+        #   owner = "MerchGuardian";
+        #   repo = "bladeRF";
+        #   rev = "b2f2c8884a514a77c5f306b884916b74f61b9296";
+        #   sha256 = "sha256-/mgxbPcYyXmhI/6y4NJsZmDHbaog9NyarpxzD66doKM=";
+        #   fetchSubmodules = true;
+        # };
         bladerf = import ./bladerf.nix {
           inherit bladerf-src;
           inherit (pkgs) fetchurl fetchFromGitHub fetchpatch libbladeRF symlinkJoin;
