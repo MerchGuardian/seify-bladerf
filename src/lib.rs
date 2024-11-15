@@ -9,7 +9,7 @@ use std::ffi::c_char;
 
 pub use error::{Error, Result};
 mod types;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 pub use types::*;
 #[macro_use]
 mod bladerf;
@@ -86,11 +86,10 @@ pub fn set_log_callback(cb: Option<impl Fn(LogLevel, &str) + Send + Sync + 'stat
         });
     }
 
-    log::info!("About to set log cb fn to {fn_ptr:?}");
+    // NOTE: This will invoke the log callback to print the new level (guard in new scope above)
     unsafe {
         set_log_callback_fn(fn_ptr);
     }
-    log::info!("set log cb fn SUCCESSFULLY");
 }
 
 /// Sets the log callback to send events to the [`log`] crate.
