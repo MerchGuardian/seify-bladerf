@@ -1,0 +1,4 @@
+[submodule "bladeRF"]
+	path = bladeRF
+	url = git@github.com:MerchGuardian/bladeRF.git
+	branch = android-support

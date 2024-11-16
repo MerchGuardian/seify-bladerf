@@ -8,18 +8,17 @@
         ]
       },
       "locked": {
-        "dirtyRev": "e96269ebfef4138697b7283019f725ab63aa68ce-dirty",
-        "dirtyShortRev": "e96269eb-dirty",
-        "lastModified": 1731679544,
-        "narHash": "sha256-5NWQQg6Bo9jG+lReYsW3tMmZ1qvO6VolM8NsSK49wCs=",
-        "submodules": true,
+        "lastModified": 1731687177,
+        "narHash": "sha256-8U0mDaQRJqxliCPzBDBv/C78y0gfEUbKtlNWvqGAJXs=",
+        "ref": "refs/heads/android-support",
+        "rev": "e23e14e9562c7264a69afdf70db2e0532572fa41",
+        "revCount": 3812,
         "type": "git",
-        "url": "file:/home/troy/foxhunter/seify-bladerf/bladeRF"
+        "url": "file:///Users/troyneubauer/foxhunter/seify-bladerf/bladeRF?submodules=1"
       },
       "original": {
-        "submodules": true,
         "type": "git",
-        "url": "file:/home/troy/foxhunter/seify-bladerf/bladeRF"
+        "url": "file:///Users/troyneubauer/foxhunter/seify-bladerf/bladeRF?submodules=1"
       }
     },
     "flake-utils": {
