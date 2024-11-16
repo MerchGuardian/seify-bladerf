@@ -5,7 +5,7 @@
     flake-utils.url = "github:numtide/flake-utils";
 
     bladerf-src = {
-      url = "git+file:/home/troy/foxhunter/seify-bladerf/bladeRF?submodules=1";
+      url = "git+file:/Users/troyneubauer/foxhunter/seify-bladerf/bladeRF?submodules=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
