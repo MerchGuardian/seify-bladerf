@@ -1,4 +1,4 @@
-{ bladerf-src, fetchurl, fetchFromGitHub, fetchpatch, libbladeRF, symlinkJoin }:
+{ lib, isDarwin, bladerf-src, fetchurl, fetchFromGitHub, fetchpatch, libbladeRF, symlinkJoin }:
 rec {
   xa4-bitstream = fetchurl {
     # See: https://www.nuand.com/fpga_images/
@@ -23,6 +23,8 @@ rec {
     cmakeFlags = oldAttrs.cmakeFlags or [] ++ [
       # FIXME: HACK
       "-DVERSION_INFO_OVERRIDE=foxhunter-${builtins.substring 0 7 /*src.rev*/ "DEADBEEF"}"
+    ] ++ lib.optionals isDarwin [
+      "-DCMAKE_C_FLAGS=-Wno-error=format"
     ];
   }); 
 }
