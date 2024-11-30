@@ -988,13 +988,6 @@ impl BladeRF {
         Ok(())
     }
 
-    pub fn load_fpga_buffer(&self, bitstream: &[u8]) -> Result<()> {
-        let res =
-            unsafe { bladerf_load_fpga_buffer(self.device, bitstream.as_ptr(), bitstream.len()) };
-        check_res!(res);
-        Ok(())
-    }
-
     pub fn flash_fpga(&self, bitstream_path: impl AsRef<Path>) -> Result<()> {
         let bitstream_path = CString::new(bitstream_path.as_ref().as_os_str().as_encoded_bytes())
             .map_err(|e| Error::msg(format!("Invalid path for cstring: {e:?}")))?;
