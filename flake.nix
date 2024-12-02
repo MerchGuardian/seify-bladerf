@@ -43,8 +43,7 @@
         };
         bladerf = import ./bladerf.nix {
           inherit bladerf-src;
-          inherit (pkgs) lib fetchurl fetchFromGitHub fetchpatch libbladeRF symlinkJoin;
-          inherit (pkgs.stdenv) isDarwin;
+          inherit (pkgs) lib fetchurl fetchpatch symlinkJoin ncurses stdenv pkg-config cmake git doxygen help2man tecla libusb1 udev;
         };
         android = import ./android.nix {
           inherit ndk bladerf-src;
@@ -55,13 +54,13 @@
           libbladerf = bladerf.libbladerf;
           xa4-bitstream = bladerf.xa4-bitstream;
           fx3-firmware = bladerf.fx3-firmware;
-          libbladerf-android = android.libbladerf;
-          libusb-android = android.libusb;
         };
 
         devShells = {
           default = pkgs.mkShell {
-            
+            # Include native inputs so we can use this shell to dev on bladeRF c code
+            inputsFrom = [ bladerf.libbladerf ];
+
             shellHook = ''
               export LIBCLANG_PATH="${llvmPackages_14.clang.cc.lib}/lib";
 
