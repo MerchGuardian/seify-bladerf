@@ -1,4 +1,4 @@
-use crate::{sys::*, BladeRF, Error, Result};
+use crate::{sys::*, BladeRF, Error, Result, Unknown};
 
 use bytemuck::cast_slice;
 use enum_map::Enum;
@@ -188,8 +188,8 @@ impl DevInfo {
         String::from_utf8_lossy(cast_slice(&self.0.product)).to_string()
     }
 
-    pub fn open(&self) -> Result<BladeRF> {
-        BladeRF::open_with_devinfo(self)
+    pub fn open(&self) -> Result<BladeRF<Unknown>> {
+        BladeRF::<Unknown>::open_with_devinfo(self)
     }
 }
 
