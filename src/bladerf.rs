@@ -3,6 +3,7 @@ use enum_map::EnumMap;
 use ffi::{c_char, c_void, CStr, CString};
 use log::warn;
 use marker::PhantomData;
+use mem::ManuallyDrop;
 use parking_lot::Mutex;
 use path::Path;
 use std::*;
@@ -1029,22 +1030,70 @@ impl<D: DeviceType> BladeRF<D> {
 
         Ok(())
     }
+
+    pub fn get_board_name(&self) -> &'static str {
+        // Safety, the function returns a string that is compiled in (static I guess? is there another term I should use?)
+        let name_raw = unsafe { CStr::from_ptr(bladerf_get_board_name(self.device)) };
+        name_raw.to_str().unwrap()
+    }
 }
 
 impl BladeRF<BladeRf1> {
-    pub fn calibrate_dc(&self) -> Result<()> {
-        todo!("Just here for reference");
-        let res = unsafe { bladerf_calibrate_dc(self.device, 0) };
+    pub fn set_txvga2(&self, gain: i32) -> Result<()> {
+        let res = unsafe { bladerf_set_txvga2(self.device, gain) };
 
         check_res!(res);
         Ok(())
     }
 }
 
+/// TODO: Safety Comment
 impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
     type Error = Error;
-    fn try_from(value: BladeRF<Unknown>) -> result::Result<Self, Self::Error> {
-        todo!("Some logic to determine if it is a bladerf 1 or 2 (their functions do it by comparing a pointer :/ not sure how we can do that.)")
+
+    fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
+        if value.get_board_name() == "bladerf1" {
+            let dev_to_move = ManuallyDrop::new(value);
+
+            // Use `std::ptr::read` to safely move non-Copy fields out of the ManuallyDrop wrapper
+            let device = unsafe { std::ptr::read(&dev_to_move.device) };
+            let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
+            let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
+
+            Ok(BladeRF::<BladeRf1> {
+                device,
+                enabled_modules,
+                format_sync,
+                _p: PhantomData,
+            })
+        } else {
+            Err(Error::Unsupported)
+        }
+    }
+}
+
+/// TODO: Safety Comment
+impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf2> {
+    type Error = Error;
+
+    fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
+        if value.get_board_name() == "bladerf2" {
+            let dev_to_move = ManuallyDrop::new(value);
+
+            // Use `std::ptr::read` to safely move non-Copy fields out of the ManuallyDrop wrapper
+            let device = unsafe { std::ptr::read(&dev_to_move.device) };
+            let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
+            let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
+
+            Ok(BladeRF::<BladeRf2> {
+                device,
+                enabled_modules,
+                format_sync,
+                _p: PhantomData,
+            })
+        } else {
+            Err(Error::Unsupported)
+        }
     }
 }
 
@@ -1067,7 +1116,7 @@ mod tests {
     fn test_open() {
         let _m = DEV_MUTEX.lock();
 
-        let _device = BladeRF::open_first().unwrap();
+        let _device = BladeRF::<Unknown>::open_first().unwrap();
     }
 
     #[test]
@@ -1076,14 +1125,14 @@ mod tests {
 
         let devices = crate::get_device_list().unwrap();
         assert!(!devices.is_empty());
-        let _device = BladeRF::open_with_devinfo(&devices[0]).unwrap();
+        let _device = BladeRF::<Unknown>::open_with_devinfo(&devices[0]).unwrap();
     }
 
     #[test]
     fn test_get_fw_version() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device = BladeRF::<Unknown>::open_first().unwrap();
 
         let version = device.firmware_version().unwrap();
         println!("FW Version {:?}", version);
@@ -1093,7 +1142,7 @@ mod tests {
     fn test_get_fpga_version() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device = BladeRF::<Unknown>::open_first().unwrap();
 
         let version = device.fpga_version().unwrap();
         println!("FPGA Version {:?}", version);
@@ -1103,7 +1152,7 @@ mod tests {
     fn test_get_serial() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device = BladeRF::<Unknown>::open_first().unwrap();
 
         let serial = device.get_serial().unwrap();
         println!("Serial: {:?}", serial);
@@ -1114,7 +1163,7 @@ mod tests {
     fn test_fpga_loaded() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device = BladeRF::<Unknown>::open_first().unwrap();
 
         let loaded = device.is_fpga_configured().unwrap();
         assert!(loaded);
@@ -1124,7 +1173,7 @@ mod tests {
     fn test_loopback_modes() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device = BladeRF::<Unknown>::open_first().unwrap();
 
         // Check initial is none
         let loopback = device.get_loopback().unwrap();
@@ -1146,7 +1195,7 @@ mod tests {
     fn test_set_freq() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device = BladeRF::<Unknown>::open_first().unwrap();
 
         let freq: u64 = 915000000;
 
@@ -1161,7 +1210,7 @@ mod tests {
     fn test_set_sampling() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device = BladeRF::<Unknown>::open_first().unwrap();
 
         let desired = Sampling::Internal;
         // Set and check frequency
@@ -1183,7 +1232,7 @@ mod tests {
     fn test_bladerf1_ex() {
         let dev = BladeRF::<Unknown>::open_first().unwrap();
         let newdev: BladeRF<BladeRf1> = dev.try_into().unwrap();
-        newdev.calibrate_dc();
-        newdev.firmware_version();
+        newdev.set_txvga2(-20).unwrap();
+        let _fwv = newdev.firmware_version().unwrap();
     }
 }
