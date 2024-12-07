@@ -2,6 +2,7 @@ use crate::{error::*, sys::*, types::*};
 use enum_map::EnumMap;
 use ffi::{c_char, c_void, CStr, CString};
 use log::warn;
+use marker::PhantomData;
 use parking_lot::Mutex;
 use path::Path;
 use std::*;
@@ -20,17 +21,30 @@ macro_rules! check_res {
 pub const FPGA_BITSTREAM_VAR_NAME: &str = "BLADERF_RS_FPGA_BITSTREAM_PATH";
 pub const DEFAULT_FPGA_BITSTREAM: &[u8] = include_bytes!(env!("BLADERF_RS_FPGA_BITSTREAM_PATH"));
 
+trait DeviceType {}
+
+pub struct BladeRf1 {}
+
+impl DeviceType for BladeRf1 {}
+
+pub struct BladeRf2 {}
+impl DeviceType for BladeRf2 {}
+
+pub struct Unknown {}
+impl DeviceType for Unknown {}
+
 /// BladeRF device object
-pub struct BladeRF {
+pub struct BladeRF<D: DeviceType> {
     device: *mut bladerf,
     enabled_modules: Mutex<EnumMap<Channel, bool>>,
     format_sync: RwLock<Option<Format>>,
+    _p: PhantomData<D>,
 }
 
-unsafe impl Send for BladeRF {}
-unsafe impl Sync for BladeRF {}
+unsafe impl<D: DeviceType> Send for BladeRF<D> {}
+unsafe impl<D: DeviceType> Sync for BladeRF<D> {}
 
-impl Drop for BladeRF {
+impl<D: DeviceType> Drop for BladeRF<D> {
     fn drop(&mut self) {
         let enabled_modules = *self.enabled_modules.get_mut();
         for (channel, enabled) in enabled_modules {
@@ -45,36 +59,38 @@ impl Drop for BladeRF {
     }
 }
 
-impl BladeRF {
-    pub fn open_first() -> Result<Self> {
+impl<D: DeviceType> BladeRF<D> {
+    pub fn open_first() -> Result<BladeRF<Unknown>> {
         log::info!("Opening first bladerf");
         let mut device = std::ptr::null_mut();
         let res = unsafe { bladerf_open(&mut device as *mut *mut _, ptr::null()) };
         check_res!(res);
-        Ok(Self {
+        Ok(BladeRF::<Unknown> {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            _p: PhantomData,
         })
     }
 
     /// Open a BladeRF device by identifier
-    pub fn open_identifier(id: &str) -> Result<Self> {
+    pub fn open_identifier(id: &str) -> Result<BladeRF<Unknown>> {
         let mut device = std::ptr::null_mut();
         let c_string = ffi::CString::new(id)
             .map_err(|e| Error::msg(format!("Invalid c string `{id}`: {e:?}")))?;
         let res = unsafe { bladerf_open(&mut device as *mut *mut _, c_string.as_ptr()) };
 
         check_res!(res);
-        Ok(Self {
+        Ok(BladeRF::<Unknown> {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            _p: PhantomData,
         })
     }
 
     /// Open a BladeRF device by devinfo object
-    pub fn open_with_devinfo(devinfo: &DevInfo) -> Result<Self> {
+    pub fn open_with_devinfo(devinfo: &DevInfo) -> Result<BladeRF<Unknown>> {
         let mut devinfo_ptr = devinfo.0;
         let mut device = std::ptr::null_mut();
 
@@ -83,10 +99,11 @@ impl BladeRF {
         };
 
         check_res!(res);
-        Ok(Self {
+        Ok(BladeRF::<Unknown> {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            _p: PhantomData,
         })
     }
 
@@ -1014,6 +1031,23 @@ impl BladeRF {
     }
 }
 
+impl BladeRF<BladeRf1> {
+    pub fn calibrate_dc(&self) -> Result<()> {
+        todo!("Just here for reference");
+        let res = unsafe { bladerf_calibrate_dc(self.device, 0) };
+
+        check_res!(res);
+        Ok(())
+    }
+}
+
+impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
+    type Error = Error;
+    fn try_from(value: BladeRF<Unknown>) -> result::Result<Self, Self::Error> {
+        todo!("Some logic to determine if it is a bladerf 1 or 2 (their functions do it by comparing a pointer :/ not sure how we can do that.)")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1142,5 +1176,14 @@ mod tests {
         let actual = device.get_sampling().unwrap();
 
         assert_eq!(desired, actual);
+    }
+
+    #[test]
+    // This should be removed.
+    fn test_bladerf1_ex() {
+        let dev = BladeRF::<Unknown>::open_first().unwrap();
+        let newdev: BladeRF<BladeRf1> = dev.try_into().unwrap();
+        newdev.calibrate_dc();
+        newdev.firmware_version();
     }
 }
