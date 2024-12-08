@@ -526,7 +526,86 @@ impl From<&bladerf_range> for Range {
 }
 
 /// Correction value, in arbitrary units
-pub type CorrectionValue = i16;
+///
+/// Units taken from here: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___c_o_r_r.html#ga75dd741fde93fecb4d514a1f9a377344>
+///
+/// Type validation is done to ensure the values are in the correct range, returning None if they are not.
+///
+/// | Enum Vaiant | Units |
+/// |---------|---------|
+/// | DcOffsetI | Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits. |
+/// | DcOffsetQ | Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits. |
+/// | Phase | Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096]. |
+/// | Gain | Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096]. |
+
+#[derive(Debug, Clone, Copy)]
+pub enum CorrectionValue {
+    DcOffsetI(i16),
+    DcOffsetQ(i16),
+    Phase(i16),
+    Gain(i16),
+}
+
+impl CorrectionValue {
+    pub fn new_gain(gain: i16) -> Option<CorrectionValue> {
+        match gain {
+            -4096..4096 => Some(CorrectionValue::Gain(gain)),
+            _ => None,
+        }
+    }
+
+    pub fn new_phase(phase: i16) -> Option<CorrectionValue> {
+        match phase {
+            -4096..4096 => Some(CorrectionValue::Phase(phase)),
+            _ => None,
+        }
+    }
+
+    pub fn new_dc_offset_i(offset: i16) -> Option<CorrectionValue> {
+        match offset {
+            -2048..2048 => Some(CorrectionValue::DcOffsetI(offset)),
+            _ => None,
+        }
+    }
+
+    pub fn new_dc_offset_q(offset: i16) -> Option<CorrectionValue> {
+        match offset {
+            -2048..2048 => Some(CorrectionValue::DcOffsetQ(offset)),
+            _ => None,
+        }
+    }
+
+    /// # Safety
+    /// This does not do type validation.
+    pub unsafe fn new_from_raw(corr: Correction, value: i16) -> CorrectionValue {
+        match corr {
+            Correction::DcOffsetI => CorrectionValue::DcOffsetI(value),
+            Correction::DcOffsetQ => CorrectionValue::DcOffsetQ(value),
+            Correction::Phase => CorrectionValue::Gain(value),
+            Correction::Gain => CorrectionValue::Phase(value),
+        }
+    }
+
+    pub fn into_inner(self) -> i16 {
+        match self {
+            CorrectionValue::DcOffsetI(val) => val,
+            CorrectionValue::DcOffsetQ(val) => val,
+            CorrectionValue::Phase(val) => val,
+            CorrectionValue::Gain(val) => val,
+        }
+    }
+}
+
+impl From<CorrectionValue> for Correction {
+    fn from(value: CorrectionValue) -> Self {
+        match value {
+            CorrectionValue::DcOffsetI(_) => Correction::DcOffsetI,
+            CorrectionValue::DcOffsetQ(_) => Correction::DcOffsetQ,
+            CorrectionValue::Phase(_) => Correction::Phase,
+            CorrectionValue::Gain(_) => Correction::Gain,
+        }
+    }
+}
 
 /// Correction parameter selection
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
