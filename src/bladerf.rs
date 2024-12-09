@@ -759,7 +759,7 @@ impl BladeRF {
         };
         check_res!(res);
         // Safety: the bladerf should return a valid value in the correct range.
-        Ok(unsafe { CorrectionValue::new_from_raw(corr, value) })
+        Ok(unsafe { CorrectionValue::new_unchecked(corr, value) })
     }
 
     // Corrections and Calibration

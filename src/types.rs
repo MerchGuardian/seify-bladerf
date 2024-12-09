@@ -549,40 +549,52 @@ pub enum CorrectionValue {
 impl CorrectionValue {
     pub fn new_gain(gain: i16) -> Option<CorrectionValue> {
         match gain {
-            -4096..4096 => Some(CorrectionValue::Gain(gain)),
+            -4096..=4096 => Some(CorrectionValue::Gain(gain)),
             _ => None,
         }
     }
 
     pub fn new_phase(phase: i16) -> Option<CorrectionValue> {
         match phase {
-            -4096..4096 => Some(CorrectionValue::Phase(phase)),
+            -4096..=4096 => Some(CorrectionValue::Phase(phase)),
             _ => None,
         }
     }
 
     pub fn new_dc_offset_i(offset: i16) -> Option<CorrectionValue> {
         match offset {
-            -2048..2048 => Some(CorrectionValue::DcOffsetI(offset)),
+            -2048..=2048 => Some(CorrectionValue::DcOffsetI(offset)),
             _ => None,
         }
     }
 
     pub fn new_dc_offset_q(offset: i16) -> Option<CorrectionValue> {
         match offset {
-            -2048..2048 => Some(CorrectionValue::DcOffsetQ(offset)),
+            -2048..=2048 => Some(CorrectionValue::DcOffsetQ(offset)),
             _ => None,
         }
     }
 
     /// # Safety
     /// This does not do type validation.
-    pub unsafe fn new_from_raw(corr: Correction, value: i16) -> CorrectionValue {
+    /// The given correction need to be in its valid range.
+    /// Techinically does not need to be marked unsafe because I am fairly certain that an error will get passed up, but
+    /// I want to write this in a way that is more ideomatic to rust where checks are performed at compile time and unwrap() can be used without the code being able to panic.
+    pub unsafe fn new_unchecked(corr: Correction, value: i16) -> CorrectionValue {
         match corr {
             Correction::DcOffsetI => CorrectionValue::DcOffsetI(value),
             Correction::DcOffsetQ => CorrectionValue::DcOffsetQ(value),
             Correction::Phase => CorrectionValue::Gain(value),
             Correction::Gain => CorrectionValue::Phase(value),
+        }
+    }
+
+    pub fn new(corr: Correction, value: i16) -> Option<CorrectionValue> {
+        match corr {
+            Correction::DcOffsetI => CorrectionValue::new_dc_offset_i(value),
+            Correction::DcOffsetQ => CorrectionValue::new_dc_offset_q(value),
+            Correction::Phase => CorrectionValue::new_phase(value),
+            Correction::Gain => CorrectionValue::new_gain(value),
         }
     }
 
