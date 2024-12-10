@@ -732,14 +732,14 @@ impl BladeRF {
     // **Correction Functions**
 
     /// Set the value of the specified correction parameter
-    pub fn set_correction(&self, channel: Channel, corr: CorrectionValue) -> Result<()> {
-        let correction_type: Correction = corr.into();
+    pub fn set_correction<T: CorrectionValue>(&self, channel: Channel, corr: T) -> Result<()> {
+        let correction_type: Correction = T::TYPE;
         let res = unsafe {
             bladerf_set_correction(
                 self.device,
                 channel as bladerf_channel,
                 correction_type as bladerf_correction,
-                corr.into_inner(),
+                corr.value(),
             )
         };
         check_res!(res);
@@ -747,7 +747,8 @@ impl BladeRF {
     }
 
     /// Obtain the current value of the specified correction parameter
-    pub fn get_correction(&self, channel: Channel, corr: Correction) -> Result<CorrectionValue> {
+    pub fn get_correction<T: CorrectionValue>(&self, channel: Channel) -> Result<T> {
+        let corr = T::TYPE;
         let mut value: i16 = 0;
         let res = unsafe {
             bladerf_get_correction(
@@ -759,7 +760,7 @@ impl BladeRF {
         };
         check_res!(res);
         // Safety: the bladerf should return a valid value in the correct range.
-        Ok(unsafe { CorrectionValue::new_unchecked(corr, value) })
+        Ok(unsafe { T::new_unchecked(value) })
     }
 
     // Corrections and Calibration

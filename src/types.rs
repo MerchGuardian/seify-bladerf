@@ -538,84 +538,122 @@ impl From<&bladerf_range> for Range {
 /// | Phase | Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096]. |
 /// | Gain | Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096]. |
 
-#[derive(Debug, Clone, Copy)]
-pub enum CorrectionValue {
-    DcOffsetI(i16),
-    DcOffsetQ(i16),
-    Phase(i16),
-    Gain(i16),
+pub trait CorrectionValue: Sized {
+    const TYPE: Correction;
+    fn value(&self) -> i16;
+    unsafe fn new_unchecked(val: i16) -> Self;
 }
 
-impl CorrectionValue {
-    pub fn new_gain(gain: i16) -> Option<CorrectionValue> {
-        match gain {
-            -4096..=4096 => Some(CorrectionValue::Gain(gain)),
-            _ => None,
-        }
-    }
+#[derive(Debug, Clone, Copy)]
+pub struct CorrectionDcOffsetI(pub i16);
 
-    pub fn new_phase(phase: i16) -> Option<CorrectionValue> {
-        match phase {
-            -4096..=4096 => Some(CorrectionValue::Phase(phase)),
-            _ => None,
-        }
-    }
-
-    pub fn new_dc_offset_i(offset: i16) -> Option<CorrectionValue> {
-        match offset {
-            -2048..=2048 => Some(CorrectionValue::DcOffsetI(offset)),
-            _ => None,
-        }
-    }
-
-    pub fn new_dc_offset_q(offset: i16) -> Option<CorrectionValue> {
-        match offset {
-            -2048..=2048 => Some(CorrectionValue::DcOffsetQ(offset)),
-            _ => None,
-        }
-    }
-
-    /// # Safety
-    /// This does not do type validation.
-    /// The given correction need to be in its valid range.
-    /// Techinically does not need to be marked unsafe because I am fairly certain that an error will get passed up, but
-    /// I want to write this in a way that is more ideomatic to rust where checks are performed at compile time and unwrap() can be used without the code being able to panic.
-    pub unsafe fn new_unchecked(corr: Correction, value: i16) -> CorrectionValue {
-        match corr {
-            Correction::DcOffsetI => CorrectionValue::DcOffsetI(value),
-            Correction::DcOffsetQ => CorrectionValue::DcOffsetQ(value),
-            Correction::Phase => CorrectionValue::Gain(value),
-            Correction::Gain => CorrectionValue::Phase(value),
-        }
-    }
-
-    pub fn new(corr: Correction, value: i16) -> Option<CorrectionValue> {
-        match corr {
-            Correction::DcOffsetI => CorrectionValue::new_dc_offset_i(value),
-            Correction::DcOffsetQ => CorrectionValue::new_dc_offset_q(value),
-            Correction::Phase => CorrectionValue::new_phase(value),
-            Correction::Gain => CorrectionValue::new_gain(value),
+// Implement constructors with validation for each struct
+impl CorrectionDcOffsetI {
+    pub fn new(value: i16) -> Option<Self> {
+        if (-2048..=2048).contains(&value) {
+            Some(Self(value))
+        } else {
+            None
         }
     }
 
     pub fn into_inner(self) -> i16 {
-        match self {
-            CorrectionValue::DcOffsetI(val) => val,
-            CorrectionValue::DcOffsetQ(val) => val,
-            CorrectionValue::Phase(val) => val,
-            CorrectionValue::Gain(val) => val,
-        }
+        self.0
     }
 }
 
-impl From<CorrectionValue> for Correction {
-    fn from(value: CorrectionValue) -> Self {
-        match value {
-            CorrectionValue::DcOffsetI(_) => Correction::DcOffsetI,
-            CorrectionValue::DcOffsetQ(_) => Correction::DcOffsetQ,
-            CorrectionValue::Phase(_) => Correction::Phase,
-            CorrectionValue::Gain(_) => Correction::Gain,
+impl CorrectionValue for CorrectionDcOffsetI {
+    const TYPE: Correction = Correction::DcOffsetI;
+    fn value(&self) -> i16 {
+        self.into_inner()
+    }
+
+    unsafe fn new_unchecked(value: i16) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CorrectionDcOffsetQ(pub i16);
+
+impl CorrectionDcOffsetQ {
+    pub fn new(value: i16) -> Option<Self> {
+        if (-2048..=2048).contains(&value) {
+            Some(Self(value))
+        } else {
+            None
         }
+    }
+
+    pub fn into_inner(self) -> i16 {
+        self.0
+    }
+}
+
+impl CorrectionValue for CorrectionDcOffsetQ {
+    const TYPE: Correction = Correction::DcOffsetQ;
+    fn value(&self) -> i16 {
+        self.into_inner()
+    }
+
+    unsafe fn new_unchecked(value: i16) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CorrectionPhase(pub i16);
+
+impl CorrectionPhase {
+    pub fn new(value: i16) -> Option<Self> {
+        if (-4096..=4096).contains(&value) {
+            Some(Self(value))
+        } else {
+            None
+        }
+    }
+
+    pub fn into_inner(self) -> i16 {
+        self.0
+    }
+}
+
+impl CorrectionValue for CorrectionPhase {
+    const TYPE: Correction = Correction::Phase;
+    fn value(&self) -> i16 {
+        self.into_inner()
+    }
+
+    unsafe fn new_unchecked(value: i16) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CorrectionGain(pub i16);
+
+impl CorrectionGain {
+    pub fn new(value: i16) -> Option<Self> {
+        if (-4096..=4096).contains(&value) {
+            Some(Self(value))
+        } else {
+            None
+        }
+    }
+
+    pub fn into_inner(self) -> i16 {
+        self.0
+    }
+}
+
+impl CorrectionValue for CorrectionGain {
+    const TYPE: Correction = Correction::Gain;
+    fn value(&self) -> i16 {
+        self.into_inner()
+    }
+
+    unsafe fn new_unchecked(value: i16) -> Self {
+        Self(value)
     }
 }
 
