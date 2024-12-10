@@ -1,6 +1,5 @@
-use std::io;
+use std::{error::Error, io};
 
-use anyhow::Context;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     buffer::Buffer,
@@ -60,76 +59,148 @@ pub struct App {
     exit: bool,
 }
 
-fn validate_frequency(textarea: &mut TextArea) -> bool {
-    match textarea.lines()[0].parse::<u64>() {
-        Err(err) => {
-            textarea.set_style(Style::default().fg(Color::LightRed));
-            textarea.set_block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Color::LightRed)
-                    .title(format!("ERROR: {}", err)),
-            );
-            false
-        }
-        Ok(freq) if (freq > 300000000) && (freq < 3000000000) => {
-            textarea.set_style(Style::default().fg(Color::LightGreen));
-            textarea.set_block(
-                Block::default()
-                    .border_style(Color::LightGreen)
-                    .borders(Borders::ALL)
-                    .title("OK"),
-            );
-            true
-        }
-        Ok(_) => {
-            textarea.set_style(Style::default().fg(Color::LightRed));
-            textarea.set_block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Color::LightRed)
-                    .title("ERROR: out of range"),
-            );
-            false
-        }
+// fn validate_frequency(textarea: &mut TextArea) -> bool {
+//     match textarea.lines()[0].parse::<u64>() {
+//         Err(err) => {
+//             textarea.set_style(Style::default().fg(Color::LightRed));
+//             textarea.set_block(
+//                 Block::default()
+//                     .borders(Borders::ALL)
+//                     .border_style(Color::LightRed)
+//                     .title(format!("ERROR: {}", err)),
+//             );
+//             false
+//         }
+//         Ok(freq) if (freq > 300000000) && (freq < 3000000000) => {
+//             textarea.set_style(Style::default().fg(Color::LightGreen));
+//             textarea.set_block(
+//                 Block::default()
+//                     .border_style(Color::LightGreen)
+//                     .borders(Borders::ALL)
+//                     .title("OK"),
+//             );
+//             true
+//         }
+//         Ok(_) => {
+//             textarea.set_style(Style::default().fg(Color::LightRed));
+//             textarea.set_block(
+//                 Block::default()
+//                     .borders(Borders::ALL)
+//                     .border_style(Color::LightRed)
+//                     .title("ERROR: out of range"),
+//             );
+//             false
+//         }
+//     }
+// }
+
+fn validate_frequency(val: &str) -> Result<u64, String> {
+    match val.parse::<u64>() {
+        Err(err) => Err(format!("{}", err)),
+        Ok(freq) if (freq > 300000000) && (freq < 3000000000) => Ok(freq),
+        Ok(invalid_freq) => Err(format!("Value `{}` out of range", invalid_freq)),
     }
 }
 
-fn validate_correction(textarea: &mut TextArea, corr: Correction) -> bool {
-    match textarea.lines()[0]
-        .parse::<i16>()
-        .map(|x| CorrectionValue::new(corr, x))
+fn validate_correction(val: &str, corr: Correction) -> Result<CorrectionValue, String> {
+    match val.parse::<i16>().map(|x| CorrectionValue::new(corr, x)) {
+        Err(err) => Err(format!("{}", err)),
+        Ok(Some(x)) => Ok(x),
+        Ok(None) => Err(format!("Value `{val}` out of range")),
+    }
+}
+
+/// A custom numeric input widget with validation
+pub struct NumericInput<'a, T, E> {
+    textarea: TextArea<'a>,
+    validation_fn: Box<dyn Fn(&str) -> Result<T, E>>, // Validation logic
+}
+
+impl<'a, T> NumericInput<'a, T, String> {
+    /// Creates a new `NumericInput` with the provided initial value and validation function.
+    pub fn new<F>(initial_value: String, validation_fn: F) -> Self
+    where
+        F: Fn(&str) -> Result<T, String> + 'static,
     {
-        Err(err) => {
-            textarea.set_style(Style::default().fg(Color::LightRed));
-            textarea.set_block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Color::LightRed)
-                    .title(format!("ERROR: {}", err)),
-            );
-            false
+        let mut numeric_input = Self {
+            textarea: TextArea::new(vec![initial_value]),
+            validation_fn: Box::new(validation_fn),
+        };
+        numeric_input.validate();
+        numeric_input.remove_focus();
+        numeric_input
+    }
+
+    fn validate(&mut self) {
+        match (self.validation_fn)(&self.textarea.lines()[0]) {
+            Ok(_) => {
+                self.textarea
+                    .set_style(Style::default().fg(Color::LightGreen));
+                self.textarea.set_block(
+                    Block::default()
+                        .border_style(Color::LightGreen)
+                        .borders(Borders::ALL)
+                        .title("OK"),
+                );
+            }
+            Err(err) => {
+                self.textarea
+                    .set_style(Style::default().fg(Color::LightRed));
+                self.textarea.set_block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(Color::LightRed)
+                        .title(format!("ERROR: {err}")),
+                );
+            }
         }
-        Ok(Some(_)) => {
-            textarea.set_style(Style::default().fg(Color::LightGreen));
-            textarea.set_block(
-                Block::default()
-                    .border_style(Color::LightGreen)
-                    .borders(Borders::ALL)
-                    .title("OK"),
-            );
-            true
+    }
+    /// Handles input events and revalidates the value
+    pub fn handle_input_inner(&mut self, input: Input) {
+        if self.textarea.input(input) {
+            self.validate();
         }
-        Ok(None) => {
-            textarea.set_style(Style::default().fg(Color::LightRed));
-            textarea.set_block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Color::LightRed)
-                    .title("ERROR: out of range"),
-            );
-            false
-        }
+    }
+
+    /// Sets focus (cursor style) to this input
+    pub fn set_focus(&mut self) {
+        self.textarea
+            .set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
+    }
+
+    /// Removes focus from this input
+    pub fn remove_focus(&mut self) {
+        self.textarea.set_cursor_style(Style::default());
+    }
+
+    /// Retrieves the current value as a string
+    pub fn value(&self) -> String {
+        self.textarea.lines().join("")
+    }
+}
+
+trait NumericInputHandle {
+    fn handle_input(&mut self, input: Input);
+}
+
+impl<'a, T> NumericInputHandle for &mut NumericInput<'a, T, String> {
+    fn handle_input(&mut self, input: Input) {
+        self.handle_input_inner(input);
+    }
+}
+
+impl<'a, T> NumericInputHandle for NumericInput<'a, T, String> {
+    fn handle_input(&mut self, input: Input) {
+        self.handle_input_inner(input);
+    }
+}
+
+impl<'a, T, E> Widget for &NumericInput<'a, T, E> {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        self.textarea.render(area, buf);
     }
 }
 
@@ -160,45 +231,47 @@ impl App {
 
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        let mut frequency_input = TextArea::new(vec![self.get_freq().to_string()]);
-        validate_frequency(&mut frequency_input);
+        let mut frequency_input =
+            NumericInput::new(self.get_freq().to_string(), validate_frequency);
 
-        let mut icorr_input = TextArea::new(vec![self.get_icorr().to_string()]);
-        validate_correction(&mut icorr_input, Correction::DcOffsetI);
+        let mut icorr_input = NumericInput::new(self.get_icorr().to_string(), |x| {
+            validate_correction(x, Correction::DcOffsetI)
+        });
 
-        let mut qcorr_input = TextArea::new(vec![self.get_qcorr().to_string()]);
-        validate_correction(&mut qcorr_input, Correction::DcOffsetQ);
+        let mut qcorr_input = NumericInput::new(self.get_qcorr().to_string(), |x| {
+            validate_correction(x, Correction::DcOffsetQ)
+        });
 
-        let mut phase_input = TextArea::new(vec![self.get_phase().to_string()]);
-        validate_correction(&mut phase_input, Correction::Phase);
+        let mut phase_input = NumericInput::new(self.get_phase().to_string(), |x| {
+            validate_correction(x, Correction::Phase)
+        });
 
-        let mut gain_input = TextArea::new(vec![self.get_gain().to_string()]);
-        validate_correction(&mut gain_input, Correction::Gain);
+        let mut gain_input = NumericInput::new(self.get_gain().to_string(), |x| {
+            validate_correction(x, Correction::Gain)
+        });
 
         while !self.exit {
             let debug_test = Text::from(format!("Sel: {:?}", self.selected_input));
 
-            frequency_input.set_cursor_style(Style::default());
-            icorr_input.set_cursor_style(Style::default());
-            qcorr_input.set_cursor_style(Style::default());
-            phase_input.set_cursor_style(Style::default());
-            gain_input.set_cursor_style(Style::default());
+            frequency_input.remove_focus();
+            icorr_input.remove_focus();
+            qcorr_input.remove_focus();
+            phase_input.remove_focus();
+            gain_input.remove_focus();
 
-            let selected_text_field = match self.selected_input {
-                SelectedInput::Frequency => &mut frequency_input,
-                SelectedInput::DcOffsetI => &mut icorr_input,
-                SelectedInput::DcOffsetQ => &mut qcorr_input,
-                SelectedInput::Phase => &mut phase_input,
-                SelectedInput::Gain => &mut gain_input,
+            match self.selected_input {
+                SelectedInput::Frequency => frequency_input.set_focus(),
+                SelectedInput::DcOffsetI => icorr_input.set_focus(),
+                SelectedInput::DcOffsetQ => qcorr_input.set_focus(),
+                SelectedInput::Phase => phase_input.set_focus(),
+                SelectedInput::Gain => gain_input.set_focus(),
             };
-
-            selected_text_field.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
 
             terminal.draw(|frame| {
                 let layout = Layout::default()
                     .direction(Direction::Vertical)
                     .constraints(vec![
-                        Constraint::Length(4),
+                        Constraint::Length(3),
                         Constraint::Length(3),
                         Constraint::Length(3),
                         Constraint::Length(3),
@@ -215,32 +288,15 @@ impl App {
                 frame.render_widget(&debug_test, layout[5]);
             })?;
 
-            let (selected_text_field, selected_validation): (
-                _,
-                Box<dyn Fn(&mut TextArea) -> bool>,
-            ) = match self.selected_input {
-                SelectedInput::Frequency => {
-                    (&mut frequency_input, Box::new(|x| validate_frequency(x)))
-                }
-                SelectedInput::DcOffsetI => (
-                    &mut icorr_input,
-                    Box::new(|x| validate_correction(x, Correction::DcOffsetI)),
-                ),
-                SelectedInput::DcOffsetQ => (
-                    &mut qcorr_input,
-                    Box::new(|x| validate_correction(x, Correction::DcOffsetQ)),
-                ),
-                SelectedInput::Phase => (
-                    &mut phase_input,
-                    Box::new(|x| validate_correction(x, Correction::Phase)),
-                ),
-                SelectedInput::Gain => (
-                    &mut gain_input,
-                    Box::new(|x| validate_correction(x, Correction::Gain)),
-                ),
+            match self.selected_input {
+                // let selected_text_field: dyn NumericInputHandle = match self.selected_input {
+                SelectedInput::Frequency => self.handle_events(&mut frequency_input)?,
+                SelectedInput::DcOffsetI => self.handle_events(&mut icorr_input)?,
+                SelectedInput::DcOffsetQ => self.handle_events(&mut qcorr_input)?,
+                SelectedInput::Phase => self.handle_events(&mut phase_input)?,
+                SelectedInput::Gain => self.handle_events(&mut gain_input)?,
             };
-
-            self.handle_events(selected_text_field, selected_validation)?;
+            // self.handle_events(selected_text_field)?;
         }
         Ok(())
     }
@@ -298,29 +354,12 @@ impl App {
     }
 
     /// updates the application's state based on user input
-    fn handle_events(
-        &mut self,
-        textarea: &mut TextArea,
-        validation_fn: Box<dyn Fn(&mut TextArea) -> bool>,
-    ) -> io::Result<()> {
-        // match event::read()? {
-        //     // it's important to check that the event is a key press event as
-        //     // crossterm also emits key release and repeat events on Windows.
-        //     Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-        //         self.handle_key_event(key_event)
-        //     }
-        //     _ => {}
-        // };
-
+    fn handle_events(&mut self, idk: &mut dyn NumericInputHandle) -> io::Result<()> {
         match crossterm::event::read()?.into() {
             Input { key: Key::Esc, .. } => self.exit(),
             Input { key: Key::Up, .. } => self.selected_up(),
             Input { key: Key::Down, .. } => self.selected_down(),
-            input => {
-                if textarea.input(input) {
-                    validation_fn(textarea);
-                }
-            }
+            input => idk.handle_input(input),
         }
 
         Ok(())
@@ -345,9 +384,8 @@ impl Widget for &App {
 }
 
 fn main() -> io::Result<()> {
-    let device = BladeRF::open_first()
-        .context("Unable to open a BladeRF device")
-        .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
+    let device =
+        BladeRF::open_first().map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
 
     let mut terminal = ratatui::init();
     let app_result = App::new(device).run(&mut terminal);
