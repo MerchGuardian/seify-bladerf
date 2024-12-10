@@ -1,0 +1,9 @@
+{
+    "rust-analyzer.cargo.extraEnv": {
+      "BLADERF_RS_FPGA_BITSTREAM_PATH": "/home/quantum_p/LocalDocs/software_builds/bladeRF/my_downloaded_fw_rbf/hostedx40_v0.15.3.rbf"
+    },
+    "terminal.integrated.env.linux": {
+      "BLADERF_RS_FPGA_BITSTREAM_PATH": "/home/quantum_p/LocalDocs/software_builds/bladeRF/my_downloaded_fw_rbf/hostedx40_v0.15.3.rbf"
+	}
+}
+  
