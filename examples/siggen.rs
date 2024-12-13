@@ -51,51 +51,13 @@ impl SelectedInput {
 
 pub struct App {
     channel: bladerf::Channel,
-    // frequency: u64,
-    // i_corr: i16,
-    // q_corr: i16,
-    // phase: i16,
-    // gain: i16,
-    // transmitting: bool,
     device: BladeRF,
     selected_input: SelectedInput,
+    focused: bool,
     exit: bool,
 }
 
-// fn validate_frequency(textarea: &mut TextArea) -> bool {
-//     match textarea.lines()[0].parse::<u64>() {
-//         Err(err) => {
-//             textarea.set_style(Style::default().fg(Color::LightRed));
-//             textarea.set_block(
-//                 Block::default()
-//                     .borders(Borders::ALL)
-//                     .border_style(Color::LightRed)
-//                     .title(format!("ERROR: {}", err)),
-//             );
-//             false
-//         }
-//         Ok(freq) if (freq > 300000000) && (freq < 3000000000) => {
-//             textarea.set_style(Style::default().fg(Color::LightGreen));
-//             textarea.set_block(
-//                 Block::default()
-//                     .border_style(Color::LightGreen)
-//                     .borders(Borders::ALL)
-//                     .title("OK"),
-//             );
-//             true
-//         }
-//         Ok(_) => {
-//             textarea.set_style(Style::default().fg(Color::LightRed));
-//             textarea.set_block(
-//                 Block::default()
-//                     .borders(Borders::ALL)
-//                     .border_style(Color::LightRed)
-//                     .title("ERROR: out of range"),
-//             );
-//             false
-//         }
-//     }
-// }
+type IntValidationFunction<T, E> = Box<dyn Fn(&str) -> Result<T, E>>;
 
 fn validate_frequency(val: &str) -> Result<u64, String> {
     match val.parse::<u64>() {
@@ -116,7 +78,7 @@ fn validate_correction<T: CorrectionValue>(val: &str) -> Result<T, String> {
 /// A custom numeric input widget with validation
 pub struct NumericInput<'a, T, E> {
     textarea: TextArea<'a>,
-    validation_fn: Box<dyn Fn(&str) -> Result<T, E>>, // Validation logic
+    validation_fn: IntValidationFunction<T, E>, // Validation logic
 }
 
 impl<'a, T> NumericInput<'a, T, String> {
@@ -212,22 +174,9 @@ impl App {
         let channel = bladerf::Channel::Tx1;
         App {
             channel,
-            // frequency: dev.get_frequency(channel).unwrap(),
-            // i_corr: dev
-            //     .get_correction(channel, bladerf::Correction::DcOffsetI)
-            //     .unwrap(),
-            // q_corr: dev
-            //     .get_correction(channel, bladerf::Correction::DcOffsetQ)
-            //     .unwrap(),
-            // phase: dev
-            //     .get_correction(channel, bladerf::Correction::Phase)
-            //     .unwrap(),
-            // gain: dev
-            //     .get_correction(channel, bladerf::Correction::Gain)
-            //     .unwrap(),
-            // transmitting: false,
             device: dev,
             selected_input: SelectedInput::Frequency,
+            focused: false,
             exit: false,
         }
     }
@@ -299,6 +248,14 @@ impl App {
                 SelectedInput::Phase => self.handle_events(&mut phase_input)?,
                 SelectedInput::Gain => self.handle_events(&mut gain_input)?,
             };
+            // let test: Option<Box<dyn NumericInputHandle>> = match self.selected_input {
+            //     SelectedInput::DcOffsetI => Some(Box::new(frequency_input)),
+            //     SelectedInput::DcOffsetQ => Some(Box::new(gain_input)),
+            //     SelectedInput::Frequency => todo!(),
+            //     SelectedInput::Phase => todo!(),
+            //     SelectedInput::Gain => todo!(),
+            // };
+
             // self.handle_events(selected_text_field)?;
         }
         Ok(())
