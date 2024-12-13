@@ -17,6 +17,7 @@ use crate::{sys::*, Error, Result};
 
 pub trait CorrectionValue: Sized {
     const TYPE: Correction;
+    fn new(value: i16) -> Option<Self>;
     fn value(&self) -> i16;
     unsafe fn new_unchecked(val: i16) -> Self;
 }
@@ -41,6 +42,11 @@ impl CorrectionDcOffsetI {
 
 impl CorrectionValue for CorrectionDcOffsetI {
     const TYPE: Correction = Correction::DcOffsetI;
+
+    fn new(value: i16) -> Option<Self> {
+        Self::new(value)
+    }
+
     fn value(&self) -> i16 {
         self.into_inner()
     }
@@ -69,6 +75,11 @@ impl CorrectionDcOffsetQ {
 
 impl CorrectionValue for CorrectionDcOffsetQ {
     const TYPE: Correction = Correction::DcOffsetQ;
+
+    fn new(value: i16) -> Option<Self> {
+        Self::new(value)
+    }
+
     fn value(&self) -> i16 {
         self.into_inner()
     }
@@ -97,6 +108,11 @@ impl CorrectionPhase {
 
 impl CorrectionValue for CorrectionPhase {
     const TYPE: Correction = Correction::Phase;
+
+    fn new(value: i16) -> Option<Self> {
+        Self::new(value)
+    }
+
     fn value(&self) -> i16 {
         self.into_inner()
     }
@@ -125,6 +141,11 @@ impl CorrectionGain {
 
 impl CorrectionValue for CorrectionGain {
     const TYPE: Correction = Correction::Gain;
+
+    fn new(value: i16) -> Option<Self> {
+        Self::new(value)
+    }
+
     fn value(&self) -> i16 {
         self.into_inner()
     }
