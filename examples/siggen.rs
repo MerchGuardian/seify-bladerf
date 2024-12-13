@@ -13,7 +13,10 @@ use ratatui::{
 
 use ratatui::prelude::*;
 
-use bladerf::{BladeRF, Correction, CorrectionValue};
+use bladerf::{
+    BladeRF, Correction, CorrectionDcOffsetI, CorrectionDcOffsetQ, CorrectionGain, CorrectionPhase,
+    CorrectionValue,
+};
 use tui_textarea::{Input, Key, TextArea};
 
 #[derive(Debug, Clone, Copy)]
@@ -102,8 +105,8 @@ fn validate_frequency(val: &str) -> Result<u64, String> {
     }
 }
 
-fn validate_correction(val: &str, corr: Correction) -> Result<CorrectionValue, String> {
-    match val.parse::<i16>().map(|x| CorrectionValue::new(corr, x)) {
+fn validate_correction<T: CorrectionValue>(val: &str) -> Result<T, String> {
+    match val.parse::<i16>().map(|x| T::new(x)) {
         Err(err) => Err(format!("{}", err)),
         Ok(Some(x)) => Ok(x),
         Ok(None) => Err(format!("Value `{val}` out of range")),
@@ -235,19 +238,19 @@ impl App {
             NumericInput::new(self.get_freq().to_string(), validate_frequency);
 
         let mut icorr_input = NumericInput::new(self.get_icorr().to_string(), |x| {
-            validate_correction(x, Correction::DcOffsetI)
+            validate_correction::<CorrectionDcOffsetI>(x)
         });
 
         let mut qcorr_input = NumericInput::new(self.get_qcorr().to_string(), |x| {
-            validate_correction(x, Correction::DcOffsetQ)
+            validate_correction::<CorrectionDcOffsetQ>(x)
         });
 
         let mut phase_input = NumericInput::new(self.get_phase().to_string(), |x| {
-            validate_correction(x, Correction::Phase)
+            validate_correction::<CorrectionPhase>(x)
         });
 
         let mut gain_input = NumericInput::new(self.get_gain().to_string(), |x| {
-            validate_correction(x, Correction::Gain)
+            validate_correction::<CorrectionGain>(x)
         });
 
         while !self.exit {
@@ -319,28 +322,28 @@ impl App {
 
     fn get_icorr(&self) -> i16 {
         self.device
-            .get_correction(self.channel, bladerf::Correction::DcOffsetI)
+            .get_correction::<CorrectionDcOffsetI>(self.channel)
             .unwrap()
             .into_inner()
     }
 
     fn get_qcorr(&self) -> i16 {
         self.device
-            .get_correction(self.channel, bladerf::Correction::DcOffsetQ)
+            .get_correction::<CorrectionDcOffsetQ>(self.channel)
             .unwrap()
             .into_inner()
     }
 
     fn get_phase(&self) -> i16 {
         self.device
-            .get_correction(self.channel, bladerf::Correction::Phase)
+            .get_correction::<CorrectionPhase>(self.channel)
             .unwrap()
             .into_inner()
     }
 
     fn get_gain(&self) -> i16 {
         self.device
-            .get_correction(self.channel, bladerf::Correction::Gain)
+            .get_correction::<CorrectionGain>(self.channel)
             .unwrap()
             .into_inner()
     }
@@ -349,7 +352,7 @@ impl App {
         self.device.set_frequency(self.channel, freq).unwrap()
     }
 
-    fn set_corr(&self, corr: CorrectionValue) {
+    fn set_corr<T: CorrectionValue>(&self, corr: T) {
         self.device.set_correction(self.channel, corr).unwrap()
     }
 

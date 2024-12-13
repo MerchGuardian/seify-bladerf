@@ -56,7 +56,7 @@ mod range;
 pub use range::Range;
 
 mod correction;
-pub use correction::{Correction, CorrectionValue};
+pub use correction::*;
 
 mod trigger;
 pub use trigger::{Trigger, TriggerRole, TriggerSignal};
