@@ -211,12 +211,14 @@ impl App {
             phase_input.remove_focus();
             gain_input.remove_focus();
 
-            match self.selected_input {
-                SelectedInput::Frequency => frequency_input.set_focus(),
-                SelectedInput::DcOffsetI => icorr_input.set_focus(),
-                SelectedInput::DcOffsetQ => qcorr_input.set_focus(),
-                SelectedInput::Phase => phase_input.set_focus(),
-                SelectedInput::Gain => gain_input.set_focus(),
+            if self.focused {
+                match self.selected_input {
+                    SelectedInput::Frequency => frequency_input.set_focus(),
+                    SelectedInput::DcOffsetI => icorr_input.set_focus(),
+                    SelectedInput::DcOffsetQ => qcorr_input.set_focus(),
+                    SelectedInput::Phase => phase_input.set_focus(),
+                    SelectedInput::Gain => gain_input.set_focus(),
+                }
             };
 
             terminal.draw(|frame| {
@@ -240,13 +242,17 @@ impl App {
                 frame.render_widget(&debug_test, layout[5]);
             })?;
 
-            match self.selected_input {
-                // let selected_text_field: dyn NumericInputHandle = match self.selected_input {
-                SelectedInput::Frequency => self.handle_events(&mut frequency_input)?,
-                SelectedInput::DcOffsetI => self.handle_events(&mut icorr_input)?,
-                SelectedInput::DcOffsetQ => self.handle_events(&mut qcorr_input)?,
-                SelectedInput::Phase => self.handle_events(&mut phase_input)?,
-                SelectedInput::Gain => self.handle_events(&mut gain_input)?,
+            if self.focused {
+                match self.selected_input {
+                    // let selected_text_field: dyn NumericInputHandle = match self.selected_input {
+                    SelectedInput::Frequency => self.handle_events(Some(&mut frequency_input))?,
+                    SelectedInput::DcOffsetI => self.handle_events(Some(&mut icorr_input))?,
+                    SelectedInput::DcOffsetQ => self.handle_events(Some(&mut qcorr_input))?,
+                    SelectedInput::Phase => self.handle_events(Some(&mut phase_input))?,
+                    SelectedInput::Gain => self.handle_events(Some(&mut gain_input))?,
+                }
+            } else {
+                self.handle_events(None)?;
             };
             // let test: Option<Box<dyn NumericInputHandle>> = match self.selected_input {
             //     SelectedInput::DcOffsetI => Some(Box::new(frequency_input)),
@@ -271,6 +277,14 @@ impl App {
 
     fn exit(&mut self) {
         self.exit = true;
+    }
+
+    fn set_focus(&mut self) {
+        self.focused = true;
+    }
+
+    fn unset_focus(&mut self) {
+        self.focused = false;
     }
 
     fn get_freq(&self) -> u64 {
@@ -314,12 +328,27 @@ impl App {
     }
 
     /// updates the application's state based on user input
-    fn handle_events(&mut self, idk: &mut dyn NumericInputHandle) -> io::Result<()> {
-        match crossterm::event::read()?.into() {
-            Input { key: Key::Esc, .. } => self.exit(),
-            Input { key: Key::Up, .. } => self.selected_up(),
-            Input { key: Key::Down, .. } => self.selected_down(),
-            input => idk.handle_input(input),
+    fn handle_events(&mut self, idk: Option<&mut dyn NumericInputHandle>) -> io::Result<()> {
+        if let Some(idk2) = idk {
+            match crossterm::event::read()?.into() {
+                Input { key: Key::Esc, .. } => self.exit(),
+                Input { key: Key::Up, .. } => self.selected_up(),
+                Input { key: Key::Down, .. } => self.selected_down(),
+                Input {
+                    key: Key::Enter, ..
+                } => self.unset_focus(),
+                input => idk2.handle_input(input),
+            }
+        } else {
+            match crossterm::event::read()?.into() {
+                Input { key: Key::Esc, .. } => self.exit(),
+                Input { key: Key::Up, .. } => self.selected_up(),
+                Input { key: Key::Down, .. } => self.selected_down(),
+                Input {
+                    key: Key::Enter, ..
+                } => self.set_focus(),
+                _ => {}
+            }
         }
 
         Ok(())
