@@ -5,6 +5,10 @@ authors = [
     "Troy Neubauer <troy@foxhunter.ai>",
     "Ryan Kurte <ryankurte@gmail.com>",
 ]
+authors = [
+    "Troy Neubauer <troy@foxhunter.ai>",
+    "Ryan Kurte <ryankurte@gmail.com>",
+]
 description = "WIP Rust wrapper for libbladerf"
 readme = "README.md"
 license = "MIT"
