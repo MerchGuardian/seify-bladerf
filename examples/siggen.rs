@@ -1,6 +1,7 @@
 use std::{any::Any, error::Error, io, rc::Rc, str::FromStr};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use num::{traits::SaturatingAdd, One};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -76,12 +77,12 @@ fn validate_correction<T: CorrectionValue>(val: &str) -> Result<T, String> {
 }
 
 /// A custom numeric input widget with validation
-pub struct NumericInput<'a, T, E> {
+pub struct NumericInput<'a, T: SaturatingAdd, E> {
     textarea: TextArea<'a>,
     validation_fn: IntValidationFunction<T, E>, // Validation logic
 }
 
-impl<'a, T> NumericInput<'a, T, String> {
+impl<'a, T: SaturatingAdd> NumericInput<'a, T, String> {
     /// Creates a new `NumericInput` with the provided initial value and validation function.
     pub fn new<F>(initial_value: String, validation_fn: F) -> Self
     where
@@ -142,6 +143,10 @@ impl<'a, T> NumericInput<'a, T, String> {
     pub fn value(&self) -> String {
         self.textarea.lines().join("")
     }
+
+    pub fn inner_val(&self) -> Option<T> {
+        (self.validation_fn)(self.value().as_str()).ok()
+    }
 }
 
 trait NumericInputHandle {
@@ -151,7 +156,7 @@ trait NumericInputHandle {
     fn num_render(&self, area: Rect, buf: &mut Buffer);
 }
 
-impl<'a, T> NumericInputHandle for &mut NumericInput<'a, T, String> {
+impl<'a, T: SaturatingAdd> NumericInputHandle for &mut NumericInput<'a, T, String> {
     fn handle_input(&mut self, input: Input) {
         self.handle_input_inner(input);
     }
@@ -169,7 +174,7 @@ impl<'a, T> NumericInputHandle for &mut NumericInput<'a, T, String> {
     }
 }
 
-impl<'a, T> NumericInputHandle for NumericInput<'a, T, String> {
+impl<'a, T: SaturatingAdd> NumericInputHandle for NumericInput<'a, T, String> {
     fn handle_input(&mut self, input: Input) {
         self.handle_input_inner(input);
     }
@@ -187,7 +192,7 @@ impl<'a, T> NumericInputHandle for NumericInput<'a, T, String> {
     }
 }
 
-impl<'a, T, E> Widget for &NumericInput<'a, T, E> {
+impl<'a, T: SaturatingAdd, E> Widget for &NumericInput<'a, T, E> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -196,7 +201,7 @@ impl<'a, T, E> Widget for &NumericInput<'a, T, E> {
     }
 }
 
-impl<'a, T, E> Widget for NumericInput<'a, T, E> {
+impl<'a, T: SaturatingAdd, E> Widget for NumericInput<'a, T, E> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -207,7 +212,7 @@ impl<'a, T, E> Widget for NumericInput<'a, T, E> {
 
 trait NumericInputWidget: NumericInputHandle + Widget {}
 
-impl<'a, T> NumericInputWidget for NumericInput<'a, T, String> {}
+impl<'a, T: SaturatingAdd> NumericInputWidget for NumericInput<'a, T, String> {}
 
 impl Widget for &dyn NumericInputWidget {
     fn render(self, area: Rect, buf: &mut Buffer)
@@ -227,21 +232,13 @@ impl Widget for Box<dyn NumericInputWidget> {
     }
 }
 
-trait BoxWidget {
-    fn render_box(self: Box<Self>, area: Rect, buf: &mut Buffer);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MyAppAction {
+    None,
+    Update,
+    Increment,
+    Decrement,
 }
-
-impl<W: Widget> BoxWidget for W {
-    fn render_box(self: Box<Self>, area: Rect, buf: &mut Buffer) {
-        (*self).render(area, buf)
-    }
-}
-
-// impl<W: BoxWidget + ?Sized> Widget for Box<W> {
-//     fn render(self, area: Rect, buf: &mut Buffer) {
-//         self.render_box(area, buf)
-//     }
-// }
 
 impl App {
     fn new(dev: BladeRF) -> App {
@@ -363,7 +360,7 @@ impl App {
                 frame.render_widget(debug_test, row_layout[5]);
             })?;
 
-            let update_corrs = if self.focused {
+            let action = if self.focused {
                 match self.selected_input {
                     SelectedInput::Frequency => self.handle_events(Some(&mut frequency_input))?,
                     SelectedInput::DcOffsetI => self.handle_events(Some(&mut icorr_input))?,
@@ -375,7 +372,106 @@ impl App {
                 self.handle_events::<u8>(None)?
             };
 
-            if update_corrs {
+            if action == MyAppAction::Increment {
+                match self.selected_input {
+                    SelectedInput::Frequency => {
+                        if let Some(val) = frequency_input.inner_val() {
+                            frequency_input
+                                .textarea
+                                .set_yank_text((val + 1).to_string());
+                            frequency_input.textarea.select_all();
+                            frequency_input.textarea.paste();
+                        }
+                    }
+                    SelectedInput::DcOffsetI => {
+                        if let Some(val) = icorr_input.inner_val() {
+                            icorr_input
+                                .textarea
+                                .set_yank_text((val.into_inner() + 1).to_string());
+                            icorr_input.textarea.select_all();
+                            icorr_input.textarea.paste();
+                        }
+                    }
+                    SelectedInput::DcOffsetQ => {
+                        if let Some(val) = qcorr_input.inner_val() {
+                            qcorr_input
+                                .textarea
+                                .set_yank_text((val.into_inner() + 1).to_string());
+                            qcorr_input.textarea.select_all();
+                            qcorr_input.textarea.paste();
+                        }
+                    }
+                    SelectedInput::Phase => {
+                        if let Some(val) = phase_input.inner_val() {
+                            phase_input
+                                .textarea
+                                .set_yank_text((val.into_inner() + 1).to_string());
+                            phase_input.textarea.select_all();
+                            phase_input.textarea.paste();
+                        }
+                    }
+                    SelectedInput::Gain => {
+                        if let Some(val) = gain_input.inner_val() {
+                            gain_input
+                                .textarea
+                                .set_yank_text((val.into_inner() + 1).to_string());
+                            gain_input.textarea.select_all();
+                            gain_input.textarea.paste();
+                        }
+                    }
+                }
+            }
+            if action == MyAppAction::Decrement {
+                match self.selected_input {
+                    SelectedInput::Frequency => {
+                        if let Some(val) = frequency_input.inner_val() {
+                            frequency_input
+                                .textarea
+                                .set_yank_text((val - 1).to_string());
+                            frequency_input.textarea.select_all();
+                            frequency_input.textarea.paste();
+                        }
+                    }
+                    SelectedInput::DcOffsetI => {
+                        if let Some(val) = icorr_input.inner_val() {
+                            icorr_input
+                                .textarea
+                                .set_yank_text((val.into_inner() - 1).to_string());
+                            icorr_input.textarea.select_all();
+                            icorr_input.textarea.paste();
+                        }
+                    }
+                    SelectedInput::DcOffsetQ => {
+                        if let Some(val) = qcorr_input.inner_val() {
+                            qcorr_input
+                                .textarea
+                                .set_yank_text((val.into_inner() - 1).to_string());
+                            qcorr_input.textarea.select_all();
+                            qcorr_input.textarea.paste();
+                        }
+                    }
+                    SelectedInput::Phase => {
+                        if let Some(val) = phase_input.inner_val() {
+                            phase_input
+                                .textarea
+                                .set_yank_text((val.into_inner() - 1).to_string());
+                            phase_input.textarea.select_all();
+                            phase_input.textarea.paste();
+                        }
+                    }
+                    SelectedInput::Gain => {
+                        if let Some(val) = gain_input.inner_val() {
+                            gain_input
+                                .textarea
+                                .set_yank_text((val.into_inner() - 1).to_string());
+                            gain_input.textarea.select_all();
+                            gain_input.textarea.paste();
+                        }
+                    }
+                }
+            }
+
+            if action != MyAppAction::None {
                 if let Ok(val) = (frequency_input.validation_fn)(frequency_input.value().as_str()) {
                     self.set_freq(val);
                 }
@@ -457,20 +553,19 @@ impl App {
     }
 
     /// updates the application's state based on user input
-    fn handle_events<T>(
+    fn handle_events<T: SaturatingAdd>(
         &mut self,
         idk: Option<&mut NumericInput<'_, T, String>>,
-    ) -> io::Result<bool> {
-        let mut need_to_update = false;
+    ) -> io::Result<MyAppAction> {
+        let mut app_action = MyAppAction::None;
         if let Some(idk2) = idk {
             match crossterm::event::read()?.into() {
                 Input { key: Key::Esc, .. } => self.exit(),
-                // Input { key: Key::Up, .. } => self.selected_up(),
-                // Input { key: Key::Down, .. } => self.selected_down(),
+
                 Input {
                     key: Key::Enter, ..
                 } => {
-                    need_to_update = true;
+                    app_action = MyAppAction::Update;
                     self.unset_focus();
                 }
 
@@ -481,6 +576,14 @@ impl App {
                 Input { key: Key::Esc, .. } => self.exit(),
                 Input { key: Key::Up, .. } => self.selected_up(),
                 Input { key: Key::Down, .. } => self.selected_down(),
+                Input { key: Key::Left, .. } => {
+                    app_action = MyAppAction::Decrement;
+                }
+                Input {
+                    key: Key::Right, ..
+                } => {
+                    app_action = MyAppAction::Increment;
+                }
                 Input {
                     key: Key::Enter, ..
                 } => self.set_focus(),
@@ -488,7 +591,7 @@ impl App {
             }
         }
 
-        Ok(need_to_update)
+        Ok(app_action)
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
