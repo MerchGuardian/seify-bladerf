@@ -60,7 +60,7 @@ impl<D: HardwareVariant> Drop for BladeRF<D> {
     }
 }
 
-impl<D: HardwareVariant> BladeRF<D> {
+impl BladeRF<Unknown> {
     pub fn open_first() -> Result<BladeRF<Unknown>> {
         log::info!("Opening first bladerf");
         let mut device = std::ptr::null_mut();
@@ -107,7 +107,9 @@ impl<D: HardwareVariant> BladeRF<D> {
             _p: PhantomData,
         })
     }
+}
 
+impl<D: HardwareVariant> BladeRF<D> {
     pub fn info(&self) -> Result<DevInfo> {
         let mut info = bladerf_devinfo {
             backend: 0,
@@ -1116,7 +1118,7 @@ mod tests {
     fn test_open() {
         let _m = DEV_MUTEX.lock();
 
-        let _device = <BladeRF>::open_first().unwrap();
+        let _device = BladeRF::open_first().unwrap();
     }
 
     #[test]
@@ -1125,14 +1127,14 @@ mod tests {
 
         let devices = crate::get_device_list().unwrap();
         assert!(!devices.is_empty());
-        let _device = BladeRF::<Unknown>::open_with_devinfo(&devices[0]).unwrap();
+        let _device = BladeRF::open_with_devinfo(&devices[0]).unwrap();
     }
 
     #[test]
     fn test_get_fw_version() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::<Unknown>::open_first().unwrap();
+        let device = BladeRF::open_first().unwrap();
 
         let version = device.firmware_version().unwrap();
         println!("FW Version {:?}", version);
@@ -1142,7 +1144,7 @@ mod tests {
     fn test_get_fpga_version() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::<Unknown>::open_first().unwrap();
+        let device = BladeRF::open_first().unwrap();
 
         let version = device.fpga_version().unwrap();
         println!("FPGA Version {:?}", version);
@@ -1152,7 +1154,7 @@ mod tests {
     fn test_get_serial() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::<Unknown>::open_first().unwrap();
+        let device = BladeRF::open_first().unwrap();
 
         let serial = device.get_serial().unwrap();
         println!("Serial: {:?}", serial);
@@ -1163,7 +1165,7 @@ mod tests {
     fn test_fpga_loaded() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::<Unknown>::open_first().unwrap();
+        let device = BladeRF::open_first().unwrap();
 
         let loaded = device.is_fpga_configured().unwrap();
         assert!(loaded);
@@ -1173,7 +1175,7 @@ mod tests {
     fn test_loopback_modes() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::<Unknown>::open_first().unwrap();
+        let device = BladeRF::open_first().unwrap();
 
         // Check initial is none
         let loopback = device.get_loopback().unwrap();
@@ -1195,7 +1197,7 @@ mod tests {
     fn test_set_freq() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::<Unknown>::open_first().unwrap();
+        let device = BladeRF::open_first().unwrap();
 
         let freq: u64 = 915000000;
 
@@ -1210,7 +1212,7 @@ mod tests {
     fn test_set_sampling() {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::<Unknown>::open_first().unwrap();
+        let device = BladeRF::open_first().unwrap();
 
         let desired = Sampling::Internal;
         // Set and check frequency
@@ -1230,7 +1232,7 @@ mod tests {
     #[test]
     // This should be removed.
     fn test_bladerf1_ex() {
-        let dev = BladeRF::<Unknown>::open_first().unwrap();
+        let dev = BladeRF::open_first().unwrap();
         let newdev: BladeRF<BladeRf1> = dev.try_into().unwrap();
         newdev.set_txvga2(-20).unwrap();
         let _fwv = newdev.firmware_version().unwrap();
