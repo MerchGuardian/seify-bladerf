@@ -22,30 +22,30 @@ macro_rules! check_res {
 pub const FPGA_BITSTREAM_VAR_NAME: &str = "BLADERF_RS_FPGA_BITSTREAM_PATH";
 pub const DEFAULT_FPGA_BITSTREAM: &[u8] = include_bytes!(env!("BLADERF_RS_FPGA_BITSTREAM_PATH"));
 
-trait DeviceType {}
+trait HardwareVariant {}
 
 pub struct BladeRf1 {}
 
-impl DeviceType for BladeRf1 {}
+impl HardwareVariant for BladeRf1 {}
 
 pub struct BladeRf2 {}
-impl DeviceType for BladeRf2 {}
+impl HardwareVariant for BladeRf2 {}
 
 pub struct Unknown {}
-impl DeviceType for Unknown {}
+impl HardwareVariant for Unknown {}
 
 /// BladeRF device object
-pub struct BladeRF<D: DeviceType> {
+pub struct BladeRF<D: HardwareVariant> {
     device: *mut bladerf,
     enabled_modules: Mutex<EnumMap<Channel, bool>>,
     format_sync: RwLock<Option<Format>>,
     _p: PhantomData<D>,
 }
 
-unsafe impl<D: DeviceType> Send for BladeRF<D> {}
-unsafe impl<D: DeviceType> Sync for BladeRF<D> {}
+unsafe impl<D: HardwareVariant> Send for BladeRF<D> {}
+unsafe impl<D: HardwareVariant> Sync for BladeRF<D> {}
 
-impl<D: DeviceType> Drop for BladeRF<D> {
+impl<D: HardwareVariant> Drop for BladeRF<D> {
     fn drop(&mut self) {
         let enabled_modules = *self.enabled_modules.get_mut();
         for (channel, enabled) in enabled_modules {
@@ -60,7 +60,7 @@ impl<D: DeviceType> Drop for BladeRF<D> {
     }
 }
 
-impl<D: DeviceType> BladeRF<D> {
+impl<D: HardwareVariant> BladeRF<D> {
     pub fn open_first() -> Result<BladeRF<Unknown>> {
         log::info!("Opening first bladerf");
         let mut device = std::ptr::null_mut();
