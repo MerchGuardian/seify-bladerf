@@ -1,21 +1,19 @@
-use std::{any::Any, error::Error, io, rc::Rc, str::FromStr};
+use std::{io, rc::Rc};
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
-use num::{traits::SaturatingAdd, One};
+use num::traits::SaturatingAdd;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::Stylize,
-    symbols::border,
     text::{Line, Text},
-    widgets::{Block, Borders, List, Paragraph, Widget},
-    DefaultTerminal, Frame,
+    widgets::{Block, Borders, Paragraph, Widget},
+    DefaultTerminal,
 };
 
 use ratatui::prelude::*;
 
 use bladerf::{
-    BladeRF, Correction, CorrectionDcOffsetI, CorrectionDcOffsetQ, CorrectionGain, CorrectionPhase,
+    BladeRF, CorrectionDcOffsetI, CorrectionDcOffsetQ, CorrectionGain, CorrectionPhase,
     CorrectionValue,
 };
 use tui_textarea::{Input, Key, TextArea};
@@ -567,7 +565,6 @@ impl App {
         if let Some(idk2) = idk {
             match crossterm::event::read()?.into() {
                 Input { key: Key::Esc, .. } => self.exit(),
-
                 Input {
                     key: Key::Enter, ..
                 } => {
@@ -598,15 +595,6 @@ impl App {
         }
 
         Ok(app_action)
-    }
-
-    fn handle_key_event(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Char('q') => self.exit(),
-            KeyCode::Up => self.selected_up(),
-            KeyCode::Down => self.selected_down(),
-            _ => {}
-        }
     }
 }
 
