@@ -274,7 +274,13 @@ impl App {
         });
 
         while !self.exit {
-            let debug_test = Text::from(format!("Sel: {:?}", self.selected_input));
+            // let debug_test = Text::from(format!("Sel: {:?}", self.selected_input));
+            let instructions = Text::from(vec![
+                "Use up down arrow keys to select field".into(),
+                "Hit enter to edit a field and ender again to exit, upon exit the value will be updated".into(),
+                "You can use the left right arroy keys to move between values".into(),
+                "Esc to quit (I don't know how to handle SIGINT".into()
+            ]);
 
             frequency_input.unset_focus();
             icorr_input.unset_focus();
@@ -322,7 +328,7 @@ impl App {
                         Constraint::Length(3),
                         Constraint::Length(3),
                         Constraint::Length(3),
-                        Constraint::Length(3),
+                        Constraint::Length(5),
                     ])
                     .split(frame.area());
 
@@ -357,7 +363,7 @@ impl App {
                     frame.render_widget(setpoint, layout[2]);
                 }
 
-                frame.render_widget(debug_test, row_layout[5]);
+                frame.render_widget(instructions, row_layout[5]);
             })?;
 
             let action = if self.focused {
