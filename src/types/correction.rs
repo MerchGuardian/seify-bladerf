@@ -1,3 +1,6 @@
+use std::ops::Add;
+
+use num::{traits::SaturatingAdd, One};
 use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
@@ -19,6 +22,8 @@ pub trait CorrectionValue: Sized {
     const TYPE: Correction;
     fn new(value: i16) -> Option<Self>;
     fn value(&self) -> i16;
+    /// # Safety
+    /// Make sure the value is within the range for the given correction
     unsafe fn new_unchecked(val: i16) -> Self;
 }
 
@@ -27,8 +32,11 @@ pub struct CorrectionDcOffsetI(pub i16);
 
 // Implement constructors with validation for each struct
 impl CorrectionDcOffsetI {
+    const MAX: i16 = 2048;
+    const MIN: i16 = -2048;
+
     pub fn new(value: i16) -> Option<Self> {
-        if (-2048..=2048).contains(&value) {
+        if (Self::MIN..=Self::MAX).contains(&value) {
             Some(Self(value))
         } else {
             None
@@ -56,12 +64,40 @@ impl CorrectionValue for CorrectionDcOffsetI {
     }
 }
 
+impl Add for CorrectionDcOffsetI {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        let new = self.0 + rhs.0;
+        match Self::new(new) {
+            Some(val) => val,
+            None => {
+                let wrapped_offet = new - Self::MAX;
+                unsafe { Self::new_unchecked(Self::MIN + wrapped_offet) }
+            }
+        }
+    }
+}
+
+impl SaturatingAdd for CorrectionDcOffsetI {
+    fn saturating_add(&self, rhs: &Self) -> Self {
+        let new = self.0 + rhs.0;
+        match Self::new(new) {
+            Some(val) => val,
+            None => unsafe { Self::new_unchecked(Self::MAX) },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionDcOffsetQ(pub i16);
 
 impl CorrectionDcOffsetQ {
+    const MAX: i16 = 2048;
+    const MIN: i16 = -2048;
+
     pub fn new(value: i16) -> Option<Self> {
-        if (-2048..=2048).contains(&value) {
+        if (Self::MIN..=Self::MAX).contains(&value) {
             Some(Self(value))
         } else {
             None
@@ -89,12 +125,40 @@ impl CorrectionValue for CorrectionDcOffsetQ {
     }
 }
 
+impl Add for CorrectionDcOffsetQ {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        let new = self.0 + rhs.0;
+        match Self::new(new) {
+            Some(val) => val,
+            None => {
+                let wrapped_offet = new - Self::MAX;
+                unsafe { Self::new_unchecked(Self::MIN + wrapped_offet) }
+            }
+        }
+    }
+}
+
+impl SaturatingAdd for CorrectionDcOffsetQ {
+    fn saturating_add(&self, rhs: &Self) -> Self {
+        let new = self.0 + rhs.0;
+        match Self::new(new) {
+            Some(val) => val,
+            None => unsafe { Self::new_unchecked(Self::MAX) },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionPhase(pub i16);
 
 impl CorrectionPhase {
+    const MAX: i16 = 4096;
+    const MIN: i16 = -4096;
+
     pub fn new(value: i16) -> Option<Self> {
-        if (-4096..=4096).contains(&value) {
+        if (Self::MIN..=Self::MAX).contains(&value) {
             Some(Self(value))
         } else {
             None
@@ -122,12 +186,40 @@ impl CorrectionValue for CorrectionPhase {
     }
 }
 
+impl Add for CorrectionPhase {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        let new = self.0 + rhs.0;
+        match Self::new(new) {
+            Some(val) => val,
+            None => {
+                let wrapped_offet = new - Self::MAX;
+                unsafe { Self::new_unchecked(Self::MIN + wrapped_offet) }
+            }
+        }
+    }
+}
+
+impl SaturatingAdd for CorrectionPhase {
+    fn saturating_add(&self, rhs: &Self) -> Self {
+        let new = self.0 + rhs.0;
+        match Self::new(new) {
+            Some(val) => val,
+            None => unsafe { Self::new_unchecked(Self::MAX) },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionGain(pub i16);
 
 impl CorrectionGain {
+    const MAX: i16 = 4096;
+    const MIN: i16 = -4096;
+
     pub fn new(value: i16) -> Option<Self> {
-        if (-4096..=4096).contains(&value) {
+        if (Self::MIN..=Self::MAX).contains(&value) {
             Some(Self(value))
         } else {
             None
@@ -155,6 +247,31 @@ impl CorrectionValue for CorrectionGain {
     }
 }
 
+impl Add for CorrectionGain {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        let new = self.0 + rhs.0;
+        match Self::new(new) {
+            Some(val) => val,
+            None => {
+                let wrapped_offet = new - Self::MAX;
+                unsafe { Self::new_unchecked(Self::MIN + wrapped_offet) }
+            }
+        }
+    }
+}
+
+impl SaturatingAdd for CorrectionGain {
+    fn saturating_add(&self, rhs: &Self) -> Self {
+        let new = self.0 + rhs.0;
+        match Self::new(new) {
+            Some(val) => val,
+            None => unsafe { Self::new_unchecked(Self::MAX) },
+        }
+    }
+}
+
 /// Correction parameter selection
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(i32)]
@@ -171,5 +288,18 @@ impl TryFrom<bladerf_correction> for Correction {
     fn try_from(value: bladerf_correction) -> Result<Self> {
         Self::from_repr(value as i32)
             .ok_or_else(|| Error::msg(format!("Invalid Correction value: {value}")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn corrections_add_saturating() {
+        todo!()
+    }
+
+    #[test]
+    fn corrections_add_wrapping() {
+        todo!()
     }
 }
