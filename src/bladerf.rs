@@ -35,7 +35,7 @@ pub struct Unknown {}
 impl HardwareVariant for Unknown {}
 
 /// BladeRF device object
-pub struct BladeRF<D: HardwareVariant> {
+pub struct BladeRF<D: HardwareVariant = Unknown> {
     device: *mut bladerf,
     enabled_modules: Mutex<EnumMap<Channel, bool>>,
     format_sync: RwLock<Option<Format>>,
@@ -1116,7 +1116,7 @@ mod tests {
     fn test_open() {
         let _m = DEV_MUTEX.lock();
 
-        let _device = BladeRF::<Unknown>::open_first().unwrap();
+        let _device = <BladeRF>::open_first().unwrap();
     }
 
     #[test]
