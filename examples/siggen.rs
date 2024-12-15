@@ -1,4 +1,4 @@
-use std::{any::Any, error::Error, io};
+use std::{any::Any, error::Error, io, rc::Rc, str::FromStr};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -7,7 +7,7 @@ use ratatui::{
     style::Stylize,
     symbols::border,
     text::{Line, Text},
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, Borders, List, Paragraph, Widget},
     DefaultTerminal, Frame,
 };
 
@@ -227,6 +227,22 @@ impl Widget for Box<dyn NumericInputWidget> {
     }
 }
 
+trait BoxWidget {
+    fn render_box(self: Box<Self>, area: Rect, buf: &mut Buffer);
+}
+
+impl<W: Widget> BoxWidget for W {
+    fn render_box(self: Box<Self>, area: Rect, buf: &mut Buffer) {
+        (*self).render(area, buf)
+    }
+}
+
+// impl<W: BoxWidget + ?Sized> Widget for Box<W> {
+//     fn render(self, area: Rect, buf: &mut Buffer) {
+//         self.render_box(area, buf)
+//     }
+// }
+
 impl App {
     fn new(dev: BladeRF) -> App {
         let channel = bladerf::Channel::Tx1;
@@ -241,51 +257,67 @@ impl App {
 
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        let frequency_input = NumericInput::new(self.get_freq().to_string(), validate_frequency);
+        let mut frequency_input =
+            NumericInput::new(self.get_freq().to_string(), validate_frequency);
 
-        let icorr_input = NumericInput::new(self.get_icorr().to_string(), |x| {
+        let mut icorr_input = NumericInput::new(self.get_icorr().to_string(), |x| {
             validate_correction::<CorrectionDcOffsetI>(x)
         });
 
-        let qcorr_input = NumericInput::new(self.get_qcorr().to_string(), |x| {
+        let mut qcorr_input = NumericInput::new(self.get_qcorr().to_string(), |x| {
             validate_correction::<CorrectionDcOffsetQ>(x)
         });
 
-        let phase_input = NumericInput::new(self.get_phase().to_string(), |x| {
+        let mut phase_input = NumericInput::new(self.get_phase().to_string(), |x| {
             validate_correction::<CorrectionPhase>(x)
         });
 
-        let gain_input = NumericInput::new(self.get_gain().to_string(), |x| {
+        let mut gain_input = NumericInput::new(self.get_gain().to_string(), |x| {
             validate_correction::<CorrectionGain>(x)
         });
-
-        let mut items: Vec<Box<dyn NumericInputWidget>> = vec![
-            Box::new(frequency_input),
-            Box::new(icorr_input),
-            Box::new(qcorr_input),
-            Box::new(phase_input),
-            Box::new(gain_input),
-        ];
 
         while !self.exit {
             let debug_test = Text::from(format!("Sel: {:?}", self.selected_input));
 
-            for item in items.iter_mut() {
-                item.unset_focus();
-            }
+            frequency_input.unset_focus();
+            icorr_input.unset_focus();
+            qcorr_input.unset_focus();
+            phase_input.unset_focus();
+            gain_input.unset_focus();
+
+            let current_setpoint = vec![
+                Paragraph::new(self.get_freq().to_string())
+                    .block(Block::new().borders(Borders::ALL).title("Set Frequency")),
+                Paragraph::new(self.get_icorr().to_string())
+                    .block(Block::new().borders(Borders::ALL).title("Set ICorr")),
+                Paragraph::new(self.get_qcorr().to_string())
+                    .block(Block::new().borders(Borders::ALL).title("Set QCorr")),
+                Paragraph::new(self.get_phase().to_string())
+                    .block(Block::new().borders(Borders::ALL).title("Set Phase")),
+                Paragraph::new(self.get_gain().to_string())
+                    .block(Block::new().borders(Borders::ALL).title("Set Gain")),
+            ];
 
             if self.focused {
                 match self.selected_input {
-                    SelectedInput::Frequency => items[0].set_focus(),
-                    SelectedInput::DcOffsetI => items[1].set_focus(),
-                    SelectedInput::DcOffsetQ => items[2].set_focus(),
-                    SelectedInput::Phase => items[3].set_focus(),
-                    SelectedInput::Gain => items[4].set_focus(),
+                    SelectedInput::Frequency => frequency_input.set_focus(),
+                    SelectedInput::DcOffsetI => icorr_input.set_focus(),
+                    SelectedInput::DcOffsetQ => qcorr_input.set_focus(),
+                    SelectedInput::Phase => phase_input.set_focus(),
+                    SelectedInput::Gain => gain_input.set_focus(),
                 }
             }
 
+            let selected_idx = match self.selected_input {
+                SelectedInput::Frequency => 0_usize,
+                SelectedInput::DcOffsetI => 1,
+                SelectedInput::DcOffsetQ => 2,
+                SelectedInput::Phase => 3,
+                SelectedInput::Gain => 4,
+            };
+
             terminal.draw(|frame| {
-                let layout = Layout::default()
+                let row_layout = Layout::default()
                     .direction(Direction::Vertical)
                     .constraints(vec![
                         Constraint::Length(3),
@@ -297,24 +329,69 @@ impl App {
                     ])
                     .split(frame.area());
 
-                for (num_input, layout) in items.iter().zip(layout.iter()) {
-                    let x = num_input.as_ref();
-                    frame.render_widget(x, *layout);
+                let column_layout: Vec<Rc<[Rect]>> = row_layout
+                    .iter()
+                    .map(|layout| {
+                        Layout::default()
+                            .direction(Direction::Horizontal)
+                            .constraints(vec![
+                                Constraint::Length(1),
+                                Constraint::Percentage(50),
+                                Constraint::Percentage(50),
+                            ])
+                            .split(*layout)
+                    })
+                    .collect();
+
+                frame.render_widget(&frequency_input, column_layout[0][1]);
+                frame.render_widget(&icorr_input, column_layout[1][1]);
+                frame.render_widget(&qcorr_input, column_layout[2][1]);
+                frame.render_widget(&phase_input, column_layout[3][1]);
+                frame.render_widget(&gain_input, column_layout[4][1]);
+
+                for (idx, (layout, setpoint)) in
+                    column_layout.iter().zip(current_setpoint).enumerate()
+                {
+                    if idx == selected_idx {
+                        frame.render_widget(Text::from(vec![" ".into(), ">".into()]), layout[0]);
+                    } else {
+                        frame.render_widget(" ", layout[0]);
+                    }
+                    frame.render_widget(setpoint, layout[2]);
                 }
-                frame.render_widget(debug_test, layout[5]);
+
+                frame.render_widget(debug_test, row_layout[5]);
             })?;
 
-            if self.focused {
+            let update_corrs = if self.focused {
                 match self.selected_input {
-                    SelectedInput::Frequency => self.handle_events(Some(items[0].as_mut()))?,
-                    SelectedInput::DcOffsetI => self.handle_events(Some(items[1].as_mut()))?,
-                    SelectedInput::DcOffsetQ => self.handle_events(Some(items[2].as_mut()))?,
-                    SelectedInput::Phase => self.handle_events(Some(items[3].as_mut()))?,
-                    SelectedInput::Gain => self.handle_events(Some(items[4].as_mut()))?,
+                    SelectedInput::Frequency => self.handle_events(Some(&mut frequency_input))?,
+                    SelectedInput::DcOffsetI => self.handle_events(Some(&mut icorr_input))?,
+                    SelectedInput::DcOffsetQ => self.handle_events(Some(&mut qcorr_input))?,
+                    SelectedInput::Phase => self.handle_events(Some(&mut phase_input))?,
+                    SelectedInput::Gain => self.handle_events(Some(&mut gain_input))?,
                 }
             } else {
-                self.handle_events(None)?;
+                self.handle_events::<u8>(None)?
             };
+
+            if update_corrs {
+                if let Ok(val) = (frequency_input.validation_fn)(frequency_input.value().as_str()) {
+                    self.set_freq(val);
+                }
+                if let Ok(val) = (icorr_input.validation_fn)(icorr_input.value().as_str()) {
+                    self.set_corr(val);
+                }
+                if let Ok(val) = (qcorr_input.validation_fn)(qcorr_input.value().as_str()) {
+                    self.set_corr(val);
+                }
+                if let Ok(val) = (phase_input.validation_fn)(phase_input.value().as_str()) {
+                    self.set_corr(val);
+                }
+                if let Ok(val) = (gain_input.validation_fn)(gain_input.value().as_str()) {
+                    self.set_corr(val);
+                }
+            }
         }
         Ok(())
     }
@@ -380,15 +457,23 @@ impl App {
     }
 
     /// updates the application's state based on user input
-    fn handle_events(&mut self, idk: Option<&mut dyn NumericInputWidget>) -> io::Result<()> {
+    fn handle_events<T>(
+        &mut self,
+        idk: Option<&mut NumericInput<'_, T, String>>,
+    ) -> io::Result<bool> {
+        let mut need_to_update = false;
         if let Some(idk2) = idk {
             match crossterm::event::read()?.into() {
                 Input { key: Key::Esc, .. } => self.exit(),
-                Input { key: Key::Up, .. } => self.selected_up(),
-                Input { key: Key::Down, .. } => self.selected_down(),
+                // Input { key: Key::Up, .. } => self.selected_up(),
+                // Input { key: Key::Down, .. } => self.selected_down(),
                 Input {
                     key: Key::Enter, ..
-                } => self.unset_focus(),
+                } => {
+                    need_to_update = true;
+                    self.unset_focus();
+                }
+
                 input => idk2.handle_input(input),
             }
         } else {
@@ -403,7 +488,7 @@ impl App {
             }
         }
 
-        Ok(())
+        Ok(need_to_update)
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
