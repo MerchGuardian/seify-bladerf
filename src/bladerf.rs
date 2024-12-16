@@ -785,7 +785,7 @@ impl BladeRF {
     /// Configure the device for synchronous data transfer
     pub fn sync_config(
         &self,
-        channel: Channel,
+        channel: ChannelLayout,
         format: Format,
         num_buffers: u32,
         buffer_size: u32,
