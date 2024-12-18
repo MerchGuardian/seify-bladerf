@@ -240,7 +240,7 @@ enum MyAppAction {
 
 impl App {
     fn new(dev: BladeRF) -> App {
-        let channel = bladerf::Channel::Tx1;
+        let channel = bladerf::Channel::Tx0;
         App {
             channel,
             device: dev,
