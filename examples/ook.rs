@@ -9,7 +9,7 @@ use std::{
 };
 
 use anyhow::Context;
-use bladerf::{Channel, Format, GainMode, Loopback};
+use bladerf::{Channel, ChannelLayout, Format, GainMode, Loopback};
 use crossterm::{
     cursor::{self},
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -302,7 +302,7 @@ fn setup(device: &bladerf::BladeRF, c: &Config) -> anyhow::Result<()> {
     println!("Setting device receive configuration");
 
     device.sync_config(
-        Channel::Rx2,
+        ChannelLayout::RxSISO,
         Format::Sc16Q11,
         c.num_buffers,
         c.buffer_size,
@@ -310,15 +310,15 @@ fn setup(device: &bladerf::BladeRF, c: &Config) -> anyhow::Result<()> {
         c.timeout,
     )?;
 
-    c.write(device, Channel::Rx2)
+    c.write(device, Channel::Rx1)
         .context("Failed to write parameters for Rx2")?;
 
-    device.enable_module(Channel::Rx2)?;
+    device.enable_module(Channel::Rx1)?;
 
     println!("Setting device send configuration");
 
     device.sync_config(
-        Channel::Tx1,
+        ChannelLayout::TxSISO,
         Format::Sc16Q11,
         c.num_buffers,
         c.buffer_size,

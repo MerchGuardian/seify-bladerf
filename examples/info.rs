@@ -36,7 +36,7 @@ pub fn main() -> anyhow::Result<()> {
             .map_err(|e| println!("{e:?}"));
         println!();
 
-        for ch in [Channel::Rx1, Channel::Rx2, Channel::Tx1, Channel::Tx2] {
+        for ch in [Channel::Rx0, Channel::Rx1, Channel::Tx0, Channel::Tx1] {
             let _ = print_channel_info(&dev, ch)
                 .context(format!("Failed to print channel information for {:?}", ch))
                 .map_err(|e| println!("{e:?}"));
