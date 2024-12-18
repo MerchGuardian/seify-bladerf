@@ -1,6 +1,7 @@
-use std::{io, rc::Rc};
+use std::{io, rc::Rc, sync::Arc, thread};
 
 use num::traits::SaturatingAdd;
+use num_complex::Complex32;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -48,9 +49,9 @@ impl SelectedInput {
     }
 }
 
-pub struct App {
+pub struct App<'a> {
     channel: bladerf::Channel,
-    device: BladeRF,
+    device: &'a BladeRF,
     selected_input: SelectedInput,
     focused: bool,
     exit: bool,
@@ -238,8 +239,8 @@ enum MyAppAction {
     Decrement,
 }
 
-impl App {
-    fn new(dev: BladeRF) -> App {
+impl<'a> App<'a> {
+    fn new(dev: &'a BladeRF) -> App<'a> {
         let channel = bladerf::Channel::Tx0;
         App {
             channel,
@@ -598,7 +599,7 @@ impl App {
     }
 }
 
-impl Widget for &App {
+impl<'a> Widget for &App<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Line::from(" BladeRF SigGen ".bold());
 
@@ -610,8 +611,14 @@ fn main() -> io::Result<()> {
     let device =
         BladeRF::open_first().map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
 
+    let arc_dev = Arc::new(device);
+    let thread_arc_dev = arc_dev.clone();
+    thread::spawn(move || {
+        thread_arc_dev.set_gain(bladerf::Channel::Tx0, 0).unwrap();
+    });
+
     let mut terminal = ratatui::init();
-    let app_result = App::new(device).run(&mut terminal);
+    let app_result = App::new(&arc_dev).run(&mut terminal);
     ratatui::restore();
     app_result
 }
