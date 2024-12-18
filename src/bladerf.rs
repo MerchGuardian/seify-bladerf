@@ -783,7 +783,7 @@ impl BladeRF {
     /// Configure the device for synchronous data transfer
     pub fn sync_config(
         &self,
-        channel: Channel,
+        channel: ChannelLayout,
         format: Format,
         num_buffers: u32,
         buffer_size: u32,
@@ -1115,8 +1115,8 @@ mod tests {
         let freq: u64 = 915000000;
 
         // Set and check frequency
-        device.set_frequency(Channel::Rx1, freq).unwrap();
-        let actual_freq = device.get_frequency(Channel::Rx1).unwrap();
+        device.set_frequency(Channel::Rx0, freq).unwrap();
+        let actual_freq = device.get_frequency(Channel::Rx0).unwrap();
         let diff = freq as i64 - actual_freq as i64;
         assert!(i64::abs(diff) < 10);
     }
