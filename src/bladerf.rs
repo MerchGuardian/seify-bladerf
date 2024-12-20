@@ -287,19 +287,6 @@ impl<D: HardwareVariant> BladeRF<D> {
         Ok(Range::from(range))
     }
 
-    pub fn set_sampling(&self, sampling: Sampling) -> Result<()> {
-        let res = unsafe { bladerf_set_sampling(self.device, sampling as bladerf_sampling) };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn get_sampling(&self) -> Result<Sampling> {
-        let mut sampling = bladerf_sampling_BLADERF_SAMPLING_UNKNOWN;
-        let res = unsafe { bladerf_get_sampling(self.device, &mut sampling) };
-        check_res!(res);
-        Sampling::try_from(sampling)
-    }
-
     pub fn set_rx_mux(&self, mux: RxMux) -> Result<()> {
         let res = unsafe { bladerf_set_rx_mux(self.device, mux as bladerf_rx_mux) };
         check_res!(res);
@@ -1047,6 +1034,19 @@ impl BladeRF<BladeRf1> {
         check_res!(res);
         Ok(())
     }
+
+    pub fn set_sampling(&self, sampling: Sampling) -> Result<()> {
+        let res = unsafe { bladerf_set_sampling(self.device, sampling as bladerf_sampling) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_sampling(&self) -> Result<Sampling> {
+        let mut sampling = bladerf_sampling_BLADERF_SAMPLING_UNKNOWN;
+        let res = unsafe { bladerf_get_sampling(self.device, &mut sampling) };
+        check_res!(res);
+        Sampling::try_from(sampling)
+    }
 }
 
 /// TODO: Safety Comment
@@ -1209,24 +1209,20 @@ mod tests {
     }
 
     #[test]
-    fn test_set_sampling() {
+    #[ignore = "bladerf1 specific test"]
+    fn test_bladerf1_set_sampling() -> Result<()> {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device: BladeRF<BladeRf1> = BladeRF::open_first()?.try_into()?;
 
         let desired = Sampling::Internal;
-        // Set and check frequency
-        if let Err(e) = device.set_sampling(desired) {
-            if e != Error::Unsupported {
-                panic!("unexpected error of value when calling set_sampling {e:?}",);
-            } else {
-                return;
-            }
-        };
+
+        device.set_sampling(desired)?;
 
         let actual = device.get_sampling().unwrap();
 
         assert_eq!(desired, actual);
+        Ok(())
     }
 
     #[test]
