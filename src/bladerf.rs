@@ -339,26 +339,6 @@ impl<D: HardwareVariant> BladeRF<D> {
         Ok(Range::from(range))
     }
 
-    pub fn set_lpf_mode(&self, channel: Channel, lpf_mode: LPFMode) -> Result<()> {
-        let res = unsafe {
-            bladerf_set_lpf_mode(
-                self.device,
-                channel as bladerf_channel,
-                lpf_mode as bladerf_lpf_mode,
-            )
-        };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn get_lpf_mode(&self, channel: Channel) -> Result<LPFMode> {
-        let mut lpf_mode = bladerf_lpf_mode_BLADERF_LPF_NORMAL;
-        let res =
-            unsafe { bladerf_get_lpf_mode(self.device, channel as bladerf_channel, &mut lpf_mode) };
-        check_res!(res);
-        LPFMode::try_from(lpf_mode)
-    }
-
     /// Set frequency band
     pub fn select_band(&self, channel: Channel, frequency: u64) -> Result<()> {
         let res =
@@ -499,7 +479,6 @@ impl<D: HardwareVariant> BladeRF<D> {
         }
     }
 
-    // SMB Clock Port Control
     // **Gain Control Functions**
 
     /// Set overall system gain
@@ -1046,6 +1025,78 @@ impl BladeRF<BladeRf1> {
         let res = unsafe { bladerf_get_sampling(self.device, &mut sampling) };
         check_res!(res);
         Sampling::try_from(sampling)
+    }
+
+    pub fn set_lpf_mode(&self, channel: Channel, lpf_mode: LPFMode) -> Result<()> {
+        let res = unsafe {
+            bladerf_set_lpf_mode(
+                self.device,
+                channel as bladerf_channel,
+                lpf_mode as bladerf_lpf_mode,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_lpf_mode(&self, channel: Channel) -> Result<LPFMode> {
+        let mut lpf_mode = bladerf_lpf_mode_BLADERF_LPF_NORMAL;
+        let res =
+            unsafe { bladerf_get_lpf_mode(self.device, channel as bladerf_channel, &mut lpf_mode) };
+        check_res!(res);
+        LPFMode::try_from(lpf_mode)
+    }
+
+    pub fn set_smb_mode(&self, mode: SmbMode) -> Result<()> {
+        let res = unsafe { bladerf_set_smb_mode(self.device, mode as bladerf_smb_mode) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_smb_mode(&self) -> Result<SmbMode> {
+        let mut mode = bladerf_smb_mode_BLADERF_SMB_MODE_INVALID;
+        let res = unsafe { bladerf_get_smb_mode(self.device, &mut mode) };
+        check_res!(res);
+        SmbMode::try_from(mode)
+    }
+
+    // TODO: Is it an issue that the rate passed into the c abi call requires a mutable pointer? does it actually get mutated?
+    pub fn set_rational_smb_frequency(&self, frequency: RationalRate) -> Result<RationalRate> {
+        let mut actual_freq = bladerf_rational_rate {
+            integer: 0,
+            num: 0,
+            den: 0,
+        };
+        let res = unsafe {
+            bladerf_set_rational_smb_frequency(self.device, &mut frequency.into(), &mut actual_freq)
+        };
+        check_res!(res);
+        Ok(actual_freq.into())
+    }
+
+    pub fn get_rational_smb_frequency(&self) -> Result<RationalRate> {
+        let mut freq = bladerf_rational_rate {
+            integer: 0,
+            num: 0,
+            den: 0,
+        };
+        let res = unsafe { bladerf_get_rational_smb_frequency(self.device, &mut freq) };
+        check_res!(res);
+        Ok(freq.into())
+    }
+
+    pub fn set_smb_frequency(&self, frequency: u32) -> Result<u32> {
+        let mut actual_freq = 0;
+        let res = unsafe { bladerf_set_smb_frequency(self.device, frequency, &mut actual_freq) };
+        check_res!(res);
+        Ok(actual_freq)
+    }
+
+    pub fn get_smb_frequency(&self) -> Result<u32> {
+        let mut freq = 0;
+        let res = unsafe { bladerf_get_smb_frequency(self.device, &mut freq) };
+        check_res!(res);
+        Ok(freq)
     }
 }
 

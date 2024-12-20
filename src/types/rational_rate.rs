@@ -1,5 +1,6 @@
 use crate::sys::*;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct RationalRate {
     /// Integer portion
     pub integer: u64,
@@ -15,6 +16,16 @@ impl From<bladerf_rational_rate> for RationalRate {
             integer: rate.integer,
             num: rate.num,
             den: rate.den,
+        }
+    }
+}
+
+impl From<RationalRate> for bladerf_rational_rate {
+    fn from(value: RationalRate) -> Self {
+        bladerf_rational_rate {
+            integer: value.integer,
+            num: value.num,
+            den: value.den,
         }
     }
 }
