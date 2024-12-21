@@ -1107,7 +1107,12 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
         if value.get_board_name() == "bladerf1" {
             let dev_to_move = ManuallyDrop::new(value);
 
-            // Use `std::ptr::read` to safely move non-Copy fields out of the ManuallyDrop wrapper
+            // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
+            // SAFETY:
+            // 1. Came from a valid object, so each field is valid for reads
+            // 2. Came from a valid object, so each field is guaranteed to be aligned
+            // 3. Came from a valid object, so each field is properly initialized
+            // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
             let device = unsafe { std::ptr::read(&dev_to_move.device) };
             let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
             let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
