@@ -1059,13 +1059,13 @@ impl BladeRF<BladeRf1> {
         SmbMode::try_from(mode)
     }
 
-    // TODO: Is it an issue that the rate passed into the c abi call requires a mutable pointer? does it actually get mutated?
     pub fn set_rational_smb_frequency(&self, frequency: RationalRate) -> Result<RationalRate> {
         let mut actual_freq = bladerf_rational_rate {
             integer: 0,
             num: 0,
             den: 0,
         };
+        // Despite frequency being passes as a &mut reference, the value is not actually mutated, so no need to pass it back to the user.
         let res = unsafe {
             bladerf_set_rational_smb_frequency(self.device, &mut frequency.into(), &mut actual_freq)
         };
@@ -1109,9 +1109,11 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
 
             // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
             // SAFETY:
+            // Being a rust reference, the following hold.
             // 1. Came from a valid object, so each field is valid for reads
             // 2. Came from a valid object, so each field is guaranteed to be aligned
             // 3. Came from a valid object, so each field is properly initialized
+            // Further
             // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
             let device = unsafe { std::ptr::read(&dev_to_move.device) };
             let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
@@ -1137,7 +1139,14 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf2> {
         if value.get_board_name() == "bladerf2" {
             let dev_to_move = ManuallyDrop::new(value);
 
-            // Use `std::ptr::read` to safely move non-Copy fields out of the ManuallyDrop wrapper
+            // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
+            // SAFETY:
+            // Being a rust reference, the following hold.
+            // 1. Came from a valid object, so each field is valid for reads
+            // 2. Came from a valid object, so each field is guaranteed to be aligned
+            // 3. Came from a valid object, so each field is properly initialized
+            // Further
+            // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
             let device = unsafe { std::ptr::read(&dev_to_move.device) };
             let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
             let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
@@ -1281,7 +1290,7 @@ mod tests {
     }
 
     #[test]
-    // This should be removed.
+    #[ignore = "bladerf1 specific test"]
     fn test_bladerf1_ex() {
         let dev = BladeRF::open_first().unwrap();
         let newdev: BladeRF<BladeRf1> = dev.try_into().unwrap();
