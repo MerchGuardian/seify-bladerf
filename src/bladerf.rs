@@ -2,6 +2,8 @@ use crate::{error::*, sys::*, types::*};
 use enum_map::EnumMap;
 use ffi::{c_char, c_void, CStr, CString};
 use log::warn;
+use marker::PhantomData;
+use mem::ManuallyDrop;
 use parking_lot::Mutex;
 use path::Path;
 use std::*;
@@ -19,17 +21,30 @@ macro_rules! check_res {
 
 pub const FPGA_BITSTREAM_VAR_NAME: &str = "BLADERF_RS_FPGA_BITSTREAM_PATH";
 
+trait HardwareVariant {}
+
+pub struct BladeRf1 {}
+
+impl HardwareVariant for BladeRf1 {}
+
+pub struct BladeRf2 {}
+impl HardwareVariant for BladeRf2 {}
+
+pub struct Unknown {}
+impl HardwareVariant for Unknown {}
+
 /// BladeRF device object
-pub struct BladeRF {
+pub struct BladeRF<D: HardwareVariant = Unknown> {
     device: *mut bladerf,
     enabled_modules: Mutex<EnumMap<Channel, bool>>,
     format_sync: RwLock<Option<Format>>,
+    _p: PhantomData<D>,
 }
 
-unsafe impl Send for BladeRF {}
-unsafe impl Sync for BladeRF {}
+unsafe impl<D: HardwareVariant> Send for BladeRF<D> {}
+unsafe impl<D: HardwareVariant> Sync for BladeRF<D> {}
 
-impl Drop for BladeRF {
+impl<D: HardwareVariant> Drop for BladeRF<D> {
     fn drop(&mut self) {
         let enabled_modules = *self.enabled_modules.get_mut();
         for (channel, enabled) in enabled_modules {
@@ -44,36 +59,38 @@ impl Drop for BladeRF {
     }
 }
 
-impl BladeRF {
-    pub fn open_first() -> Result<Self> {
+impl BladeRF<Unknown> {
+    pub fn open_first() -> Result<BladeRF<Unknown>> {
         log::info!("Opening first bladerf");
         let mut device = std::ptr::null_mut();
         let res = unsafe { bladerf_open(&mut device as *mut *mut _, ptr::null()) };
         check_res!(res);
-        Ok(Self {
+        Ok(BladeRF::<Unknown> {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            _p: PhantomData,
         })
     }
 
     /// Open a BladeRF device by identifier
-    pub fn open_identifier(id: &str) -> Result<Self> {
+    pub fn open_identifier(id: &str) -> Result<BladeRF<Unknown>> {
         let mut device = std::ptr::null_mut();
         let c_string = ffi::CString::new(id)
             .map_err(|e| Error::msg(format!("Invalid c string `{id}`: {e:?}")))?;
         let res = unsafe { bladerf_open(&mut device as *mut *mut _, c_string.as_ptr()) };
 
         check_res!(res);
-        Ok(Self {
+        Ok(BladeRF::<Unknown> {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            _p: PhantomData,
         })
     }
 
     /// Open a BladeRF device by devinfo object
-    pub fn open_with_devinfo(devinfo: &DevInfo) -> Result<Self> {
+    pub fn open_with_devinfo(devinfo: &DevInfo) -> Result<BladeRF<Unknown>> {
         let mut devinfo_ptr = devinfo.0;
         let mut device = std::ptr::null_mut();
 
@@ -82,13 +99,16 @@ impl BladeRF {
         };
 
         check_res!(res);
-        Ok(Self {
+        Ok(BladeRF::<Unknown> {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            _p: PhantomData,
         })
     }
+}
 
+impl<D: HardwareVariant> BladeRF<D> {
     pub fn info(&self) -> Result<DevInfo> {
         let mut info = bladerf_devinfo {
             backend: 0,
@@ -266,19 +286,6 @@ impl BladeRF {
         Ok(Range::from(range))
     }
 
-    pub fn set_sampling(&self, sampling: Sampling) -> Result<()> {
-        let res = unsafe { bladerf_set_sampling(self.device, sampling as bladerf_sampling) };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn get_sampling(&self) -> Result<Sampling> {
-        let mut sampling = bladerf_sampling_BLADERF_SAMPLING_UNKNOWN;
-        let res = unsafe { bladerf_get_sampling(self.device, &mut sampling) };
-        check_res!(res);
-        Sampling::try_from(sampling)
-    }
-
     pub fn set_rx_mux(&self, mux: RxMux) -> Result<()> {
         let res = unsafe { bladerf_set_rx_mux(self.device, mux as bladerf_rx_mux) };
         check_res!(res);
@@ -329,26 +336,6 @@ impl BladeRF {
         }
         let range = unsafe { &*range_ptr };
         Ok(Range::from(range))
-    }
-
-    pub fn set_lpf_mode(&self, channel: Channel, lpf_mode: LPFMode) -> Result<()> {
-        let res = unsafe {
-            bladerf_set_lpf_mode(
-                self.device,
-                channel as bladerf_channel,
-                lpf_mode as bladerf_lpf_mode,
-            )
-        };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn get_lpf_mode(&self, channel: Channel) -> Result<LPFMode> {
-        let mut lpf_mode = bladerf_lpf_mode_BLADERF_LPF_NORMAL;
-        let res =
-            unsafe { bladerf_get_lpf_mode(self.device, channel as bladerf_channel, &mut lpf_mode) };
-        check_res!(res);
-        LPFMode::try_from(lpf_mode)
     }
 
     /// Set frequency band
@@ -491,7 +478,6 @@ impl BladeRF {
         }
     }
 
-    // SMB Clock Port Control
     // **Gain Control Functions**
 
     /// Set overall system gain
@@ -1011,6 +997,170 @@ impl BladeRF {
 
         Ok(())
     }
+
+    pub fn get_board_name(&self) -> &'static str {
+        // Safety, the function returns a string that is compiled in (static I guess? is there another term I should use?)
+        let name_raw = unsafe { CStr::from_ptr(bladerf_get_board_name(self.device)) };
+        name_raw.to_str().unwrap()
+    }
+}
+
+impl BladeRF<BladeRf1> {
+    pub fn set_txvga2(&self, gain: i32) -> Result<()> {
+        let res = unsafe { bladerf_set_txvga2(self.device, gain) };
+
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn set_sampling(&self, sampling: Sampling) -> Result<()> {
+        let res = unsafe { bladerf_set_sampling(self.device, sampling as bladerf_sampling) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_sampling(&self) -> Result<Sampling> {
+        let mut sampling = bladerf_sampling_BLADERF_SAMPLING_UNKNOWN;
+        let res = unsafe { bladerf_get_sampling(self.device, &mut sampling) };
+        check_res!(res);
+        Sampling::try_from(sampling)
+    }
+
+    pub fn set_lpf_mode(&self, channel: Channel, lpf_mode: LPFMode) -> Result<()> {
+        let res = unsafe {
+            bladerf_set_lpf_mode(
+                self.device,
+                channel as bladerf_channel,
+                lpf_mode as bladerf_lpf_mode,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_lpf_mode(&self, channel: Channel) -> Result<LPFMode> {
+        let mut lpf_mode = bladerf_lpf_mode_BLADERF_LPF_NORMAL;
+        let res =
+            unsafe { bladerf_get_lpf_mode(self.device, channel as bladerf_channel, &mut lpf_mode) };
+        check_res!(res);
+        LPFMode::try_from(lpf_mode)
+    }
+
+    pub fn set_smb_mode(&self, mode: SmbMode) -> Result<()> {
+        let res = unsafe { bladerf_set_smb_mode(self.device, mode as bladerf_smb_mode) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_smb_mode(&self) -> Result<SmbMode> {
+        let mut mode = bladerf_smb_mode_BLADERF_SMB_MODE_INVALID;
+        let res = unsafe { bladerf_get_smb_mode(self.device, &mut mode) };
+        check_res!(res);
+        SmbMode::try_from(mode)
+    }
+
+    pub fn set_rational_smb_frequency(&self, frequency: RationalRate) -> Result<RationalRate> {
+        let mut actual_freq = bladerf_rational_rate {
+            integer: 0,
+            num: 0,
+            den: 0,
+        };
+        // Despite frequency being passes as a &mut reference, the value is not actually mutated, so no need to pass it back to the user.
+        let res = unsafe {
+            bladerf_set_rational_smb_frequency(self.device, &mut frequency.into(), &mut actual_freq)
+        };
+        check_res!(res);
+        Ok(actual_freq.into())
+    }
+
+    pub fn get_rational_smb_frequency(&self) -> Result<RationalRate> {
+        let mut freq = bladerf_rational_rate {
+            integer: 0,
+            num: 0,
+            den: 0,
+        };
+        let res = unsafe { bladerf_get_rational_smb_frequency(self.device, &mut freq) };
+        check_res!(res);
+        Ok(freq.into())
+    }
+
+    pub fn set_smb_frequency(&self, frequency: u32) -> Result<u32> {
+        let mut actual_freq = 0;
+        let res = unsafe { bladerf_set_smb_frequency(self.device, frequency, &mut actual_freq) };
+        check_res!(res);
+        Ok(actual_freq)
+    }
+
+    pub fn get_smb_frequency(&self) -> Result<u32> {
+        let mut freq = 0;
+        let res = unsafe { bladerf_get_smb_frequency(self.device, &mut freq) };
+        check_res!(res);
+        Ok(freq)
+    }
+}
+
+/// TODO: Safety Comment
+impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
+    type Error = Error;
+
+    fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
+        if value.get_board_name() == "bladerf1" {
+            let dev_to_move = ManuallyDrop::new(value);
+
+            // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
+            // SAFETY:
+            // Being a rust reference, the following hold.
+            // 1. Came from a valid object, so each field is valid for reads
+            // 2. Came from a valid object, so each field is guaranteed to be aligned
+            // 3. Came from a valid object, so each field is properly initialized
+            // Further
+            // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
+            let device = unsafe { std::ptr::read(&dev_to_move.device) };
+            let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
+            let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
+
+            Ok(BladeRF::<BladeRf1> {
+                device,
+                enabled_modules,
+                format_sync,
+                _p: PhantomData,
+            })
+        } else {
+            Err(Error::Unsupported)
+        }
+    }
+}
+
+/// TODO: Safety Comment
+impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf2> {
+    type Error = Error;
+
+    fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
+        if value.get_board_name() == "bladerf2" {
+            let dev_to_move = ManuallyDrop::new(value);
+
+            // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
+            // SAFETY:
+            // Being a rust reference, the following hold.
+            // 1. Came from a valid object, so each field is valid for reads
+            // 2. Came from a valid object, so each field is guaranteed to be aligned
+            // 3. Came from a valid object, so each field is properly initialized
+            // Further
+            // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
+            let device = unsafe { std::ptr::read(&dev_to_move.device) };
+            let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
+            let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
+
+            Ok(BladeRF::<BladeRf2> {
+                device,
+                enabled_modules,
+                format_sync,
+                _p: PhantomData,
+            })
+        } else {
+            Err(Error::Unsupported)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1123,23 +1273,28 @@ mod tests {
     }
 
     #[test]
-    fn test_set_sampling() {
+    #[ignore = "bladerf1 specific test"]
+    fn test_bladerf1_set_sampling() -> Result<()> {
         let _m = DEV_MUTEX.lock();
 
-        let device = BladeRF::open_first().unwrap();
+        let device: BladeRF<BladeRf1> = BladeRF::open_first()?.try_into()?;
 
         let desired = Sampling::Internal;
-        // Set and check frequency
-        if let Err(e) = device.set_sampling(desired) {
-            if e != Error::Unsupported {
-                panic!("unexpected error of value when calling set_sampling {e:?}",);
-            } else {
-                return;
-            }
-        };
+
+        device.set_sampling(desired)?;
 
         let actual = device.get_sampling().unwrap();
 
         assert_eq!(desired, actual);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "bladerf1 specific test"]
+    fn test_bladerf1_ex() {
+        let dev = BladeRF::open_first().unwrap();
+        let newdev: BladeRF<BladeRf1> = dev.try_into().unwrap();
+        newdev.set_txvga2(-20).unwrap();
+        let _fwv = newdev.firmware_version().unwrap();
     }
 }
