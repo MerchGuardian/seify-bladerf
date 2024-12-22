@@ -6,6 +6,7 @@ use marker::PhantomData;
 use mem::ManuallyDrop;
 use parking_lot::Mutex;
 use path::Path;
+use private::Sealed;
 use std::*;
 use sync::RwLock;
 use time::Duration;
@@ -21,16 +22,22 @@ macro_rules! check_res {
 
 pub const FPGA_BITSTREAM_VAR_NAME: &str = "BLADERF_RS_FPGA_BITSTREAM_PATH";
 
-trait HardwareVariant {}
+mod private {
+    pub trait Sealed {}
+}
+
+pub trait HardwareVariant: Sealed {}
 
 pub struct BladeRf1 {}
-
+impl Sealed for BladeRf1 {}
 impl HardwareVariant for BladeRf1 {}
 
 pub struct BladeRf2 {}
+impl Sealed for BladeRf2 {}
 impl HardwareVariant for BladeRf2 {}
 
 pub struct Unknown {}
+impl Sealed for Unknown {}
 impl HardwareVariant for Unknown {}
 
 /// BladeRF device object
@@ -1099,7 +1106,6 @@ impl BladeRF<BladeRf1> {
     }
 }
 
-/// TODO: Safety Comment
 impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
     type Error = Error;
 
@@ -1131,7 +1137,6 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
     }
 }
 
-/// TODO: Safety Comment
 impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf2> {
     type Error = Error;
 
