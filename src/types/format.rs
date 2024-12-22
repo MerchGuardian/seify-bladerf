@@ -3,6 +3,35 @@ use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
 
+pub(crate) trait StreamFormat {
+    const FORMAT: Format;
+}
+
+pub struct Sc16Q11 {}
+impl StreamFormat for Sc16Q11 {
+    const FORMAT: Format = Format::Sc16Q11;
+}
+
+pub struct Sc8Q7 {}
+impl StreamFormat for Sc8Q7 {
+    const FORMAT: Format = Format::Sc8Q7;
+}
+
+pub struct Sc16Q11Meta {}
+impl StreamFormat for Sc16Q11Meta {
+    const FORMAT: Format = Format::Sc16Q11Meta;
+}
+
+pub struct PacketMeta {}
+impl StreamFormat for PacketMeta {
+    const FORMAT: Format = Format::PacketMeta;
+}
+
+pub struct Sc8Q7Meta {}
+impl StreamFormat for Sc8Q7Meta {
+    const FORMAT: Format = Format::Sc8Q7Meta;
+}
+
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Format {
@@ -13,11 +42,11 @@ pub enum Format {
     Sc8Q7 = bladerf_format_BLADERF_FORMAT_SC8_Q7,
     // TODO: implement meta parsing
     // #[doc = "[`bladerf_format_BLADERF_FORMAT_SC16_Q11_META`]"]
-    // Sc16Q11Meta = bladerf_format_BLADERF_FORMAT_SC16_Q11_META,
+    Sc16Q11Meta = bladerf_format_BLADERF_FORMAT_SC16_Q11_META,
     // #[doc = "[`bladerf_format_BLADERF_FORMAT_PACKET_META`]"]
-    // PacketMeta = bladerf_format_BLADERF_FORMAT_PACKET_META,
+    PacketMeta = bladerf_format_BLADERF_FORMAT_PACKET_META,
     // #[doc = "[`bladerf_format_BLADERF_FORMAT_SC8_Q7_META`]"]
-    // Sc8Q7Meta = bladerf_format_BLADERF_FORMAT_SC8_Q7_META,
+    Sc8Q7Meta = bladerf_format_BLADERF_FORMAT_SC8_Q7_META,
 }
 
 impl TryFrom<bladerf_format> for Format {

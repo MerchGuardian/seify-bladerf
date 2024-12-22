@@ -66,3 +66,6 @@ pub use layout::*;
 
 mod smb_mode;
 pub use smb_mode::*;
+
+mod streaming_mode;
+pub use streaming_mode::*;
