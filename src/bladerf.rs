@@ -1010,6 +1010,29 @@ impl<D: HardwareVariant> BladeRF<D> {
         let name_raw = unsafe { CStr::from_ptr(bladerf_get_board_name(self.device)) };
         name_raw.to_str().unwrap()
     }
+
+    fn change_marker_traits<DN: HardwareVariant>(self) -> BladeRF<DN> {
+        let dev_to_move = ManuallyDrop::new(self);
+
+        // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
+        // SAFETY:
+        // Being a rust reference, the following hold.
+        // 1. each field is valid for reads
+        // 2. each field is guaranteed to be aligned
+        // 3. each field is properly initialized
+        // Further
+        // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
+        let device = unsafe { std::ptr::read(&dev_to_move.device) };
+        let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
+        let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
+
+        BladeRF::<DN> {
+            device,
+            enabled_modules,
+            format_sync,
+            _p: PhantomData,
+        }
+    }
 }
 
 impl BladeRF<BladeRf1> {
@@ -1111,26 +1134,7 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
 
     fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
         if value.get_board_name() == "bladerf1" {
-            let dev_to_move = ManuallyDrop::new(value);
-
-            // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
-            // SAFETY:
-            // Being a rust reference, the following hold.
-            // 1. Came from a valid object, so each field is valid for reads
-            // 2. Came from a valid object, so each field is guaranteed to be aligned
-            // 3. Came from a valid object, so each field is properly initialized
-            // Further
-            // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
-            let device = unsafe { std::ptr::read(&dev_to_move.device) };
-            let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
-            let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
-
-            Ok(BladeRF::<BladeRf1> {
-                device,
-                enabled_modules,
-                format_sync,
-                _p: PhantomData,
-            })
+            Ok(value.change_marker_traits())
         } else {
             Err(Error::Unsupported)
         }
@@ -1142,26 +1146,7 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf2> {
 
     fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
         if value.get_board_name() == "bladerf2" {
-            let dev_to_move = ManuallyDrop::new(value);
-
-            // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
-            // SAFETY:
-            // Being a rust reference, the following hold.
-            // 1. Came from a valid object, so each field is valid for reads
-            // 2. Came from a valid object, so each field is guaranteed to be aligned
-            // 3. Came from a valid object, so each field is properly initialized
-            // Further
-            // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
-            let device = unsafe { std::ptr::read(&dev_to_move.device) };
-            let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
-            let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
-
-            Ok(BladeRF::<BladeRf2> {
-                device,
-                enabled_modules,
-                format_sync,
-                _p: PhantomData,
-            })
+            Ok(value.change_marker_traits())
         } else {
             Err(Error::Unsupported)
         }
