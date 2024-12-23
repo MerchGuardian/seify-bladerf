@@ -1134,7 +1134,7 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
 
     fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
         if value.get_board_name() == "bladerf1" {
-            Ok(value.change_marker_traits())
+            Ok(value.change_marker_traits::<BladeRf1>())
         } else {
             Err(Error::Unsupported)
         }
@@ -1146,7 +1146,7 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf2> {
 
     fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
         if value.get_board_name() == "bladerf2" {
-            Ok(value.change_marker_traits())
+            Ok(value.change_marker_traits::<BladeRf2>())
         } else {
             Err(Error::Unsupported)
         }
