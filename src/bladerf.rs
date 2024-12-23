@@ -979,22 +979,6 @@ impl<D: HardwareVariant> BladeRF<D> {
         Ok(())
     }
 
-    // **Bias Tee Control**
-
-    pub fn get_bias_tee(&self, channel: Channel) -> Result<bool> {
-        let mut enable = false;
-        let res =
-            unsafe { bladerf_get_bias_tee(self.device, channel as bladerf_channel, &mut enable) };
-        check_res!(res);
-        Ok(enable)
-    }
-
-    pub fn set_bias_tee(&self, channel: Channel, enable: bool) -> Result<()> {
-        let res = unsafe { bladerf_set_bias_tee(self.device, channel as bladerf_channel, enable) };
-        check_res!(res);
-        Ok(())
-    }
-
     // Higher level control of one RF module
     pub fn configure_module(&self, channel: Channel, config: ModuleConfig) -> Result<()> {
         self.set_frequency(channel, config.frequency)?;
@@ -1138,6 +1122,24 @@ impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
         } else {
             Err(Error::Unsupported)
         }
+    }
+}
+
+impl BladeRF<BladeRf2> {
+    // **Bias Tee Control**
+
+    pub fn get_bias_tee(&self, channel: Channel) -> Result<bool> {
+        let mut enable = false;
+        let res =
+            unsafe { bladerf_get_bias_tee(self.device, channel as bladerf_channel, &mut enable) };
+        check_res!(res);
+        Ok(enable)
+    }
+
+    pub fn set_bias_tee(&self, channel: Channel, enable: bool) -> Result<()> {
+        let res = unsafe { bladerf_set_bias_tee(self.device, channel as bladerf_channel, enable) };
+        check_res!(res);
+        Ok(())
     }
 }
 
