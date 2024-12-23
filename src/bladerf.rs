@@ -4,6 +4,7 @@ use ffi::{c_char, c_void, CStr, CString};
 use log::warn;
 use marker::PhantomData;
 use mem::ManuallyDrop;
+use num_complex::Complex;
 use parking_lot::Mutex;
 use path::Path;
 use std::*;
@@ -800,106 +801,96 @@ impl<D: HardwareVariant, S: StreamingMode> BladeRF<D, S> {
     }
 
     /// Transmit IQ samples synchronously
-    // pub fn sync_tx<T>(
-    //     &self,
-    //     data: &[T],
-    //     metadata: Option<&mut Metadata>,
-    //     timeout: Duration,
-    // ) -> Result<()>
-    // where
-    //     T: SampleFormat,
-    // {
-    //     let format_guard = self.format_sync.read().unwrap();
-    //     let format = format_guard.ok_or_else(|| Error::msg("Format not configured"))?;
+    fn sync_tx_inner<T>(
+        &self,
+        data: &[T],
+        metadata: Option<&mut Metadata>,
+        timeout: Duration,
+    ) -> Result<()>
+    where
+        T: SampleFormat,
+    {
+        let timeout_ms = timeout.as_millis() as u32;
+        let mut bladerf_meta = bladerf_metadata {
+            timestamp: 0,
+            flags: 0,
+            status: 0,
+            actual_count: 0,
+            reserved: [0u8; 32],
+        };
+        let meta_ptr = if let Some(meta) = &metadata {
+            bladerf_meta.timestamp = meta.timestamp;
+            bladerf_meta.flags = meta.flags;
+            &mut bladerf_meta as *mut bladerf_metadata
+        } else {
+            std::ptr::null_mut()
+        };
 
-    //     T::check_compatability(format)?;
+        let res = unsafe {
+            bladerf_sync_tx(
+                self.device,
+                data.as_ptr() as *const c_void,
+                data.len() as u32,
+                meta_ptr,
+                timeout_ms,
+            )
+        };
 
-    //     let timeout_ms = timeout.as_millis() as u32;
-    //     let mut bladerf_meta = bladerf_metadata {
-    //         timestamp: 0,
-    //         flags: 0,
-    //         status: 0,
-    //         actual_count: 0,
-    //         reserved: [0u8; 32],
-    //     };
-    //     let meta_ptr = if let Some(meta) = &metadata {
-    //         bladerf_meta.timestamp = meta.timestamp;
-    //         bladerf_meta.flags = meta.flags;
-    //         &mut bladerf_meta as *mut bladerf_metadata
-    //     } else {
-    //         std::ptr::null_mut()
-    //     };
+        if !meta_ptr.is_null() {
+            if let Some(meta) = metadata {
+                *meta = Metadata::from(&bladerf_meta);
+            }
+        }
 
-    //     let res = unsafe {
-    //         bladerf_sync_tx(
-    //             self.device,
-    //             data.as_ptr() as *const c_void,
-    //             data.len() as u32,
-    //             meta_ptr,
-    //             timeout_ms,
-    //         )
-    //     };
+        check_res!(res);
+        Ok(())
+    }
 
-    //     if !meta_ptr.is_null() {
-    //         if let Some(meta) = metadata {
-    //             *meta = Metadata::from(&bladerf_meta);
-    //         }
-    //     }
+    /// Receive IQ samples synchronously
+    fn sync_rx_inner<T>(
+        &self,
+        data: &mut [T],
+        metadata: Option<&mut Metadata>,
+        timeout: Duration,
+    ) -> Result<()>
+    where
+        T: SampleFormat,
+    {
+        let timeout_ms = timeout.as_millis() as u32;
+        let mut bladerf_meta = bladerf_metadata {
+            timestamp: 0,
+            flags: 0,
+            status: 0,
+            actual_count: 0,
+            reserved: [0u8; 32],
+        };
+        let meta_ptr = if let Some(meta) = &metadata {
+            bladerf_meta.timestamp = meta.timestamp;
+            bladerf_meta.flags = meta.flags;
+            &mut bladerf_meta as *mut bladerf_metadata
+        } else {
+            std::ptr::null_mut()
+        };
 
-    //     check_res!(res);
-    //     Ok(())
-    // }
+        let res = unsafe {
+            bladerf_sync_rx(
+                self.device,
+                data.as_mut_ptr() as *mut c_void,
+                data.len() as u32,
+                meta_ptr,
+                timeout_ms,
+            )
+        };
 
-    // /// Receive IQ samples synchronously
-    // pub fn sync_rx<T>(
-    //     &self,
-    //     data: &mut [T],
-    //     metadata: Option<&mut Metadata>,
-    //     timeout: Duration,
-    // ) -> Result<()>
-    // where
-    //     T: SampleFormat,
-    // {
-    //     let format_guard = self.format_sync.read().unwrap();
-    //     let format = format_guard.ok_or_else(|| Error::msg("Format not configured"))?;
+        if !meta_ptr.is_null() {
+            if let Some(meta) = metadata {
+                *meta = Metadata::from(&bladerf_meta);
+            }
+        }
 
-    //     T::check_compatability(format)?;
-
-    //     let timeout_ms = timeout.as_millis() as u32;
-    //     let mut bladerf_meta = bladerf_metadata {
-    //         timestamp: 0,
-    //         flags: 0,
-    //         status: 0,
-    //         actual_count: 0,
-    //         reserved: [0u8; 32],
-    //     };
-    //     let meta_ptr = if let Some(meta) = &metadata {
-    //         bladerf_meta.timestamp = meta.timestamp;
-    //         bladerf_meta.flags = meta.flags;
-    //         &mut bladerf_meta as *mut bladerf_metadata
-    //     } else {
-    //         std::ptr::null_mut()
-    //     };
-
-    //     let res = unsafe {
-    //         bladerf_sync_rx(
-    //             self.device,
-    //             data.as_mut_ptr() as *mut c_void,
-    //             data.len() as u32,
-    //             meta_ptr,
-    //             timeout_ms,
-    //         )
-    //     };
-
-    //     if !meta_ptr.is_null() {
-    //         if let Some(meta) = metadata {
-    //             *meta = Metadata::from(&bladerf_meta);
-    //         }
-    //     }
-
-    //     check_res!(res);
-    //     Ok(())
-    // }
+        check_res!(res);
+        Ok(())
+    }
 
     /// Retrieve the current timestamp
     pub fn get_timestamp(&self, dir: Direction) -> Result<u64> {
@@ -1002,6 +993,178 @@ impl<D: HardwareVariant, S: StreamingMode> BladeRF<D, S> {
         // Safety, the function returns a string that is compiled in (static I guess? is there another term I should use?)
         let name_raw = unsafe { CStr::from_ptr(bladerf_get_board_name(self.device)) };
         name_raw.to_str().unwrap()
+    }
+}
+
+impl<D: HardwareVariant> BladeRF<D, SyncStream<Sc16Q11>> {
+    pub fn sync_tx(&self, data: &[Complex<i16>], timeout: Duration) -> Result<()> {
+        let timeout_ms = timeout.as_millis() as u32;
+        let res = unsafe {
+            bladerf_sync_tx(
+                self.device,
+                data.as_ptr() as *const c_void,
+                data.len() as u32,
+                std::ptr::null_mut(),
+                timeout_ms,
+            )
+        };
+
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn sync_rx(&self, data: &mut [Complex<i16>], timeout: Duration) -> Result<()> {
+        let timeout_ms = timeout.as_millis() as u32;
+        let res = unsafe {
+            bladerf_sync_rx(
+                self.device,
+                data.as_mut_ptr() as *mut c_void,
+                data.len() as u32,
+                std::ptr::null_mut(),
+                timeout_ms,
+            )
+        };
+
+        check_res!(res);
+        Ok(())
+    }
+}
+
+impl<D: HardwareVariant> BladeRF<D, SyncStream<Sc8Q7>> {
+    pub fn sync_tx(&self, data: &[Complex<i8>], timeout: Duration) -> Result<()> {
+        let timeout_ms = timeout.as_millis() as u32;
+        let res = unsafe {
+            bladerf_sync_tx(
+                self.device,
+                data.as_ptr() as *const c_void,
+                data.len() as u32,
+                std::ptr::null_mut(),
+                timeout_ms,
+            )
+        };
+
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn sync_rx(&self, data: &mut [Complex<i8>], timeout: Duration) -> Result<()> {
+        let timeout_ms = timeout.as_millis() as u32;
+        let res = unsafe {
+            bladerf_sync_rx(
+                self.device,
+                data.as_mut_ptr() as *mut c_void,
+                data.len() as u32,
+                std::ptr::null_mut(),
+                timeout_ms,
+            )
+        };
+
+        check_res!(res);
+        Ok(())
+    }
+}
+
+impl<D: HardwareVariant> BladeRF<D, SyncStream<Sc16Q11Meta>> {
+    pub fn sync_tx(&self, data: &[Complex<i16>], timeout: Duration) -> Result<Metadata> {
+        let timeout_ms = timeout.as_millis() as u32;
+        let mut bladerf_meta = bladerf_metadata {
+            timestamp: 0,
+            flags: 0,
+            status: 0,
+            actual_count: 0,
+            reserved: [0u8; 32],
+        };
+
+        let res = unsafe {
+            bladerf_sync_tx(
+                self.device,
+                data.as_ptr() as *const c_void,
+                data.len() as u32,
+                &mut bladerf_meta as *mut bladerf_metadata,
+                timeout_ms,
+            )
+        };
+
+        let metadata: Metadata = (&bladerf_meta).into();
+        check_res!(res);
+        Ok(metadata)
+    }
+
+    pub fn sync_rx(&self, data: &mut [Complex<i16>], timeout: Duration) -> Result<Metadata> {
+        let timeout_ms = timeout.as_millis() as u32;
+        let mut bladerf_meta = bladerf_metadata {
+            timestamp: 0,
+            flags: 0,
+            status: 0,
+            actual_count: 0,
+            reserved: [0u8; 32],
+        };
+
+        let res = unsafe {
+            bladerf_sync_rx(
+                self.device,
+                data.as_mut_ptr() as *mut c_void,
+                data.len() as u32,
+                &mut bladerf_meta as *mut bladerf_metadata,
+                timeout_ms,
+            )
+        };
+
+        let metadata: Metadata = (&bladerf_meta).into();
+        check_res!(res);
+        Ok(metadata)
+    }
+}
+
+impl<D: HardwareVariant> BladeRF<D, SyncStream<Sc8Q7Meta>> {
+    pub fn sync_tx(&self, data: &[Complex<i8>], timeout: Duration) -> Result<Metadata> {
+        let timeout_ms = timeout.as_millis() as u32;
+        let mut bladerf_meta = bladerf_metadata {
+            timestamp: 0,
+            flags: 0,
+            status: 0,
+            actual_count: 0,
+            reserved: [0u8; 32],
+        };
+
+        let res = unsafe {
+            bladerf_sync_tx(
+                self.device,
+                data.as_ptr() as *const c_void,
+                data.len() as u32,
+                &mut bladerf_meta as *mut bladerf_metadata,
+                timeout_ms,
+            )
+        };
+
+        let metadata: Metadata = (&bladerf_meta).into();
+        check_res!(res);
+        Ok(metadata)
+    }
+
+    pub fn sync_rx(&self, data: &mut [Complex<i8>], timeout: Duration) -> Result<Metadata> {
+        let timeout_ms = timeout.as_millis() as u32;
+        let mut bladerf_meta = bladerf_metadata {
+            timestamp: 0,
+            flags: 0,
+            status: 0,
+            actual_count: 0,
+            reserved: [0u8; 32],
+        };
+
+        let res = unsafe {
+            bladerf_sync_rx(
+                self.device,
+                data.as_mut_ptr() as *mut c_void,
+                data.len() as u32,
+                &mut bladerf_meta as *mut bladerf_metadata,
+                timeout_ms,
+            )
+        };
+
+        let metadata: Metadata = (&bladerf_meta).into();
+        check_res!(res);
+        Ok(metadata)
     }
 }
 
