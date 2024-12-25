@@ -768,36 +768,30 @@ impl<D: HardwareVariant, S: StreamingMode> BladeRF<D, S> {
     // Synchronous data transmission and reception
 
     /// Configure the device for synchronous data transfer
-    pub fn sync_config(
-        &self,
+    pub fn sync_config<F: StreamFormat>(
+        self,
         channel: ChannelLayout,
-        format: Format,
         num_buffers: u32,
         buffer_size: u32,
         num_transfers: u32,
         stream_timeout: Duration,
-    ) -> Result<()> {
-        todo!()
-        // let stream_timeout_ms = stream_timeout.as_millis() as u32;
-        // let res = unsafe {
-        //     bladerf_sync_config(
-        //         self.device,
-        //         // Bindgen not precise with #define types
-        //         channel as bladerf_channel_layout,
-        //         format as bladerf_format,
-        //         num_buffers,
-        //         buffer_size,
-        //         num_transfers,
-        //         stream_timeout_ms,
-        //     )
-        // };
-        // check_res!(res);
+    ) -> Result<BladeRF<D, SyncStream<F>>> {
+        let stream_timeout_ms = stream_timeout.as_millis() as u32;
+        let res = unsafe {
+            bladerf_sync_config(
+                self.device,
+                // Bindgen not precise with #define types
+                channel as bladerf_channel_layout,
+                F::FORMAT as bladerf_format,
+                num_buffers,
+                buffer_size,
+                num_transfers,
+                stream_timeout_ms,
+            )
+        };
+        check_res!(res);
 
-        // // Store the configured format
-        // let mut fmt = self.format_sync.write().unwrap();
-        // *fmt = Some(format);
-
-        // Ok(())
+        Ok(self.not yet merged in)
     }
 
     /// Transmit IQ samples synchronously
