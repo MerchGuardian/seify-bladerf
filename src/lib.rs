@@ -8,10 +8,15 @@ mod error;
 
 pub use error::{Error, Result};
 mod types;
+use log::warn;
 pub use types::*;
 #[macro_use]
 mod bladerf;
 pub use bladerf::*;
+mod bladerf1;
+pub use bladerf1::*;
+mod bladerf2;
+pub use bladerf2::*;
 
 pub use libbladerf_sys as sys;
 use sys::*;
@@ -53,4 +58,17 @@ pub fn get_device_list() -> Result<Vec<DevInfo>> {
     unsafe { bladerf_free_device_list(devices) };
 
     Ok(devs)
+}
+
+fn bladerf_drop<T: BladeRF>(device: &mut T) {
+    let enabled_modules = *device.get_enabled_modules();
+    for (channel, enabled) in enabled_modules {
+        if enabled {
+            if let Err(e) = device.disable_module(channel) {
+                warn!("Failed to disable module {channel:?} on Drop: {e:?}");
+            }
+        }
+    }
+
+    unsafe { bladerf_close(device.get_device_ptr()) }
 }
