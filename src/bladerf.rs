@@ -1,4 +1,4 @@
-use crate::{error::*, sys::*, types::*};
+use crate::{bladerf_drop, error::*, sys::*, types::*};
 use enum_map::EnumMap;
 use ffi::{c_char, c_void, CStr, CString};
 use log::warn;
@@ -106,6 +106,35 @@ impl HardwareVariant for Unknown {}
 //         })
 //     }
 // }
+
+unsafe impl Send for BladeRfAny {}
+unsafe impl Sync for BladeRfAny {}
+
+struct BladeRfAny {
+    device: *mut bladerf,
+    enabled_modules: Mutex<EnumMap<Channel, bool>>,
+    format_sync: RwLock<Option<Format>>,
+}
+
+impl BladeRF for BladeRfAny {
+    fn get_device_ptr(&self) -> *mut bladerf {
+        self.device
+    }
+
+    fn get_enabled_modules(&self) -> MutexGuard<'_, parking_lot::RawMutex, EnumMap<Channel, bool>> {
+        self.enabled_modules.lock()
+    }
+
+    // fn get_enabled_modules_mut(&mut self) -> &mut EnumMap<Channel, bool> {
+    //     self.enabled_modules.get_mut()
+    // }
+}
+
+impl Drop for BladeRfAny {
+    fn drop(&mut self) {
+        bladerf_drop(self);
+    }
+}
 
 pub trait BladeRF: Sized + Drop {
     fn get_device_ptr(&self) -> *mut bladerf;
@@ -1068,142 +1097,6 @@ pub trait BladeRF: Sized + Drop {
     //     }
     // }
 }
-
-// impl BladeRF<BladeRf1> {
-//     pub fn set_txvga2(&self, gain: i32) -> Result<()> {
-//         let res = unsafe { bladerf_set_txvga2(self.device, gain) };
-
-//         check_res!(res);
-//         Ok(())
-//     }
-
-//     pub fn set_sampling(&self, sampling: Sampling) -> Result<()> {
-//         let res = unsafe { bladerf_set_sampling(self.device, sampling as bladerf_sampling) };
-//         check_res!(res);
-//         Ok(())
-//     }
-
-//     pub fn get_sampling(&self) -> Result<Sampling> {
-//         let mut sampling = bladerf_sampling_BLADERF_SAMPLING_UNKNOWN;
-//         let res = unsafe { bladerf_get_sampling(self.device, &mut sampling) };
-//         check_res!(res);
-//         Sampling::try_from(sampling)
-//     }
-
-//     pub fn set_lpf_mode(&self, channel: Channel, lpf_mode: LPFMode) -> Result<()> {
-//         let res = unsafe {
-//             bladerf_set_lpf_mode(
-//                 self.device,
-//                 channel as bladerf_channel,
-//                 lpf_mode as bladerf_lpf_mode,
-//             )
-//         };
-//         check_res!(res);
-//         Ok(())
-//     }
-
-//     pub fn get_lpf_mode(&self, channel: Channel) -> Result<LPFMode> {
-//         let mut lpf_mode = bladerf_lpf_mode_BLADERF_LPF_NORMAL;
-//         let res =
-//             unsafe { bladerf_get_lpf_mode(self.device, channel as bladerf_channel, &mut lpf_mode) };
-//         check_res!(res);
-//         LPFMode::try_from(lpf_mode)
-//     }
-
-//     pub fn set_smb_mode(&self, mode: SmbMode) -> Result<()> {
-//         let res = unsafe { bladerf_set_smb_mode(self.device, mode as bladerf_smb_mode) };
-//         check_res!(res);
-//         Ok(())
-//     }
-
-//     pub fn get_smb_mode(&self) -> Result<SmbMode> {
-//         let mut mode = bladerf_smb_mode_BLADERF_SMB_MODE_INVALID;
-//         let res = unsafe { bladerf_get_smb_mode(self.device, &mut mode) };
-//         check_res!(res);
-//         SmbMode::try_from(mode)
-//     }
-
-//     pub fn set_rational_smb_frequency(&self, frequency: RationalRate) -> Result<RationalRate> {
-//         let mut actual_freq = bladerf_rational_rate {
-//             integer: 0,
-//             num: 0,
-//             den: 0,
-//         };
-//         // Despite frequency being passes as a &mut reference, the value is not actually mutated, so no need to pass it back to the user.
-//         let res = unsafe {
-//             bladerf_set_rational_smb_frequency(self.device, &mut frequency.into(), &mut actual_freq)
-//         };
-//         check_res!(res);
-//         Ok(actual_freq.into())
-//     }
-
-//     pub fn get_rational_smb_frequency(&self) -> Result<RationalRate> {
-//         let mut freq = bladerf_rational_rate {
-//             integer: 0,
-//             num: 0,
-//             den: 0,
-//         };
-//         let res = unsafe { bladerf_get_rational_smb_frequency(self.device, &mut freq) };
-//         check_res!(res);
-//         Ok(freq.into())
-//     }
-
-//     pub fn set_smb_frequency(&self, frequency: u32) -> Result<u32> {
-//         let mut actual_freq = 0;
-//         let res = unsafe { bladerf_set_smb_frequency(self.device, frequency, &mut actual_freq) };
-//         check_res!(res);
-//         Ok(actual_freq)
-//     }
-
-//     pub fn get_smb_frequency(&self) -> Result<u32> {
-//         let mut freq = 0;
-//         let res = unsafe { bladerf_get_smb_frequency(self.device, &mut freq) };
-//         check_res!(res);
-//         Ok(freq)
-//     }
-// }
-
-// impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf1> {
-//     type Error = Error;
-
-//     fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
-//         if value.get_board_name() == "bladerf1" {
-//             Ok(value.change_marker_traits::<BladeRf1>())
-//         } else {
-//             Err(Error::Unsupported)
-//         }
-//     }
-// }
-
-// impl BladeRF<BladeRf2> {
-//     // **Bias Tee Control**
-
-//     pub fn get_bias_tee(&self, channel: Channel) -> Result<bool> {
-//         let mut enable = false;
-//         let res =
-//             unsafe { bladerf_get_bias_tee(self.device, channel as bladerf_channel, &mut enable) };
-//         check_res!(res);
-//         Ok(enable)
-//     }
-
-//     pub fn set_bias_tee(&self, channel: Channel, enable: bool) -> Result<()> {
-//         let res = unsafe { bladerf_set_bias_tee(self.device, channel as bladerf_channel, enable) };
-//         check_res!(res);
-//         Ok(())
-//     }
-// }
-
-// impl TryFrom<BladeRF<Unknown>> for BladeRF<BladeRf2> {
-//     type Error = Error;
-
-//     fn try_from(value: BladeRF<Unknown>) -> std::result::Result<Self, Self::Error> {
-//         if value.get_board_name() == "bladerf2" {
-//             Ok(value.change_marker_traits::<BladeRf2>())
-//         } else {
-//             Err(Error::Unsupported)
-//         }
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
