@@ -110,10 +110,10 @@ impl HardwareVariant for Unknown {}
 unsafe impl Send for BladeRfAny {}
 unsafe impl Sync for BladeRfAny {}
 
-struct BladeRfAny {
-    device: *mut bladerf,
-    enabled_modules: Mutex<EnumMap<Channel, bool>>,
-    format_sync: RwLock<Option<Format>>,
+pub struct BladeRfAny {
+    pub(crate) device: *mut bladerf,
+    pub(crate) enabled_modules: Mutex<EnumMap<Channel, bool>>,
+    pub(crate) format_sync: RwLock<Option<Format>>,
 }
 
 impl BladeRF for BladeRfAny {
