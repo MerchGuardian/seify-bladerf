@@ -1,24 +1,20 @@
+use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{bladerf_drop, error::*, sys::*, types::*, BladeRF, BladeRfAny};
-use crate::{HardwareVariant, Unknown};
 use enum_map::EnumMap;
-use ffi::{c_char, c_void, CStr, CString};
-use log::warn;
 use marker::PhantomData;
 use mem::ManuallyDrop;
 use parking_lot::lock_api::MutexGuard;
-use parking_lot::Mutex;
-use path::Path;
+// use parking_lot::Mutex;
 use std::*;
-use sync::RwLock;
-use time::Duration;
+// use sync::RwLock;
 
 unsafe impl Send for BladeRf2 {}
 unsafe impl Sync for BladeRf2 {}
 
 pub struct BladeRf2 {
-    device: *mut bladerf,
-    enabled_modules: Mutex<EnumMap<Channel, bool>>,
-    format_sync: RwLock<Option<Format>>,
+    pub(crate) device: *mut bladerf,
+    // enabled_modules: Mutex<EnumMap<Channel, bool>>,
+    // format_sync: RwLock<Option<Format>>,
 }
 
 impl BladeRf2 {
@@ -34,6 +30,52 @@ impl BladeRf2 {
         let res = unsafe { bladerf_set_bias_tee(self.device, channel as bladerf_channel, enable) };
         check_res!(res);
         Ok(())
+    }
+
+    fn set_sync_config<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+        layout: ChannelLayout,
+    ) -> Result<()> {
+        let res = unsafe {
+            bladerf_sync_config(
+                self.device,
+                layout as u32,
+                T::FORMAT as u32,
+                config.num_buffers,
+                config.buffer_size,
+                config.num_transfers,
+                config.stream_timeout,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn tx_streamer<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+        layout: ChannelLayout,
+    ) -> Result<TxSyncStream<T, BladeRf2>> {
+        self.set_sync_config::<T>(config, layout)?;
+
+        Ok(TxSyncStream {
+            dev: &self,
+            _format: PhantomData,
+        })
+    }
+
+    pub fn rx_streamer<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+        layout: ChannelLayout,
+    ) -> Result<RxSyncStream<T, BladeRf2>> {
+        self.set_sync_config::<T>(config, layout)?;
+
+        Ok(RxSyncStream {
+            dev: &self,
+            _format: PhantomData,
+        })
     }
 }
 
@@ -52,14 +94,14 @@ impl TryFrom<BladeRfAny> for BladeRf2 {
             // 3. each field is properly initialized
             // Further
             // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
-            let enabled_modules = unsafe { std::ptr::read(&old_dev.enabled_modules) };
-            let format_sync = unsafe { std::ptr::read(&old_dev.format_sync) };
+            // let enabled_modules = unsafe { std::ptr::read(&old_dev.enabled_modules) };
+            // let format_sync = unsafe { std::ptr::read(&old_dev.format_sync) };
 
             // let test = (*old_dev).enabled_modules;
             let new_dev = BladeRf2 {
                 device: old_dev.device,
-                enabled_modules,
-                format_sync,
+                // enabled_modules,
+                // format_sync,
             };
             Ok(new_dev)
         } else {
@@ -74,7 +116,8 @@ impl BladeRF for BladeRf2 {
     }
 
     fn get_enabled_modules(&self) -> MutexGuard<'_, parking_lot::RawMutex, EnumMap<Channel, bool>> {
-        self.enabled_modules.lock()
+        // self.enabled_modules.lock()
+        todo!()
     }
 
     // fn get_enabled_modules_mut(&mut self) -> &mut EnumMap<Channel, bool> {

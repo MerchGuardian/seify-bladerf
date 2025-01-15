@@ -5,6 +5,7 @@ use libbladerf_sys as sys;
 
 use crate::BladeRF;
 use crate::BladeRf1;
+use crate::BladeRf2;
 use crate::Channel;
 use crate::Error;
 // use crate::Format;
@@ -46,13 +47,41 @@ impl SyncConfig {
 }
 
 pub struct RxSyncStream<'a, T: SampleFormat, D: BladeRF> {
-    pub(crate) dev: &'a BladeRf1,
+    pub(crate) dev: &'a D,
     pub(crate) _format: PhantomData<T>,
-    pub(crate) _device: PhantomData<D>,
 }
 
 impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
     pub fn read(&self, buffer: &mut [T], timeout: Duration) -> Result<()> {
+        let res = unsafe {
+            sys::bladerf_sync_rx(
+                self.dev.device,
+                buffer.as_mut_ptr() as *mut _,
+                buffer.len() as u32,
+                std::ptr::null_mut(),
+                timeout.as_millis() as u32,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        let res = unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Rx0 as i32, true) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        let res =
+            unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Rx0 as i32, false) };
+        check_res!(res);
+        Ok(())
+    }
+}
+
+impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
+    pub fn read(&self, buffer: &mut [&mut [T]], timeout: Duration) -> Result<()> {
         let res = unsafe {
             sys::bladerf_sync_rx(
                 self.dev.device,
@@ -87,9 +116,8 @@ impl<'a, T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'a, T, D> {
 }
 
 pub struct TxSyncStream<'a, T: SampleFormat, D: BladeRF> {
-    pub(crate) dev: &'a BladeRf1,
+    pub(crate) dev: &'a D,
     pub(crate) _format: PhantomData<T>,
-    pub(crate) _device: PhantomData<D>,
 }
 
 impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf1> {

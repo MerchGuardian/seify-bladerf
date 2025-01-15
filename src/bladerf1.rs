@@ -140,7 +140,6 @@ impl BladeRf1 {
         Ok(TxSyncStream {
             dev: &self,
             _format: PhantomData,
-            _device: PhantomData,
         })
     }
 
@@ -153,7 +152,6 @@ impl BladeRf1 {
         Ok(RxSyncStream {
             dev: &self,
             _format: PhantomData,
-            _device: PhantomData,
         })
     }
 }
