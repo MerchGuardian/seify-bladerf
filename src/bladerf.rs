@@ -1,15 +1,10 @@
 use crate::{bladerf_drop, error::*, sys::*, types::*};
 use enum_map::EnumMap;
-use ffi::{c_char, c_void, CStr, CString};
-use log::warn;
-use marker::PhantomData;
-use mem::ManuallyDrop;
+use ffi::{c_char, CStr, CString};
 use parking_lot::{lock_api::MutexGuard, Mutex};
 use path::Path;
-use private::Sealed;
 use std::*;
 use sync::RwLock;
-use time::Duration;
 
 // Macro to simplify integer returns
 macro_rules! check_res {

@@ -1,16 +1,10 @@
-use crate::stream::{RxSyncStream, SyncConfig};
+use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{bladerf_drop, error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use enum_map::EnumMap;
-use ffi::{c_char, c_void, CStr, CString};
-use log::warn;
 use marker::PhantomData;
 use mem::ManuallyDrop;
 use parking_lot::lock_api::MutexGuard;
-use parking_lot::Mutex;
-use path::Path;
 use std::*;
-use sync::RwLock;
-use time::Duration;
 
 pub struct BladeRf1 {
     pub(crate) device: *mut bladerf,
@@ -112,12 +106,21 @@ impl BladeRf1 {
         Ok(freq)
     }
 
-    fn set_sync_config<T: SampleFormat>(&self, config: &SyncConfig) -> Result<()> {
+    fn set_sync_config<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+        direction: Direction,
+    ) -> Result<()> {
+        let layout = match direction {
+            Direction::TX => ChannelLayout::TxSISO,
+            Direction::RX => ChannelLayout::RxSISO,
+        };
+
         let res = unsafe {
             bladerf_sync_config(
                 self.device,
+                layout as u32,
                 T::FORMAT as u32,
-                ChannelLayout::RxSISO as u32,
                 config.num_buffers,
                 config.buffer_size,
                 config.num_transfers,
@@ -128,11 +131,24 @@ impl BladeRf1 {
         Ok(())
     }
 
+    pub fn tx_streamer<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+    ) -> Result<TxSyncStream<T, BladeRf1>> {
+        self.set_sync_config::<T>(config, Direction::TX)?;
+
+        Ok(TxSyncStream {
+            dev: &self,
+            _format: PhantomData,
+            _device: PhantomData,
+        })
+    }
+
     pub fn rx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
     ) -> Result<RxSyncStream<T, BladeRf1>> {
-        self.set_sync_config::<T>(config)?;
+        self.set_sync_config::<T>(config, Direction::RX)?;
 
         Ok(RxSyncStream {
             dev: &self,

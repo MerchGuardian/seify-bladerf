@@ -7,7 +7,7 @@ use crate::BladeRF;
 use crate::BladeRf1;
 use crate::Channel;
 use crate::Error;
-use crate::Format;
+// use crate::Format;
 use crate::Result;
 use crate::SampleFormat;
 
@@ -82,6 +82,47 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
 
 impl<'a, T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'a, T, D> {
     fn drop(&mut self) {
-        todo!()
+        todo!("Do we need to disable the module here?");
+    }
+}
+
+pub struct TxSyncStream<'a, T: SampleFormat, D: BladeRF> {
+    pub(crate) dev: &'a BladeRf1,
+    pub(crate) _format: PhantomData<T>,
+    pub(crate) _device: PhantomData<D>,
+}
+
+impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf1> {
+    pub fn write(&self, buffer: &[T], timeout: Duration) -> Result<()> {
+        let res = unsafe {
+            sys::bladerf_sync_tx(
+                self.dev.device,
+                buffer.as_ptr() as *const _,
+                buffer.len() as u32,
+                std::ptr::null_mut(),
+                timeout.as_millis() as u32,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        let res = unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Tx0 as i32, true) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        let res =
+            unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Tx0 as i32, false) };
+        check_res!(res);
+        Ok(())
+    }
+}
+
+impl<'a, T: SampleFormat, D: BladeRF> Drop for TxSyncStream<'a, T, D> {
+    fn drop(&mut self) {
+        todo!("Do we need to disable the module here?");
     }
 }
