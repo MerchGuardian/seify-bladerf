@@ -1,5 +1,5 @@
+use crate::stream::{RxSyncStream, SyncConfig};
 use crate::{bladerf_drop, error::*, sys::*, types::*, BladeRF, BladeRfAny};
-use crate::{HardwareVariant, Unknown};
 use enum_map::EnumMap;
 use ffi::{c_char, c_void, CStr, CString};
 use log::warn;
@@ -13,9 +13,7 @@ use sync::RwLock;
 use time::Duration;
 
 pub struct BladeRf1 {
-    device: *mut bladerf,
-    enabled_modules: Mutex<EnumMap<Channel, bool>>,
-    format_sync: RwLock<Option<Format>>,
+    pub(crate) device: *mut bladerf,
 }
 
 unsafe impl Send for BladeRf1 {}
@@ -113,6 +111,35 @@ impl BladeRf1 {
         check_res!(res);
         Ok(freq)
     }
+
+    fn set_sync_config<T: SampleFormat>(&self, config: &SyncConfig) -> Result<()> {
+        let res = unsafe {
+            bladerf_sync_config(
+                self.device,
+                T::FORMAT as u32,
+                ChannelLayout::RxSISO as u32,
+                config.num_buffers,
+                config.buffer_size,
+                config.num_transfers,
+                config.stream_timeout,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn rx_streamer<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+    ) -> Result<RxSyncStream<T, BladeRf1>> {
+        self.set_sync_config::<T>(config)?;
+
+        Ok(RxSyncStream {
+            dev: &self,
+            _format: PhantomData,
+            _device: PhantomData,
+        })
+    }
 }
 
 impl TryFrom<BladeRfAny> for BladeRf1 {
@@ -130,14 +157,14 @@ impl TryFrom<BladeRfAny> for BladeRf1 {
             // 3. each field is properly initialized
             // Further
             // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
-            let enabled_modules = unsafe { std::ptr::read(&old_dev.enabled_modules) };
-            let format_sync = unsafe { std::ptr::read(&old_dev.format_sync) };
+            // let enabled_modules = unsafe { std::ptr::read(&old_dev.enabled_modules) };
+            // let format_sync = unsafe { std::ptr::read(&old_dev.format_sync) };
 
             // let test = (*old_dev).enabled_modules;
             let new_dev = BladeRf1 {
                 device: old_dev.device,
-                enabled_modules,
-                format_sync,
+                // enabled_modules,
+                // format_sync,
             };
             Ok(new_dev)
         } else {
@@ -152,7 +179,8 @@ impl BladeRF for BladeRf1 {
     }
 
     fn get_enabled_modules(&self) -> MutexGuard<'_, parking_lot::RawMutex, EnumMap<Channel, bool>> {
-        self.enabled_modules.lock()
+        // self.enabled_modules.lock()
+        todo!()
     }
 
     // fn get_enabled_modules_mut(&mut self) -> &mut EnumMap<Channel, bool> {

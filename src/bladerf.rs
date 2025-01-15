@@ -26,19 +26,19 @@ mod private {
     pub trait Sealed {}
 }
 
-pub trait HardwareVariant: Sealed {}
+// pub trait HardwareVariant: Sealed {}
 
-pub struct BladeRf1 {}
-impl Sealed for BladeRf1 {}
-impl HardwareVariant for BladeRf1 {}
+// pub struct BladeRf1 {}
+// impl Sealed for BladeRf1 {}
+// impl HardwareVariant for BladeRf1 {}
 
-pub struct BladeRf2 {}
-impl Sealed for BladeRf2 {}
-impl HardwareVariant for BladeRf2 {}
+// pub struct BladeRf2 {}
+// impl Sealed for BladeRf2 {}
+// impl HardwareVariant for BladeRf2 {}
 
-pub struct Unknown {}
-impl Sealed for Unknown {}
-impl HardwareVariant for Unknown {}
+// pub struct Unknown {}
+// impl Sealed for Unknown {}
+// impl HardwareVariant for Unknown {}
 
 // unsafe impl<D: HardwareVariant> Send for BladeRF<D> {}
 // unsafe impl<D: HardwareVariant> Sync for BladeRF<D> {}
