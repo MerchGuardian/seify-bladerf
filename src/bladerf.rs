@@ -111,6 +111,50 @@ pub struct BladeRfAny {
     pub(crate) format_sync: RwLock<Option<Format>>,
 }
 
+impl BladeRfAny {
+    pub fn open_first() -> Result<Self> {
+        log::info!("Opening first bladerf");
+        let mut device = std::ptr::null_mut();
+        let res = unsafe { bladerf_open(&mut device as *mut *mut _, ptr::null()) };
+        check_res!(res);
+        Ok(BladeRfAny {
+            device,
+            enabled_modules: Mutex::new(EnumMap::default()),
+            format_sync: RwLock::new(None),
+        })
+    }
+
+    pub fn open_identifier(id: &str) -> Result<Self> {
+        let mut device = std::ptr::null_mut();
+        let c_string =
+            CString::new(id).map_err(|e| Error::msg(format!("Invalid c string `{id}`: {e:?}")))?;
+        let res = unsafe { bladerf_open(&mut device as *mut *mut _, c_string.as_ptr()) };
+
+        check_res!(res);
+        Ok(BladeRfAny {
+            device,
+            enabled_modules: Mutex::new(EnumMap::default()),
+            format_sync: RwLock::new(None),
+        })
+    }
+
+    pub fn open_with_devinfo(devinfo: &DevInfo) -> Result<Self> {
+        let mut devinfo_ptr = devinfo.0;
+        let mut device = std::ptr::null_mut();
+
+        let res = unsafe {
+            bladerf_open_with_devinfo(&mut device as *mut *mut _, &mut devinfo_ptr as *mut _)
+        };
+
+        check_res!(res);
+        Ok(BladeRfAny {
+            device,
+            enabled_modules: Mutex::new(EnumMap::default()),
+            format_sync: RwLock::new(None),
+        })
+    }
+}
+
 impl BladeRF for BladeRfAny {
     fn get_device_ptr(&self) -> *mut bladerf {
         self.device
