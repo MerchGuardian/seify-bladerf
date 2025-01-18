@@ -5,9 +5,12 @@ use marker::PhantomData;
 use mem::ManuallyDrop;
 use parking_lot::lock_api::MutexGuard;
 use std::*;
+use sync::atomic::{AtomicBool, Ordering};
 
 pub struct BladeRf1 {
     pub(crate) device: *mut bladerf,
+    rx_singleton: AtomicBool,
+    tx_singleton: AtomicBool,
 }
 
 unsafe impl Send for BladeRf1 {}
@@ -106,7 +109,7 @@ impl BladeRf1 {
         Ok(freq)
     }
 
-    fn set_sync_config<T: SampleFormat>(
+    pub(crate) fn set_sync_config<T: SampleFormat>(
         &self,
         config: &SyncConfig,
         direction: Direction,
@@ -135,6 +138,13 @@ impl BladeRf1 {
         &self,
         config: &SyncConfig,
     ) -> Result<TxSyncStream<T, BladeRf1>> {
+        if self.tx_singleton.load(Ordering::Acquire) {
+            return Err(Error::Msg(
+                "Already have a TX stream open".to_owned().into_boxed_str(),
+            ));
+        } else {
+            self.tx_singleton.store(true, Ordering::Release);
+        }
         self.set_sync_config::<T>(config, Direction::TX)?;
 
         Ok(TxSyncStream {
@@ -147,6 +157,14 @@ impl BladeRf1 {
         &self,
         config: &SyncConfig,
     ) -> Result<RxSyncStream<T, BladeRf1>> {
+        if self.rx_singleton.load(Ordering::Acquire) {
+            return Err(Error::Msg(
+                "Already have an RX stream open".to_owned().into_boxed_str(),
+            ));
+        } else {
+            self.rx_singleton.store(true, Ordering::Release);
+        }
+
         self.set_sync_config::<T>(config, Direction::RX)?;
 
         Ok(RxSyncStream {
@@ -177,8 +195,8 @@ impl TryFrom<BladeRfAny> for BladeRf1 {
             // let test = (*old_dev).enabled_modules;
             let new_dev = BladeRf1 {
                 device: old_dev.device,
-                // enabled_modules,
-                // format_sync,
+                rx_singleton: AtomicBool::new(false),
+                tx_singleton: AtomicBool::new(false),
             };
             Ok(new_dev)
         } else {

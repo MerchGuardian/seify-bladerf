@@ -7,6 +7,8 @@ use crate::BladeRF;
 use crate::BladeRf1;
 use crate::BladeRf2;
 use crate::Channel;
+use crate::ChannelLayout;
+use crate::Direction;
 use crate::Error;
 // use crate::Format;
 use crate::Result;
@@ -66,6 +68,17 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
         Ok(())
     }
 
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+    ) -> Result<RxSyncStream<'a, NF, BladeRf1>> {
+        self.dev.set_sync_config::<NF>(config, Direction::RX)?;
+        Ok(RxSyncStream {
+            dev: self.dev,
+            _format: PhantomData,
+        })
+    }
+
     pub fn enable(&self) -> Result<()> {
         let res = unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Rx0 as i32, true) };
         check_res!(res);
@@ -93,6 +106,23 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
         };
         check_res!(res);
         Ok(())
+    }
+
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+        mimo: bool,
+    ) -> Result<RxSyncStream<'a, NF, BladeRf2>> {
+        let layout = if mimo {
+            ChannelLayout::RxMIMO
+        } else {
+            ChannelLayout::RxSISO
+        };
+        self.dev.set_sync_config::<NF>(config, layout)?;
+        Ok(RxSyncStream {
+            dev: self.dev,
+            _format: PhantomData,
+        })
     }
 
     pub fn enable(&self) -> Result<()> {
@@ -133,6 +163,17 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf1> {
         };
         check_res!(res);
         Ok(())
+    }
+
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+    ) -> Result<TxSyncStream<'a, NF, BladeRf1>> {
+        self.dev.set_sync_config::<NF>(config, Direction::TX)?;
+        Ok(TxSyncStream {
+            dev: self.dev,
+            _format: PhantomData,
+        })
     }
 
     pub fn enable(&self) -> Result<()> {

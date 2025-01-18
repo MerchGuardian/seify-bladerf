@@ -32,7 +32,7 @@ impl BladeRf2 {
         Ok(())
     }
 
-    fn set_sync_config<T: SampleFormat>(
+    pub(crate) fn set_sync_config<T: SampleFormat>(
         &self,
         config: &SyncConfig,
         layout: ChannelLayout,
@@ -55,8 +55,13 @@ impl BladeRf2 {
     pub fn tx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
-        layout: ChannelLayout,
+        mimo: bool,
     ) -> Result<TxSyncStream<T, BladeRf2>> {
+        let layout = if mimo {
+            ChannelLayout::TxMIMO
+        } else {
+            ChannelLayout::TxSISO
+        };
         self.set_sync_config::<T>(config, layout)?;
 
         Ok(TxSyncStream {
@@ -68,8 +73,13 @@ impl BladeRf2 {
     pub fn rx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
-        layout: ChannelLayout,
+        mimo: bool,
     ) -> Result<RxSyncStream<T, BladeRf2>> {
+        let layout = if mimo {
+            ChannelLayout::RxMIMO
+        } else {
+            ChannelLayout::RxSISO
+        };
         self.set_sync_config::<T>(config, layout)?;
 
         Ok(RxSyncStream {
