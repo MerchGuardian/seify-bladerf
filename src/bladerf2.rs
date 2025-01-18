@@ -4,6 +4,7 @@ use enum_map::EnumMap;
 use marker::PhantomData;
 use mem::ManuallyDrop;
 use parking_lot::lock_api::MutexGuard;
+use sync::atomic::{AtomicBool, Ordering};
 // use parking_lot::Mutex;
 use std::*;
 // use sync::RwLock;
@@ -13,6 +14,8 @@ unsafe impl Sync for BladeRf2 {}
 
 pub struct BladeRf2 {
     pub(crate) device: *mut bladerf,
+    rx_singleton: AtomicBool,
+    tx_singleton: AtomicBool,
     // enabled_modules: Mutex<EnumMap<Channel, bool>>,
     // format_sync: RwLock<Option<Format>>,
 }
@@ -57,11 +60,20 @@ impl BladeRf2 {
         config: &SyncConfig,
         mimo: bool,
     ) -> Result<TxSyncStream<T, BladeRf2>> {
+        if self.tx_singleton.load(Ordering::Relaxed) {
+            return Err(Error::Msg(
+                "Already have a TX stream open".to_owned().into_boxed_str(),
+            ));
+        } else {
+            self.tx_singleton.store(true, Ordering::Relaxed);
+        }
+
         let layout = if mimo {
             ChannelLayout::TxMIMO
         } else {
             ChannelLayout::TxSISO
         };
+
         self.set_sync_config::<T>(config, layout)?;
 
         Ok(TxSyncStream {
@@ -75,11 +87,20 @@ impl BladeRf2 {
         config: &SyncConfig,
         mimo: bool,
     ) -> Result<RxSyncStream<T, BladeRf2>> {
+        if self.rx_singleton.load(Ordering::Relaxed) {
+            return Err(Error::Msg(
+                "Already have an RX stream open".to_owned().into_boxed_str(),
+            ));
+        } else {
+            self.rx_singleton.store(true, Ordering::Relaxed);
+        }
+
         let layout = if mimo {
             ChannelLayout::RxMIMO
         } else {
             ChannelLayout::RxSISO
         };
+
         self.set_sync_config::<T>(config, layout)?;
 
         Ok(RxSyncStream {
@@ -110,6 +131,8 @@ impl TryFrom<BladeRfAny> for BladeRf2 {
             // let test = (*old_dev).enabled_modules;
             let new_dev = BladeRf2 {
                 device: old_dev.device,
+                rx_singleton: AtomicBool::new(false),
+                tx_singleton: AtomicBool::new(false),
                 // enabled_modules,
                 // format_sync,
             };
