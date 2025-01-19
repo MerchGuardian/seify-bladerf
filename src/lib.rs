@@ -18,6 +18,7 @@ pub use bladerf1::*;
 mod bladerf2;
 pub use bladerf2::*;
 mod stream;
+pub use stream::*;
 
 pub use libbladerf_sys as sys;
 use sys::*;
