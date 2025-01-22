@@ -35,26 +35,6 @@ impl BladeRf2 {
         Ok(())
     }
 
-    pub(crate) fn set_sync_config<T: SampleFormat>(
-        &self,
-        config: &SyncConfig,
-        layout: ChannelLayout,
-    ) -> Result<()> {
-        let res = unsafe {
-            bladerf_sync_config(
-                self.device,
-                layout as u32,
-                T::FORMAT as u32,
-                config.num_buffers,
-                config.buffer_size,
-                config.num_transfers,
-                config.stream_timeout,
-            )
-        };
-        check_res!(res);
-        Ok(())
-    }
-
     pub fn tx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
@@ -74,7 +54,9 @@ impl BladeRf2 {
             ChannelLayout::TxSISO
         };
 
-        self.set_sync_config::<T>(config, layout)?;
+        unsafe {
+            self.set_sync_config::<T>(config, layout)?;
+        }
 
         Ok(TxSyncStream {
             dev: &self,
@@ -101,7 +83,9 @@ impl BladeRf2 {
             ChannelLayout::RxSISO
         };
 
-        self.set_sync_config::<T>(config, layout)?;
+        unsafe {
+            self.set_sync_config::<T>(config, layout)?;
+        }
 
         Ok(RxSyncStream {
             dev: &self,

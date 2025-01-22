@@ -109,31 +109,6 @@ impl BladeRf1 {
         Ok(freq)
     }
 
-    pub(crate) fn set_sync_config<T: SampleFormat>(
-        &self,
-        config: &SyncConfig,
-        direction: Direction,
-    ) -> Result<()> {
-        let layout = match direction {
-            Direction::TX => ChannelLayout::TxSISO,
-            Direction::RX => ChannelLayout::RxSISO,
-        };
-
-        let res = unsafe {
-            bladerf_sync_config(
-                self.device,
-                layout as u32,
-                T::FORMAT as u32,
-                config.num_buffers,
-                config.buffer_size,
-                config.num_transfers,
-                config.stream_timeout,
-            )
-        };
-        check_res!(res);
-        Ok(())
-    }
-
     pub fn tx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
@@ -145,7 +120,8 @@ impl BladeRf1 {
         } else {
             self.tx_singleton.store(true, Ordering::Release);
         }
-        self.set_sync_config::<T>(config, Direction::TX)?;
+
+        unsafe { self.set_sync_config::<T>(config, ChannelLayout::TxSISO)? };
 
         Ok(TxSyncStream {
             dev: &self,
@@ -165,7 +141,7 @@ impl BladeRf1 {
             self.rx_singleton.store(true, Ordering::Release);
         }
 
-        self.set_sync_config::<T>(config, Direction::RX)?;
+        unsafe { self.set_sync_config::<T>(config, ChannelLayout::RxSISO)? };
 
         Ok(RxSyncStream {
             dev: &self,

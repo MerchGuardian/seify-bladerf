@@ -162,26 +162,6 @@ impl BladeRfAny {
         })
     }
 
-    pub(crate) fn set_sync_config<T: SampleFormat>(
-        &self,
-        config: &SyncConfig,
-        layout: ChannelLayout,
-    ) -> Result<()> {
-        let res = unsafe {
-            bladerf_sync_config(
-                self.device,
-                layout as u32,
-                T::FORMAT as u32,
-                config.num_buffers,
-                config.buffer_size,
-                config.num_transfers,
-                config.stream_timeout,
-            )
-        };
-        check_res!(res);
-        Ok(())
-    }
-
     pub fn rx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
@@ -201,7 +181,7 @@ impl BladeRfAny {
             ChannelLayout::RxSISO
         };
 
-        self.set_sync_config::<T>(config, layout)?;
+        unsafe { self.set_sync_config::<T>(config, layout)? };
 
         Ok(RxSyncStream {
             dev: &self,
@@ -429,6 +409,30 @@ pub trait BladeRF: Sized + Drop {
         }
         let range = unsafe { &*range_ptr };
         Ok(Range::from(range))
+    }
+
+    /// # Safety
+    /// Intended for internal use only.
+    /// Can only reconfigure at certain times.
+    /// Reconfiguring at the wrong time will result in UB.
+    unsafe fn set_sync_config<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+        layout: ChannelLayout,
+    ) -> Result<()> {
+        let res = unsafe {
+            bladerf_sync_config(
+                self.get_device_ptr(),
+                layout as u32,
+                T::FORMAT as u32,
+                config.num_buffers,
+                config.buffer_size,
+                config.num_transfers,
+                config.stream_timeout,
+            )
+        };
+        check_res!(res);
+        Ok(())
     }
 
     fn set_rx_mux(&self, mux: RxMux) -> Result<()> {

@@ -73,7 +73,10 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
         self,
         config: &SyncConfig,
     ) -> Result<RxSyncStream<'a, NF, BladeRf1>> {
-        self.dev.set_sync_config::<NF>(config, Direction::RX)?;
+        unsafe {
+            self.dev
+                .set_sync_config::<NF>(config, ChannelLayout::RxSISO)?;
+        }
         Ok(RxSyncStream {
             dev: self.dev,
             _format: PhantomData,
@@ -119,7 +122,9 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
         } else {
             ChannelLayout::RxSISO
         };
-        self.dev.set_sync_config::<NF>(config, layout)?;
+        unsafe {
+            self.dev.set_sync_config::<NF>(config, layout)?;
+        }
         Ok(RxSyncStream {
             dev: self.dev,
             _format: PhantomData,
@@ -164,7 +169,9 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
         } else {
             ChannelLayout::RxSISO
         };
-        self.dev.set_sync_config::<NF>(config, layout)?;
+        unsafe {
+            self.dev.set_sync_config::<NF>(config, layout)?;
+        }
         Ok(RxSyncStream {
             dev: self.dev,
             _format: PhantomData,
@@ -214,7 +221,10 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf1> {
         self,
         config: &SyncConfig,
     ) -> Result<TxSyncStream<'a, NF, BladeRf1>> {
-        self.dev.set_sync_config::<NF>(config, Direction::TX)?;
+        unsafe {
+            self.dev
+                .set_sync_config::<NF>(config, ChannelLayout::TxSISO)?;
+        }
         Ok(TxSyncStream {
             dev: self.dev,
             _format: PhantomData,
