@@ -110,13 +110,13 @@ fn main() -> anyhow::Result<()> {
         // let mut buffer = [inner_buffer.as_mut_slice(); 1];
 
         reciever.read(&mut buffer, Duration::from_secs(1))?;
-        println!("RX");
+        // println!("RX");
 
         let data = complex_i16_to_u8(&buffer);
 
         // println!("D: {:?}", inner_buffer);
 
-        println!("RX2");
+        // println!("RX2");
 
         // let data = [0, 0, 0, 0, 0_u8];
 
