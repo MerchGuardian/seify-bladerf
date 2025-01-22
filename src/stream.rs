@@ -140,7 +140,7 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
 }
 
 impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
-    pub fn read(&self, buffer: &mut [&mut [T]], timeout: Duration) -> Result<()> {
+    pub fn read(&self, buffer: &mut [T], timeout: Duration) -> Result<()> {
         let res = unsafe {
             sys::bladerf_sync_rx(
                 self.dev.device,

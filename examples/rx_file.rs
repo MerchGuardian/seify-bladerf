@@ -40,11 +40,11 @@ struct Args {
     duration: Option<f32>,
 }
 
-// fn complex_i16_to_u8(arr: &[Complex<i16>]) -> &[u8] {
-//     let len = std::mem::size_of_val(arr);
-//     let ptr = arr.as_ptr() as *const u8;
-//     unsafe { std::slice::from_raw_parts(ptr, len) }
-// }
+fn complex_i16_to_u8(arr: &[Complex<i16>]) -> &[u8] {
+    let len = std::mem::size_of_val(arr);
+    let ptr = arr.as_ptr() as *const u8;
+    unsafe { std::slice::from_raw_parts(ptr, len) }
+}
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -106,30 +106,23 @@ fn main() -> anyhow::Result<()> {
     // let tmp_vec = Vec::with_capacity(8192);
 
     for _ in 0..buffer_read_count_limit {
-        let mut inner_buffer = [Complex::new(0_i16, 0); 8192];
-        let mut buffer = [inner_buffer.as_mut_slice(); 1];
+        let mut buffer = [Complex::new(0_i16, 0); 8192];
+        // let mut buffer = [inner_buffer.as_mut_slice(); 1];
 
         reciever.read(&mut buffer, Duration::from_secs(1))?;
         println!("RX");
 
-        // let data = complex_i16_to_u8(buffer[0]);
+        let data = complex_i16_to_u8(&buffer);
 
-        println!("D: {:?}", buffer[0]);
-
-        // for sample in buffer[0].iter() {
-        //     let data = sample.re.to_le_bytes();
-        //     file_buf.write_all(&data)?;
-        //     let data = sample.im.to_le_bytes();
-        //     file_buf.write_all(&data)?;
-        // }
+        // println!("D: {:?}", inner_buffer);
 
         println!("RX2");
 
         // let data = [0, 0, 0, 0, 0_u8];
 
-        // file_buf
-        //     .write_all(data)
-        //     .with_context(|| "Could not write to file")?;
+        file_buf
+            .write_all(data)
+            .with_context(|| "Could not write to file")?;
     }
 
     println!("Fin");
