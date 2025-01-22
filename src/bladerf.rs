@@ -1,10 +1,14 @@
-use crate::{bladerf_drop, error::*, sys::*, types::*};
+use crate::{bladerf_drop, error::*, sys::*, types::*, RxSyncStream, SyncConfig};
 use enum_map::EnumMap;
 use ffi::{c_char, CStr, CString};
+use marker::PhantomData;
 use parking_lot::{lock_api::MutexGuard, Mutex};
 use path::Path;
 use std::*;
-use sync::RwLock;
+use sync::{
+    atomic::{AtomicBool, Ordering},
+    RwLock,
+};
 
 // Macro to simplify integer returns
 macro_rules! check_res {
@@ -109,6 +113,7 @@ pub struct BladeRfAny {
     pub(crate) device: *mut bladerf,
     pub(crate) enabled_modules: Mutex<EnumMap<Channel, bool>>,
     pub(crate) format_sync: RwLock<Option<Format>>,
+    pub(crate) rx_singleton: AtomicBool,
 }
 
 impl BladeRfAny {
@@ -121,6 +126,7 @@ impl BladeRfAny {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            rx_singleton: AtomicBool::new(false),
         })
     }
 
@@ -135,6 +141,7 @@ impl BladeRfAny {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            rx_singleton: AtomicBool::new(false),
         })
     }
 
@@ -151,6 +158,54 @@ impl BladeRfAny {
             device,
             enabled_modules: Mutex::new(EnumMap::default()),
             format_sync: RwLock::new(None),
+            rx_singleton: AtomicBool::new(false),
+        })
+    }
+
+    pub(crate) fn set_sync_config<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+        layout: ChannelLayout,
+    ) -> Result<()> {
+        let res = unsafe {
+            bladerf_sync_config(
+                self.device,
+                layout as u32,
+                T::FORMAT as u32,
+                config.num_buffers,
+                config.buffer_size,
+                config.num_transfers,
+                config.stream_timeout,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn rx_streamer<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+        mimo: bool,
+    ) -> Result<RxSyncStream<T, BladeRfAny>> {
+        if self.rx_singleton.load(Ordering::Relaxed) {
+            return Err(Error::Msg(
+                "Already have an RX stream open".to_owned().into_boxed_str(),
+            ));
+        } else {
+            self.rx_singleton.store(true, Ordering::Relaxed);
+        }
+
+        let layout = if mimo {
+            ChannelLayout::RxMIMO
+        } else {
+            ChannelLayout::RxSISO
+        };
+
+        self.set_sync_config::<T>(config, layout)?;
+
+        Ok(RxSyncStream {
+            dev: &self,
+            _format: PhantomData,
         })
     }
 }

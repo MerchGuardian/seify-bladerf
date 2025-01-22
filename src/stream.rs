@@ -6,6 +6,7 @@ use libbladerf_sys as sys;
 use crate::BladeRF;
 use crate::BladeRf1;
 use crate::BladeRf2;
+use crate::BladeRfAny;
 use crate::Channel;
 use crate::ChannelLayout;
 use crate::Direction;
@@ -125,15 +126,59 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
         })
     }
 
-    pub fn enable(&self) -> Result<()> {
-        let res = unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Rx0 as i32, true) };
+    pub fn enable(&self, channel: Channel) -> Result<()> {
+        let res = unsafe { sys::bladerf_enable_module(self.dev.device, channel as i32, true) };
         check_res!(res);
         Ok(())
     }
 
-    pub fn disable(&self) -> Result<()> {
-        let res =
-            unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Rx0 as i32, false) };
+    pub fn disable(&self, channel: Channel) -> Result<()> {
+        let res = unsafe { sys::bladerf_enable_module(self.dev.device, channel as i32, false) };
+        check_res!(res);
+        Ok(())
+    }
+}
+
+impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
+    pub fn read(&self, buffer: &mut [&mut [T]], timeout: Duration) -> Result<()> {
+        let res = unsafe {
+            sys::bladerf_sync_rx(
+                self.dev.device,
+                buffer.as_mut_ptr() as *mut _,
+                buffer.len() as u32,
+                std::ptr::null_mut(),
+                timeout.as_millis() as u32,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+        mimo: bool,
+    ) -> Result<RxSyncStream<'a, NF, BladeRfAny>> {
+        let layout = if mimo {
+            ChannelLayout::RxMIMO
+        } else {
+            ChannelLayout::RxSISO
+        };
+        self.dev.set_sync_config::<NF>(config, layout)?;
+        Ok(RxSyncStream {
+            dev: self.dev,
+            _format: PhantomData,
+        })
+    }
+
+    pub fn enable(&self, channel: Channel) -> Result<()> {
+        let res = unsafe { sys::bladerf_enable_module(self.dev.device, channel as i32, true) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn disable(&self, channel: Channel) -> Result<()> {
+        let res = unsafe { sys::bladerf_enable_module(self.dev.device, channel as i32, false) };
         check_res!(res);
         Ok(())
     }
@@ -141,7 +186,7 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
 
 impl<'a, T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'a, T, D> {
     fn drop(&mut self) {
-        todo!("Do we need to disable the module here?");
+        // todo!("Do we need to disable the module here?");
     }
 }
 
