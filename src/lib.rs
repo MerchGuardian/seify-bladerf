@@ -4,6 +4,9 @@
 #![allow(non_upper_case_globals)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+#[cfg(not(target_endian = "little"))]
+compile_error!("This library only supports little endian architecture");
+
 mod error;
 
 pub use error::{Error, Result};
