@@ -82,19 +82,6 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
             _format: PhantomData,
         })
     }
-
-    pub fn enable(&self) -> Result<()> {
-        let res = unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Rx0 as i32, true) };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn disable(&self) -> Result<()> {
-        let res =
-            unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Rx0 as i32, false) };
-        check_res!(res);
-        Ok(())
-    }
 }
 
 impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
@@ -130,18 +117,6 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
             _format: PhantomData,
         })
     }
-
-    pub fn enable(&self, channel: Channel) -> Result<()> {
-        let res = unsafe { sys::bladerf_enable_module(self.dev.device, channel as i32, true) };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn disable(&self, channel: Channel) -> Result<()> {
-        let res = unsafe { sys::bladerf_enable_module(self.dev.device, channel as i32, false) };
-        check_res!(res);
-        Ok(())
-    }
 }
 
 impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
@@ -176,18 +151,6 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
             dev: self.dev,
             _format: PhantomData,
         })
-    }
-
-    pub fn enable(&self, channel: Channel) -> Result<()> {
-        let res = unsafe { sys::bladerf_enable_module(self.dev.device, channel as i32, true) };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn disable(&self, channel: Channel) -> Result<()> {
-        let res = unsafe { sys::bladerf_enable_module(self.dev.device, channel as i32, false) };
-        check_res!(res);
-        Ok(())
     }
 }
 
@@ -229,19 +192,6 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf1> {
             dev: self.dev,
             _format: PhantomData,
         })
-    }
-
-    pub fn enable(&self) -> Result<()> {
-        let res = unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Tx0 as i32, true) };
-        check_res!(res);
-        Ok(())
-    }
-
-    pub fn disable(&self) -> Result<()> {
-        let res =
-            unsafe { sys::bladerf_enable_module(self.dev.device, Channel::Tx0 as i32, false) };
-        check_res!(res);
-        Ok(())
     }
 }
 

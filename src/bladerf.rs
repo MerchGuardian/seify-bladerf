@@ -943,6 +943,14 @@ pub trait BladeRF: Sized + Drop {
 
     // Miscellaneous
 
+    /// # Safety
+    /// Should only be called internally
+    unsafe fn set_enable_module(&self, channel: Channel, enable: bool) -> Result<()> {
+        let res = unsafe { bladerf_enable_module(self.get_device_ptr(), channel as i32, enable) };
+        check_res!(res);
+        Ok(())
+    }
+
     // Sample formats and metadata
     fn abc() {}
 
