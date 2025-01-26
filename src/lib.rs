@@ -61,16 +61,3 @@ pub fn get_device_list() -> Result<Vec<DevInfo>> {
 
     Ok(devs)
 }
-
-fn bladerf_drop<T: BladeRF>(device: &mut T) {
-    let enabled_modules = *device.get_enabled_modules();
-    for (channel, enabled) in enabled_modules {
-        if enabled {
-            if let Err(e) = device.disable_module(channel) {
-                warn!("Failed to disable module {channel:?} on Drop: {e:?}");
-            }
-        }
-    }
-
-    unsafe { bladerf_close(device.get_device_ptr()) }
-}

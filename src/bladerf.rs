@@ -1,14 +1,9 @@
-use crate::{bladerf_drop, error::*, sys::*, types::*, RxSyncStream, SyncConfig};
-use enum_map::EnumMap;
+use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig};
 use ffi::{c_char, CStr, CString};
 use marker::PhantomData;
-use parking_lot::{lock_api::MutexGuard, Mutex};
 use path::Path;
 use std::*;
-use sync::{
-    atomic::{AtomicBool, Ordering},
-    RwLock,
-};
+use sync::atomic::{AtomicBool, Ordering};
 
 // Macro to simplify integer returns
 macro_rules! check_res {
@@ -21,99 +16,13 @@ macro_rules! check_res {
 
 pub const FPGA_BITSTREAM_VAR_NAME: &str = "BLADERF_RS_FPGA_BITSTREAM_PATH";
 
-mod private {
-    pub trait Sealed {}
-}
-
-// pub trait HardwareVariant: Sealed {}
-
-// pub struct BladeRf1 {}
-// impl Sealed for BladeRf1 {}
-// impl HardwareVariant for BladeRf1 {}
-
-// pub struct BladeRf2 {}
-// impl Sealed for BladeRf2 {}
-// impl HardwareVariant for BladeRf2 {}
-
-// pub struct Unknown {}
-// impl Sealed for Unknown {}
-// impl HardwareVariant for Unknown {}
-
-// unsafe impl<D: HardwareVariant> Send for BladeRF<D> {}
-// unsafe impl<D: HardwareVariant> Sync for BladeRF<D> {}
-
-// impl<D: HardwareVariant> Drop for BladeRF<D> {
-//     fn drop(&mut self) {
-//         let enabled_modules = *self.enabled_modules.get_mut();
-//         for (channel, enabled) in enabled_modules {
-//             if enabled {
-//                 if let Err(e) = self.disable_module(channel) {
-//                     warn!("Failed to disable module {channel:?} on Drop: {e:?}");
-//                 }
-//             }
-//         }
-
-//         unsafe { bladerf_close(self.device) }
-//     }
-// }
-
-// trait BladeRf {
-// fn open_first() -> Result<Self<Unknown>> {
-//     log::info!("Opening first bladerf");
-//     let mut device = std::ptr::null_mut();
-//     let res = unsafe { bladerf_open(&mut device as *mut *mut _, ptr::null()) };
-//     check_res!(res);
-//     Ok(BladeRF::<Unknown> {
-//         device,
-//         enabled_modules: Mutex::new(EnumMap::default()),
-//         format_sync: RwLock::new(None),
-//         _p: PhantomData,
-//     })
-// }
-
-/// Open a BladeRF device by identifier
-//     pub fn open_identifier(id: &str) -> Result<BladeRF<Unknown>> {
-//         let mut device = std::ptr::null_mut();
-//         let c_string = ffi::CString::new(id)
-//             .map_err(|e| Error::msg(format!("Invalid c string `{id}`: {e:?}")))?;
-//         let res = unsafe { bladerf_open(&mut device as *mut *mut _, c_string.as_ptr()) };
-
-//         check_res!(res);
-//         Ok(BladeRF::<Unknown> {
-//             device,
-//             enabled_modules: Mutex::new(EnumMap::default()),
-//             format_sync: RwLock::new(None),
-//             _p: PhantomData,
-//         })
-//     }
-
-//     /// Open a BladeRF device by devinfo object
-//     pub fn open_with_devinfo(devinfo: &DevInfo) -> Result<BladeRF<Unknown>> {
-//         let mut devinfo_ptr = devinfo.0;
-//         let mut device = std::ptr::null_mut();
-
-//         let res = unsafe {
-//             bladerf_open_with_devinfo(&mut device as *mut *mut _, &mut devinfo_ptr as *mut _)
-//         };
-
-//         check_res!(res);
-//         Ok(BladeRF::<Unknown> {
-//             device,
-//             enabled_modules: Mutex::new(EnumMap::default()),
-//             format_sync: RwLock::new(None),
-//             _p: PhantomData,
-//         })
-//     }
-// }
-
 unsafe impl Send for BladeRfAny {}
 unsafe impl Sync for BladeRfAny {}
 
 pub struct BladeRfAny {
     pub(crate) device: *mut bladerf,
-    pub(crate) enabled_modules: Mutex<EnumMap<Channel, bool>>,
-    pub(crate) format_sync: RwLock<Option<Format>>,
     pub(crate) rx_singleton: AtomicBool,
+    pub(crate) tx_singleton: AtomicBool,
 }
 
 impl BladeRfAny {
@@ -124,9 +33,8 @@ impl BladeRfAny {
         check_res!(res);
         Ok(BladeRfAny {
             device,
-            enabled_modules: Mutex::new(EnumMap::default()),
-            format_sync: RwLock::new(None),
             rx_singleton: AtomicBool::new(false),
+            tx_singleton: AtomicBool::new(false),
         })
     }
 
@@ -139,9 +47,8 @@ impl BladeRfAny {
         check_res!(res);
         Ok(BladeRfAny {
             device,
-            enabled_modules: Mutex::new(EnumMap::default()),
-            format_sync: RwLock::new(None),
             rx_singleton: AtomicBool::new(false),
+            tx_singleton: AtomicBool::new(false),
         })
     }
 
@@ -156,9 +63,8 @@ impl BladeRfAny {
         check_res!(res);
         Ok(BladeRfAny {
             device,
-            enabled_modules: Mutex::new(EnumMap::default()),
-            format_sync: RwLock::new(None),
             rx_singleton: AtomicBool::new(false),
+            tx_singleton: AtomicBool::new(false),
         })
     }
 
@@ -184,7 +90,7 @@ impl BladeRfAny {
         unsafe { self.set_sync_config::<T>(config, layout)? };
 
         Ok(RxSyncStream {
-            dev: &self,
+            dev: self,
             _format: PhantomData,
         })
     }
@@ -194,19 +100,11 @@ impl BladeRF for BladeRfAny {
     fn get_device_ptr(&self) -> *mut bladerf {
         self.device
     }
-
-    fn get_enabled_modules(&self) -> MutexGuard<'_, parking_lot::RawMutex, EnumMap<Channel, bool>> {
-        self.enabled_modules.lock()
-    }
-
-    // fn get_enabled_modules_mut(&mut self) -> &mut EnumMap<Channel, bool> {
-    //     self.enabled_modules.get_mut()
-    // }
 }
 
 impl Drop for BladeRfAny {
     fn drop(&mut self) {
-        bladerf_drop(self);
+        unsafe { self.close() };
     }
 }
 
@@ -297,27 +195,11 @@ pub trait BladeRF: Sized + Drop {
     // RX & TX Module Control
     // http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___m_o_d_u_l_e.html
 
-    fn get_enabled_modules(&self) -> MutexGuard<'_, parking_lot::RawMutex, EnumMap<Channel, bool>>;
-
-    // fn get_enabled_modules_mut(&mut self) -> &mut EnumMap<Channel, bool>;
-
-    fn enable_module(&self, channel: Channel) -> Result<()> {
-        self.set_module_enabled(channel, true)
-    }
-
-    fn disable_module(&self, channel: Channel) -> Result<()> {
-        self.set_module_enabled(channel, false)
-    }
-
-    fn set_module_enabled(&self, channel: Channel, enable: bool) -> Result<()> {
-        let mut enabled_modules = self.get_enabled_modules();
-
-        let res = unsafe {
-            bladerf_enable_module(self.get_device_ptr(), channel as bladerf_channel, enable)
-        };
+    /// # Safety
+    /// Should only be called internally
+    unsafe fn set_enable_module(&self, channel: Channel, enable: bool) -> Result<()> {
+        let res = unsafe { bladerf_enable_module(self.get_device_ptr(), channel as i32, enable) };
         check_res!(res);
-
-        enabled_modules[channel] = enable;
         Ok(())
     }
 
@@ -943,155 +825,6 @@ pub trait BladeRF: Sized + Drop {
 
     // Miscellaneous
 
-    /// # Safety
-    /// Should only be called internally
-    unsafe fn set_enable_module(&self, channel: Channel, enable: bool) -> Result<()> {
-        let res = unsafe { bladerf_enable_module(self.get_device_ptr(), channel as i32, enable) };
-        check_res!(res);
-        Ok(())
-    }
-
-    // Sample formats and metadata
-    fn abc() {}
-
-    // Asynchronous data transmission and reception
-
-    // Synchronous data transmission and reception
-
-    /// Configure the device for synchronous data transfer
-    // fn sync_config(
-    //     &self,
-    //     channel: ChannelLayout,
-    //     format: Format,
-    //     num_buffers: u32,
-    //     buffer_size: u32,
-    //     num_transfers: u32,
-    //     stream_timeout: Duration,
-    // ) -> Result<()> {
-    //     let stream_timeout_ms = stream_timeout.as_millis() as u32;
-    //     let res = unsafe {
-    //         bladerf_sync_config(
-    //             self.get_device_ptr(),
-    //             // Bindgen not precise with #define types
-    //             channel as bladerf_channel_layout,
-    //             format as bladerf_format,
-    //             num_buffers,
-    //             buffer_size,
-    //             num_transfers,
-    //             stream_timeout_ms,
-    //         )
-    //     };
-    //     check_res!(res);
-
-    //     // Store the configured format
-    //     let mut fmt = self.format_sync.write().unwrap();
-    //     *fmt = Some(format);
-
-    //     Ok(())
-    // }
-
-    /// Transmit IQ samples synchronously
-    // fn sync_tx<T>(
-    //     &self,
-    //     data: &[T],
-    //     metadata: Option<&mut Metadata>,
-    //     timeout: Duration,
-    // ) -> Result<()>
-    // where
-    //     T: SampleFormat,
-    // {
-    //     let format_guard = self.format_sync.read().unwrap();
-    //     let format = format_guard.ok_or_else(|| Error::msg("Format not configured"))?;
-
-    //     T::check_compatability(format)?;
-
-    //     let timeout_ms = timeout.as_millis() as u32;
-    //     let mut bladerf_meta = bladerf_metadata {
-    //         timestamp: 0,
-    //         flags: 0,
-    //         status: 0,
-    //         actual_count: 0,
-    //         reserved: [0u8; 32],
-    //     };
-    //     let meta_ptr = if let Some(meta) = &metadata {
-    //         bladerf_meta.timestamp = meta.timestamp;
-    //         bladerf_meta.flags = meta.flags;
-    //         &mut bladerf_meta as *mut bladerf_metadata
-    //     } else {
-    //         std::ptr::null_mut()
-    //     };
-
-    //     let res = unsafe {
-    //         bladerf_sync_tx(
-    //             self.get_device_ptr(),
-    //             data.as_ptr() as *const c_void,
-    //             data.len() as u32,
-    //             meta_ptr,
-    //             timeout_ms,
-    //         )
-    //     };
-
-    //     if !meta_ptr.is_null() {
-    //         if let Some(meta) = metadata {
-    //             *meta = Metadata::from(&bladerf_meta);
-    //         }
-    //     }
-
-    //     check_res!(res);
-    //     Ok(())
-    // }
-
-    /// Receive IQ samples synchronously
-    // fn sync_rx<T>(
-    //     &self,
-    //     data: &mut [T],
-    //     metadata: Option<&mut Metadata>,
-    //     timeout: Duration,
-    // ) -> Result<()>
-    // where
-    //     T: SampleFormat,
-    // {
-    //     let format_guard = self.format_sync.read().unwrap();
-    //     let format = format_guard.ok_or_else(|| Error::msg("Format not configured"))?;
-
-    //     T::check_compatability(format)?;
-
-    //     let timeout_ms = timeout.as_millis() as u32;
-    //     let mut bladerf_meta = bladerf_metadata {
-    //         timestamp: 0,
-    //         flags: 0,
-    //         status: 0,
-    //         actual_count: 0,
-    //         reserved: [0u8; 32],
-    //     };
-    //     let meta_ptr = if let Some(meta) = &metadata {
-    //         bladerf_meta.timestamp = meta.timestamp;
-    //         bladerf_meta.flags = meta.flags;
-    //         &mut bladerf_meta as *mut bladerf_metadata
-    //     } else {
-    //         std::ptr::null_mut()
-    //     };
-
-    //     let res = unsafe {
-    //         bladerf_sync_rx(
-    //             self.get_device_ptr(),
-    //             data.as_mut_ptr() as *mut c_void,
-    //             data.len() as u32,
-    //             meta_ptr,
-    //             timeout_ms,
-    //         )
-    //     };
-
-    //     if !meta_ptr.is_null() {
-    //         if let Some(meta) = metadata {
-    //             *meta = Metadata::from(&bladerf_meta);
-    //         }
-    //     }
-
-    //     check_res!(res);
-    //     Ok(())
-    // }
-
     /// Retrieve the current timestamp
     fn get_timestamp(&self, dir: Direction) -> Result<u64> {
         let mut timestamp: u64 = 0;
@@ -1180,28 +913,11 @@ pub trait BladeRF: Sized + Drop {
         name_raw.to_str().unwrap()
     }
 
-    // fn change_marker_traits<DN: HardwareVariant>(self) -> BladeRF<DN> {
-    //     let dev_to_move = ManuallyDrop::new(self);
-
-    //     // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
-    //     // SAFETY:
-    //     // Being a rust reference, the following hold.
-    //     // 1. each field is valid for reads
-    //     // 2. each field is guaranteed to be aligned
-    //     // 3. each field is properly initialized
-    //     // Further
-    //     // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
-    //     let device = unsafe { std::ptr::read(&dev_to_move.get_device_ptr()) };
-    //     let enabled_modules = unsafe { std::ptr::read(&dev_to_move.enabled_modules) };
-    //     let format_sync = unsafe { std::ptr::read(&dev_to_move.format_sync) };
-
-    //     BladeRF::<DN> {
-    //         device,
-    //         enabled_modules,
-    //         format_sync,
-    //         _p: PhantomData,
-    //     }
-    // }
+    /// # Safety
+    /// Intended for internal use.
+    unsafe fn close(&self) {
+        unsafe { bladerf_close(self.get_device_ptr()) }
+    }
 }
 
 #[cfg(test)]

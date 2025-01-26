@@ -1,9 +1,7 @@
 use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
-use crate::{bladerf_drop, error::*, sys::*, types::*, BladeRF, BladeRfAny};
-use enum_map::EnumMap;
+use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use marker::PhantomData;
 use mem::ManuallyDrop;
-use parking_lot::lock_api::MutexGuard;
 use std::*;
 use sync::atomic::{AtomicBool, Ordering};
 
@@ -124,7 +122,7 @@ impl BladeRf1 {
         unsafe { self.set_sync_config::<T>(config, ChannelLayout::TxSISO)? };
 
         Ok(TxSyncStream {
-            dev: &self,
+            dev: self,
             _format: PhantomData,
         })
     }
@@ -144,7 +142,7 @@ impl BladeRf1 {
         unsafe { self.set_sync_config::<T>(config, ChannelLayout::RxSISO)? };
 
         Ok(RxSyncStream {
-            dev: &self,
+            dev: self,
             _format: PhantomData,
         })
     }
@@ -185,19 +183,10 @@ impl BladeRF for BladeRf1 {
     fn get_device_ptr(&self) -> *mut bladerf {
         self.device
     }
-
-    fn get_enabled_modules(&self) -> MutexGuard<'_, parking_lot::RawMutex, EnumMap<Channel, bool>> {
-        // self.enabled_modules.lock()
-        todo!()
-    }
-
-    // fn get_enabled_modules_mut(&mut self) -> &mut EnumMap<Channel, bool> {
-    //     self.enabled_modules.get_mut()
-    // }
 }
 
 impl Drop for BladeRf1 {
     fn drop(&mut self) {
-        bladerf_drop(self);
+        unsafe { self.close() };
     }
 }

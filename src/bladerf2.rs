@@ -1,9 +1,7 @@
 use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
-use crate::{bladerf_drop, error::*, sys::*, types::*, BladeRF, BladeRfAny};
-use enum_map::EnumMap;
+use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use marker::PhantomData;
 use mem::ManuallyDrop;
-use parking_lot::lock_api::MutexGuard;
 use sync::atomic::{AtomicBool, Ordering};
 // use parking_lot::Mutex;
 use std::*;
@@ -59,7 +57,7 @@ impl BladeRf2 {
         }
 
         Ok(TxSyncStream {
-            dev: &self,
+            dev: self,
             _format: PhantomData,
         })
     }
@@ -88,7 +86,7 @@ impl BladeRf2 {
         }
 
         Ok(RxSyncStream {
-            dev: &self,
+            dev: self,
             _format: PhantomData,
         })
     }
@@ -101,25 +99,12 @@ impl TryFrom<BladeRfAny> for BladeRf2 {
         if value.get_board_name() == "bladerf2" {
             let old_dev = ManuallyDrop::new(value);
 
-            // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
-            // SAFETY:
-            // Being a rust reference, the following hold.
-            // 1. each field is valid for reads
-            // 2. each field is guaranteed to be aligned
-            // 3. each field is properly initialized
-            // Further
-            // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
-            // let enabled_modules = unsafe { std::ptr::read(&old_dev.enabled_modules) };
-            // let format_sync = unsafe { std::ptr::read(&old_dev.format_sync) };
-
-            // let test = (*old_dev).enabled_modules;
             let new_dev = BladeRf2 {
                 device: old_dev.device,
                 rx_singleton: AtomicBool::new(false),
                 tx_singleton: AtomicBool::new(false),
-                // enabled_modules,
-                // format_sync,
             };
+
             Ok(new_dev)
         } else {
             Err(Error::Unsupported)
@@ -131,19 +116,10 @@ impl BladeRF for BladeRf2 {
     fn get_device_ptr(&self) -> *mut bladerf {
         self.device
     }
-
-    fn get_enabled_modules(&self) -> MutexGuard<'_, parking_lot::RawMutex, EnumMap<Channel, bool>> {
-        // self.enabled_modules.lock()
-        todo!()
-    }
-
-    // fn get_enabled_modules_mut(&mut self) -> &mut EnumMap<Channel, bool> {
-    //     self.enabled_modules.get_mut()
-    // }
 }
 
 impl Drop for BladeRf2 {
     fn drop(&mut self) {
-        bladerf_drop(self);
+        unsafe { self.close() };
     }
 }
