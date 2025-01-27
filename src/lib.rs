@@ -26,6 +26,9 @@ pub use stream::*;
 pub use libbladerf_sys as sys;
 use sys::*;
 
+#[cfg(feature = "seify")]
+pub mod seify;
+
 /// Returns the version of the linked `libbladerf` library.
 pub fn version() -> Result<Version> {
     let mut version = bladerf_version {
