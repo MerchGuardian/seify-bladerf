@@ -24,7 +24,16 @@ impl<'a> RxStreamer for RxSyncStream<'a, Complex<i16>, BladeRfAny> {
     }
 
     fn deactivate_at(&mut self, time_ns: Option<i64>) -> Result<(), seify::Error> {
-        todo!()
+        if time_ns.is_none() {
+            unsafe {
+                self.dev
+                    .set_enable_module(crate::Channel::Rx0, false)
+                    .unwrap()
+            };
+        } else {
+            todo!();
+        };
+        Ok(())
     }
 
     fn read(
