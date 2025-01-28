@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{brf_ci16_to_cf32, stream::RxSyncStream, BladeRfAny, SampleFormat};
+use crate::{brf_ci16_to_cf32, stream::RxSyncStream, BladeRF, BladeRfAny, SampleFormat};
 use num_complex::Complex;
 use num_traits::Zero;
 use seify::RxStreamer;
@@ -12,7 +12,11 @@ impl<'a> RxStreamer for RxSyncStream<'a, Complex<i16>, BladeRfAny> {
 
     fn activate_at(&mut self, time_ns: Option<i64>) -> Result<(), seify::Error> {
         if time_ns.is_none() {
-            self.enable(crate::Channel::Rx0).unwrap();
+            unsafe {
+                self.dev
+                    .set_enable_module(crate::Channel::Rx0, true)
+                    .unwrap()
+            };
         } else {
             todo!();
         };
