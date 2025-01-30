@@ -127,5 +127,9 @@ fn main() -> anyhow::Result<()> {
 
     println!("Fin");
 
+    dev.device_reset().unwrap();
+
+    // dev.get_fpga_size();
+
     Ok(())
 }
