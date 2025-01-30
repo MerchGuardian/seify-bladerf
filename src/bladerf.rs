@@ -2,7 +2,7 @@ use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig};
 use ffi::{c_char, CStr, CString};
 use marker::PhantomData;
 use path::Path;
-use std::*;
+use std::{mem::ManuallyDrop, *};
 use sync::atomic::{AtomicBool, Ordering};
 
 // Macro to simplify integer returns
@@ -19,6 +19,7 @@ pub const FPGA_BITSTREAM_VAR_NAME: &str = "BLADERF_RS_FPGA_BITSTREAM_PATH";
 unsafe impl Send for BladeRfAny {}
 unsafe impl Sync for BladeRfAny {}
 
+#[derive(Debug)]
 pub struct BladeRfAny {
     pub(crate) device: *mut bladerf,
     pub(crate) rx_singleton: AtomicBool,
@@ -849,7 +850,8 @@ pub trait BladeRF: Sized + Drop {
 
     /// Reset the device, causing it to reload its firmware from flash
     fn device_reset(self) -> Result<()> {
-        let res = unsafe { bladerf_device_reset(self.get_device_ptr()) };
+        let dev = ManuallyDrop::new(self);
+        let res = unsafe { bladerf_device_reset(dev.get_device_ptr()) };
         check_res!(res);
         Ok(())
     }

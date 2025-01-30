@@ -7,6 +7,7 @@ use std::{
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
+    thread::sleep,
     time::Duration,
 };
 
@@ -130,6 +131,19 @@ fn main() -> anyhow::Result<()> {
     dev.device_reset().unwrap();
 
     // dev.get_fpga_size();
+    sleep(Duration::from_millis(100));
+
+    let devagain =
+        BladeRfAny::open_first().expect_err("This should error since there is no device to open.");
+
+    println!("Take error: {devagain}");
+
+    sleep(Duration::from_secs(10));
+
+    let devagain = BladeRfAny::open_first()?;
+
+    let x = devagain.get_fpga_size();
+    println!("fpga size fin {x:?}");
 
     Ok(())
 }
