@@ -2,7 +2,7 @@ use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig};
 use ffi::{c_char, CStr, CString};
 use marker::PhantomData;
 use path::Path;
-use std::*;
+use std::{mem::ManuallyDrop, *};
 use sync::atomic::{AtomicBool, Ordering};
 
 // Macro to simplify integer returns
@@ -849,7 +849,8 @@ pub trait BladeRF: Sized + Drop {
 
     /// Reset the device, causing it to reload its firmware from flash
     fn device_reset(self) -> Result<()> {
-        let res = unsafe { bladerf_device_reset(self.get_device_ptr()) };
+        let dev = ManuallyDrop::new(self);
+        let res = unsafe { bladerf_device_reset(dev.get_device_ptr()) };
         check_res!(res);
         Ok(())
     }
