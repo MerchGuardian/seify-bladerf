@@ -47,10 +47,13 @@ fn complex_i16_to_u8(arr: &[Complex<i16>]) -> &[u8] {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    pretty_env_logger::init();
 
     let dev = if let Some(device) = args.device {
+        log::info!("Opening device with device identifier: {}", device);
         BladeRfAny::open_identifier(&device).with_context(|| "Cannot Open Device")?
     } else {
+        log::info!("Opening first device");
         BladeRfAny::open_first().with_context(|| "Cannot Open Device")?
     };
 
