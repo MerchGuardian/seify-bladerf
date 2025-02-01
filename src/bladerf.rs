@@ -29,7 +29,7 @@ impl BladeRfAny {
     pub fn open_first() -> Result<Self> {
         log::info!("Opening first bladerf");
         let mut device = std::ptr::null_mut();
-        let res = unsafe { bladerf_open(&mut device as *mut *mut _, ptr::null()) };
+        let res = unsafe { bladerf_open(&mut device, ptr::null()) };
         check_res!(res);
         Ok(BladeRfAny {
             device,
@@ -42,7 +42,7 @@ impl BladeRfAny {
         let mut device = std::ptr::null_mut();
         let c_string =
             CString::new(id).map_err(|e| Error::msg(format!("Invalid c string `{id}`: {e:?}")))?;
-        let res = unsafe { bladerf_open(&mut device as *mut *mut _, c_string.as_ptr()) };
+        let res = unsafe { bladerf_open(&mut device, c_string.as_ptr()) };
 
         check_res!(res);
         Ok(BladeRfAny {
@@ -56,9 +56,7 @@ impl BladeRfAny {
         let mut devinfo_ptr = devinfo.0;
         let mut device = std::ptr::null_mut();
 
-        let res = unsafe {
-            bladerf_open_with_devinfo(&mut device as *mut *mut _, &mut devinfo_ptr as *mut _)
-        };
+        let res = unsafe { bladerf_open_with_devinfo(&mut device, &mut devinfo_ptr as *mut _) };
 
         check_res!(res);
         Ok(BladeRfAny {
