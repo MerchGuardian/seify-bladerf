@@ -164,16 +164,6 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
     }
 }
 
-impl<T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'_, T, D> {
-    fn drop(&mut self) {
-        unsafe {
-            // Ignore the results, just try disable both channels even if they don't exist on the dev.
-            let _ = self.dev.set_enable_module(Channel::Rx0, false);
-            let _ = self.dev.set_enable_module(Channel::Rx1, false);
-        }
-    }
-}
-
 impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
     pub fn read(&self, buffer: &mut [T], timeout: Duration) -> Result<()> {
         let res = unsafe {
@@ -232,11 +222,17 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
     }
 }
 
-// impl<'a, T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'a, T, D> {
-//     fn drop(&mut self) {
-//         // todo!("Do we need to disable the module here?");
-//     }
-// }
+impl<T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'_, T, D> {
+    fn drop(&mut self) {
+        unsafe {
+            // Ignore the results, just try disable both channels even if they don't exist on the dev.
+            let _ = self.dev.set_enable_module(Channel::Rx0, false);
+            let _ = self.dev.set_enable_module(Channel::Rx1, false);
+        }
+    }
+}
+
+// Tx Streamers
 
 pub struct TxSyncStream<'a, T: SampleFormat, D: BladeRF> {
     pub(crate) dev: &'a D,

@@ -5,6 +5,7 @@ use std::{
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
+    sync::mpsc::TryRecvError,
     time::Duration,
 };
 
@@ -83,8 +84,6 @@ fn main() -> anyhow::Result<()> {
             )
         })?;
 
-    println!("Hi2");
-
     let config = SyncConfig::new(16, 8192, 8, 3500).with_context(|| "Cannot Create Sync Config")?;
 
     let layout = ChannelLayoutRx::SISO(channel);
@@ -93,47 +92,63 @@ fn main() -> anyhow::Result<()> {
         .rx_streamer::<Complex<i16>>(&config, layout)
         .with_context(|| "Cannot Get Streamer")?;
 
-    let mut file = File::create(args.outfile).with_context(|| "Cannot Open Output File")?;
+    let file = File::create(args.outfile).with_context(|| "Cannot Open Output File")?;
 
-    let mut file_buf = BufWriter::new(&mut file);
+    let mut file_buf = BufWriter::new(file);
 
-    let buffer_read_count_limit = {
-        let sample_count = args.samplerate as f64 * args.duration.unwrap() as f64;
-        let samples_per_block = 8192.0;
-        (sample_count / samples_per_block) as u64
-    };
+    let mut buffer = [Complex::new(0_i16, 0); 8192];
 
-    println!("Hi3 {buffer_read_count_limit}");
-
-    reciever.enable().with_context(|| "Cannot Enable Stream")?;
-
-    println!("Hi4");
-
-    // let tmp_vec = Vec::with_capacity(8192);
-
-    for _ in 0..buffer_read_count_limit {
-        let mut buffer = [Complex::new(0_i16, 0); 8192];
-        // let mut buffer = [inner_buffer.as_mut_slice(); 1];
-
+    let mut reciever_inner = || -> anyhow::Result<()> {
         reciever
             .read(&mut buffer, Duration::from_secs(1))
             .with_context(|| "Cannot Read Samples")?;
-        // println!("RX");
 
         let data = complex_i16_to_u8(&buffer);
-
-        // println!("D: {:?}", inner_buffer);
-
-        // println!("RX2");
-
-        // let data = [0, 0, 0, 0, 0_u8];
 
         file_buf
             .write_all(data)
             .with_context(|| "Could not write to file")?;
+        Ok(())
+    };
+
+    reciever.enable().with_context(|| "Cannot Enable Stream")?;
+
+    let (ctrlc_tx, ctrlc_rx) = std::sync::mpsc::channel();
+    ctrlc::set_handler(move || {
+        let _ = ctrlc_tx.send(());
+    })
+    .with_context(|| "Cannot Set Ctrl-C Handler")?;
+
+    match args.duration {
+        Some(duration) => {
+            let buffer_read_count_limit = {
+                let sample_count = args.samplerate as f64 * duration as f64;
+                let samples_per_block = 8192.0;
+                (sample_count / samples_per_block) as u64
+            };
+
+            for _ in 0..buffer_read_count_limit {
+                reciever_inner()?;
+                match ctrlc_rx.try_recv() {
+                    std::result::Result::Ok(_) => break,
+                    Err(TryRecvError::Disconnected) => break,
+                    _ => {}
+                }
+            }
+        }
+        None => loop {
+            reciever_inner()?;
+            match ctrlc_rx.try_recv() {
+                std::result::Result::Ok(_) => break,
+                Err(TryRecvError::Disconnected) => break,
+                _ => {}
+            }
+        },
     }
 
-    println!("Fin");
+    file_buf.flush().with_context(|| "Cannot Flush File")?;
+    let file = file_buf.into_inner().with_context(|| "Cannot Get File")?;
+    file.sync_all().with_context(|| "Cannot Sync File")?;
 
     Ok(())
 }
