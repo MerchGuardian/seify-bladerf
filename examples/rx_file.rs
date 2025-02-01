@@ -21,31 +21,39 @@ enum CliChannel {
 const SAMPLES_PER_BLOCK: u32 = 8192;
 
 /// Simple program to receive samples from a bladeRF and write them to a file.
+///
 /// The output file will be a binary file containing interleaved I and Q samples
 /// where each sample is a 16-bit little endian signed integer.
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version)]
 struct Args {
+    /// The output file to write samples to.
     #[arg(short, long)]
     outfile: PathBuf,
 
+    /// The device identifier.
+    ///
+    /// Valid options are described here: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___i_n_i_t.html#gab341ac98615f393da9158ea59cdb6a24>
     #[arg(short, long)]
     device: Option<String>,
 
+    /// The center frequency to tune to in Hz.
     #[arg(short, long)]
     frequency: u64,
 
+    /// The sample rate of the device in Hz (samples per second).
     #[arg(short, long)]
     samplerate: u32,
 
-    /// The channel to use. Defaults to Ch0.
-    #[arg(short, long)]
-    channel: Option<CliChannel>,
+    /// The channel/port to use
+    #[arg(short, long, default_value = "ch0")]
+    channel: CliChannel,
 
     /// How long to recieve samples for in seconds. If not provided, will run indefinitely.
-    #[arg(long)]
+    #[arg(long, short = 't')]
     duration: Option<f32>,
 
+    /// Disable progress bar
     #[arg(long)]
     noprogress: bool,
 }
@@ -70,13 +78,10 @@ fn main() -> anyhow::Result<()> {
         BladeRfAny::open_first().with_context(|| "Cannot Open Device")?
     };
 
-    let channel = args
-        .channel
-        .map(|c| match c {
-            CliChannel::Ch0 => RxChannel::Rx0,
-            CliChannel::Ch1 => RxChannel::Rx1,
-        })
-        .unwrap_or(RxChannel::Rx0);
+    let channel = match args.channel {
+        CliChannel::Ch0 => RxChannel::Rx0,
+        CliChannel::Ch1 => RxChannel::Rx1,
+    };
 
     log::debug!("Configuring channel {:?}", channel);
 
