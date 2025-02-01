@@ -51,3 +51,12 @@ pub enum TxChannel {
     Tx0 = 0,
     Tx1 = 1,
 }
+
+impl From<TxChannel> for Channel {
+    fn from(value: TxChannel) -> Self {
+        match value {
+            TxChannel::Tx0 => Channel::Tx0,
+            TxChannel::Tx1 => Channel::Tx1,
+        }
+    }
+}

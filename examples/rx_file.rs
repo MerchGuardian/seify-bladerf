@@ -49,9 +49,9 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     let dev = if let Some(device) = args.device {
-        BladeRfAny::open_identifier(&device)?
+        BladeRfAny::open_identifier(&device).with_context(|| "Cannot Open Device")?
     } else {
-        BladeRfAny::open_first()?
+        BladeRfAny::open_first().with_context(|| "Cannot Open Device")?
     };
 
     let channel = args
@@ -82,13 +82,15 @@ fn main() -> anyhow::Result<()> {
 
     println!("Hi2");
 
-    let config = SyncConfig::new(16, 8192, 8, 3500)?;
+    let config = SyncConfig::new(16, 8192, 8, 3500).with_context(|| "Cannot Create Sync Config")?;
 
     let layout = ChannelLayoutRx::SISO(channel);
 
-    let reciever = dev.rx_streamer::<Complex<i16>>(&config, layout)?;
+    let reciever = dev
+        .rx_streamer::<Complex<i16>>(&config, layout)
+        .with_context(|| "Cannot Get Streamer")?;
 
-    let mut file = File::create(args.outfile)?;
+    let mut file = File::create(args.outfile).with_context(|| "Cannot Open Output File")?;
 
     let mut file_buf = BufWriter::new(&mut file);
 
@@ -100,7 +102,7 @@ fn main() -> anyhow::Result<()> {
 
     println!("Hi3 {buffer_read_count_limit}");
 
-    reciever.enable()?;
+    reciever.enable().with_context(|| "Cannot Enable Stream")?;
 
     println!("Hi4");
 
@@ -110,7 +112,9 @@ fn main() -> anyhow::Result<()> {
         let mut buffer = [Complex::new(0_i16, 0); 8192];
         // let mut buffer = [inner_buffer.as_mut_slice(); 1];
 
-        reciever.read(&mut buffer, Duration::from_secs(1))?;
+        reciever
+            .read(&mut buffer, Duration::from_secs(1))
+            .with_context(|| "Cannot Read Samples")?;
         // println!("RX");
 
         let data = complex_i16_to_u8(&buffer);

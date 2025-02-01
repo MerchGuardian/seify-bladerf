@@ -11,7 +11,6 @@ mod error;
 
 pub use error::{Error, Result};
 mod types;
-use log::warn;
 pub use types::*;
 #[macro_use]
 mod bladerf;

@@ -67,3 +67,22 @@ pub enum ChannelLayoutTx {
     SISO(TxChannel),
     MIMO,
 }
+
+impl ChannelLayoutTx {
+    pub fn is_mimo(&self) -> bool {
+        matches!(self, Self::MIMO)
+    }
+
+    pub fn is_siso(&self) -> bool {
+        matches!(self, Self::SISO(_))
+    }
+}
+
+impl From<ChannelLayoutTx> for ChannelLayout {
+    fn from(value: ChannelLayoutTx) -> Self {
+        match value {
+            ChannelLayoutTx::SISO(_) => ChannelLayout::TxSISO,
+            ChannelLayoutTx::MIMO => ChannelLayout::TxMIMO,
+        }
+    }
+}
