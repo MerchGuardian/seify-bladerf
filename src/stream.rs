@@ -9,6 +9,7 @@ use crate::BladeRf2;
 use crate::BladeRfAny;
 use crate::Channel;
 use crate::ChannelLayout;
+use crate::ChannelLayoutRx;
 use crate::Error;
 // use crate::Format;
 use crate::Result;
@@ -50,6 +51,7 @@ impl SyncConfig {
 
 pub struct RxSyncStream<'a, T: SampleFormat, D: BladeRF> {
     pub(crate) dev: &'a D,
+    pub(crate) layout: ChannelLayoutRx,
     pub(crate) _format: PhantomData<T>,
 }
 
@@ -80,8 +82,27 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
         }
         Ok(RxSyncStream {
             dev: self.dev,
+            layout: self.layout,
             _format: PhantomData,
         })
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutRx::MIMO => {
+                panic!("This should be unreachable because of how this is contructed")
+            }
+        }
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutRx::MIMO => {
+                panic!("This should be unreachable because of how this is contructed")
+            }
+        }
     }
 }
 
@@ -115,8 +136,31 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
         }
         Ok(RxSyncStream {
             dev: self.dev,
+            layout: self.layout,
             _format: PhantomData,
         })
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutRx::MIMO => {
+                unsafe { self.dev.set_enable_module(Channel::Rx0, true) }?;
+                unsafe { self.dev.set_enable_module(Channel::Rx1, true) }?;
+                Ok(())
+            }
+        }
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutRx::MIMO => {
+                unsafe { self.dev.set_enable_module(Channel::Rx0, false) }?;
+                unsafe { self.dev.set_enable_module(Channel::Rx1, false) }?;
+                Ok(())
+            }
+        }
     }
 }
 
@@ -160,8 +204,31 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
         }
         Ok(RxSyncStream {
             dev: self.dev,
+            layout: self.layout,
             _format: PhantomData,
         })
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutRx::MIMO => {
+                unsafe { self.dev.set_enable_module(Channel::Rx0, true) }?;
+                unsafe { self.dev.set_enable_module(Channel::Rx1, true) }?;
+                Ok(())
+            }
+        }
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutRx::MIMO => {
+                unsafe { self.dev.set_enable_module(Channel::Rx0, false) }?;
+                unsafe { self.dev.set_enable_module(Channel::Rx1, false) }?;
+                Ok(())
+            }
+        }
     }
 }
 

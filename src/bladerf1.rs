@@ -143,6 +143,7 @@ impl BladeRf1 {
 
         Ok(RxSyncStream {
             dev: self,
+            layout: ChannelLayoutRx::SISO(RxChannel::Rx0),
             _format: PhantomData,
         })
     }

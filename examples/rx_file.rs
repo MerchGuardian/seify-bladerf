@@ -1,6 +1,5 @@
 use anyhow::{Context, Ok};
-use bladerf::{BladeRF, BladeRfAny, Channel, SyncConfig};
-use log::info;
+use bladerf::{BladeRF, BladeRfAny, ChannelLayoutRx, RxChannel, SyncConfig};
 use num_complex::Complex;
 use std::{
     fs::File,
@@ -58,14 +57,14 @@ fn main() -> anyhow::Result<()> {
     let channel = args
         .channel
         .map(|c| match c {
-            CliChannel::Ch0 => Channel::Rx0,
-            CliChannel::Ch1 => Channel::Rx1,
+            CliChannel::Ch0 => RxChannel::Rx0,
+            CliChannel::Ch1 => RxChannel::Rx1,
         })
-        .unwrap_or(Channel::Rx0);
+        .unwrap_or(RxChannel::Rx0);
 
     println!("Hi");
 
-    dev.set_frequency(channel, args.frequency)
+    dev.set_frequency(channel.into(), args.frequency)
         .with_context(|| {
             format!(
                 "Unable to set frequency ({}) on the given channel ({:?}).",
@@ -73,7 +72,7 @@ fn main() -> anyhow::Result<()> {
             )
         })?;
 
-    dev.set_sample_rate(channel, args.samplerate)
+    dev.set_sample_rate(channel.into(), args.samplerate)
         .with_context(|| {
             format!(
                 "Unable to set sample rate ({}) on the given channel ({:?}).",
@@ -85,7 +84,9 @@ fn main() -> anyhow::Result<()> {
 
     let config = SyncConfig::new(16, 8192, 8, 3500)?;
 
-    let reciever = dev.rx_streamer::<Complex<i16>>(&config, false)?;
+    let layout = ChannelLayoutRx::SISO(channel);
+
+    let reciever = dev.rx_streamer::<Complex<i16>>(&config, layout)?;
 
     let mut file = File::create(args.outfile)?;
 
@@ -93,13 +94,13 @@ fn main() -> anyhow::Result<()> {
 
     let buffer_read_count_limit = {
         let sample_count = args.samplerate as f64 * args.duration.unwrap() as f64;
-        let samples_per_block = 8192 as f64;
+        let samples_per_block = 8192.0;
         (sample_count / samples_per_block) as u64
     };
 
     println!("Hi3 {buffer_read_count_limit}");
 
-    reciever.enable(channel)?;
+    reciever.enable()?;
 
     println!("Hi4");
 

@@ -71,7 +71,7 @@ impl BladeRfAny {
     pub fn rx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
-        mimo: bool,
+        layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<T, BladeRfAny>> {
         if self.rx_singleton.load(Ordering::Relaxed) {
             return Err(Error::Msg(
@@ -81,16 +81,13 @@ impl BladeRfAny {
             self.rx_singleton.store(true, Ordering::Relaxed);
         }
 
-        let layout = if mimo {
-            ChannelLayout::RxMIMO
-        } else {
-            ChannelLayout::RxSISO
-        };
-
-        unsafe { self.set_sync_config::<T>(config, layout)? };
+        unsafe {
+            self.set_sync_config::<T>(config, layout.into())?;
+        }
 
         Ok(RxSyncStream {
             dev: self,
+            layout,
             _format: PhantomData,
         })
     }
@@ -108,6 +105,8 @@ impl Drop for BladeRfAny {
     }
 }
 
+// Allow drop bounds as a way to make sure we implement the drop trait for our BladeRf device structs
+#[allow(drop_bounds)]
 pub trait BladeRF: Sized + Drop {
     fn get_device_ptr(&self) -> *mut bladerf;
 
