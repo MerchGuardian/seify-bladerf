@@ -66,8 +66,6 @@ fn main() -> anyhow::Result<()> {
         })
         .unwrap_or(RxChannel::Rx0);
 
-    println!("Hi");
-
     dev.set_frequency(channel.into(), args.frequency)
         .with_context(|| {
             format!(
