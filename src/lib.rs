@@ -51,7 +51,7 @@ pub fn set_usb_reset_on_open(enabled: bool) {
 pub fn get_device_list() -> Result<Vec<DevInfo>> {
     let mut devices: *mut bladerf_devinfo = std::ptr::null_mut();
 
-    let n = unsafe { bladerf_get_device_list(&mut devices as *mut *mut _) } as isize;
+    let n = unsafe { bladerf_get_device_list(&mut devices) } as isize;
     check_res!(n);
 
     assert!(!devices.is_null());
