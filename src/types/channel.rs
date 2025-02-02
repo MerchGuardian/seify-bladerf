@@ -33,8 +33,8 @@ impl TryFrom<bladerf_channel> for Channel {
 
 #[derive(Copy, Clone, Debug, Enum, FromRepr, PartialEq, Eq)]
 pub enum RxChannel {
-    Rx0 = 0,
-    Rx1 = 1,
+    Rx0,
+    Rx1,
 }
 
 impl From<RxChannel> for Channel {
@@ -48,8 +48,8 @@ impl From<RxChannel> for Channel {
 
 #[derive(Copy, Clone, Debug, Enum, FromRepr, PartialEq, Eq)]
 pub enum TxChannel {
-    Tx0 = 0,
-    Tx1 = 1,
+    Tx0,
+    Tx1,
 }
 
 impl From<TxChannel> for Channel {

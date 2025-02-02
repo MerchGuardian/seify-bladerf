@@ -2,10 +2,8 @@ use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use marker::PhantomData;
 use mem::ManuallyDrop;
-use sync::atomic::{AtomicBool, Ordering};
-// use parking_lot::Mutex;
 use std::*;
-// use sync::RwLock;
+use sync::atomic::{AtomicBool, Ordering};
 
 unsafe impl Send for BladeRf2 {}
 unsafe impl Sync for BladeRf2 {}
@@ -14,8 +12,6 @@ pub struct BladeRf2 {
     pub(crate) device: *mut bladerf,
     rx_singleton: AtomicBool,
     tx_singleton: AtomicBool,
-    // enabled_modules: Mutex<EnumMap<Channel, bool>>,
-    // format_sync: RwLock<Option<Format>>,
 }
 
 impl BladeRf2 {
