@@ -157,23 +157,12 @@ impl TryFrom<BladeRfAny> for BladeRf1 {
         if value.get_board_name() == "bladerf1" {
             let old_dev = ManuallyDrop::new(value);
 
-            // Use `std::ptr::read` to move non-Copy fields out of the ManuallyDrop wrapper
-            // SAFETY:
-            // Being a rust reference, the following hold.
-            // 1. each field is valid for reads
-            // 2. each field is guaranteed to be aligned
-            // 3. each field is properly initialized
-            // Further
-            // 4. Each field is read exactly once and then not dropped, therefore no double objects are created
-            // let enabled_modules = unsafe { std::ptr::read(&old_dev.enabled_modules) };
-            // let format_sync = unsafe { std::ptr::read(&old_dev.format_sync) };
-
-            // let test = (*old_dev).enabled_modules;
             let new_dev = BladeRf1 {
                 device: old_dev.device,
                 rx_singleton: AtomicBool::new(false),
                 tx_singleton: AtomicBool::new(false),
             };
+
             Ok(new_dev)
         } else {
             Err(Error::Unsupported)
