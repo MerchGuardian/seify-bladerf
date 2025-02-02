@@ -42,7 +42,7 @@ struct HyperParameters {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Parameters {
     frequency: u64,
-    channel_set: Vec<Channel>,
+    channels_enabled: Vec<Channel>,
     rx_gain: i32,
     tx_gain: i32,
     external_bias_tee: bool,
@@ -76,10 +76,10 @@ fn perform_sampling(
         dev.set_gain_mode(channel, GainMode::Manual)?;
     }
 
-    let rx0 = params.channel_set.contains(&Channel::Rx0);
-    let rx1 = params.channel_set.contains(&Channel::Rx1);
-    let tx0 = params.channel_set.contains(&Channel::Tx0);
-    let tx1 = params.channel_set.contains(&Channel::Tx1);
+    let rx0 = params.channels_enabled.contains(&Channel::Rx0);
+    let rx1 = params.channels_enabled.contains(&Channel::Rx1);
+    let tx0 = params.channels_enabled.contains(&Channel::Tx0);
+    let tx1 = params.channels_enabled.contains(&Channel::Tx1);
 
     dev.set_bias_tee(Channel::Rx0, params.external_lna && rx0)?;
     dev.set_bias_tee(Channel::Rx1, params.external_lna && rx1)?;
@@ -264,13 +264,14 @@ fn main() -> anyhow::Result<()> {
     // ========== Test Matrix ==========
     let frequencies = [
         87_000_000u64,
-        // 225_000_000,
-        // 550_000_000,
+        300_000_000,
+        815_000_000,
         1_500_000_000,
-        // 3_000_000_000,
+        4_000_000_000,
     ];
 
     let channels = [
+        vec![],
         // Each single.
         vec![Channel::Rx0],
         vec![Channel::Rx1],
@@ -288,17 +289,9 @@ fn main() -> anyhow::Result<()> {
         (false, false),
     ];
 
-    // Gain RX1 overall:   60 dB (Range: [-15, 60])
-    //             full:   71 dB (Range: [-4, 71])
-    // Gain RX2 overall:   60 dB (Range: [-15, 60])
-    //             full:   71 dB (Range: [-4, 71])
-    // Gain TX1 overall:   56 dB (Range: [-23.75, 66])
-    //              dsa:  -90 dB (Range: [-89.75, 0])
-    // Gain TX2 overall:   56 dB (Range: [-23.75, 66])
-    //              dsa:  -90 dB (Range: [-89.75, 0])
-
-    let rx_gains = [0, 40, 77];
-    let tx_gains = [-89, -45, 0];
+    // See BladeRF 2 details: https://www.nuand.com/libbladeRF-doc/v2.5.0/boilerplate.html
+    let rx_gains = [0, 19, 38, 77];
+    let tx_gains = [-89, -60, -30, 0];
 
     let hyper_params = HyperParameters {
         sample_rate: 5_000_000,
@@ -334,7 +327,7 @@ fn main() -> anyhow::Result<()> {
         },
         &Parameters {
             frequency: 815_000_000,
-            channel_set: vec![Channel::Rx0, Channel::Rx1, Channel::Tx0, Channel::Tx1],
+            channels_enabled: vec![Channel::Rx0, Channel::Rx1, Channel::Tx0, Channel::Tx1],
             rx_gain: 70,
             tx_gain: 0,
             external_bias_tee: false,
@@ -354,12 +347,12 @@ fn main() -> anyhow::Result<()> {
     // ========== Main Loop ==========
     for frequency in frequencies {
         for (rx_gain, tx_gain) in rx_gains.into_iter().zip(tx_gains) {
-            for channel_set in &channels {
+            for channels_enabled in &channels {
                 for (external_lna, external_bias_tee) in amp_config {
                     // Create a parameters struct for the inner loop, including gain and external amp settings.
                     let params = Parameters {
                         frequency,
-                        channel_set: channel_set.clone(),
+                        channels_enabled: channels_enabled.clone(),
                         external_bias_tee,
                         external_lna,
                         rx_gain,

@@ -3,7 +3,7 @@ use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use ffi::c_void;
 use marker::PhantomData;
 use mem::ManuallyDrop;
-use sync::atomic::{AtomicBool, Ordering};
+use sync::atomic::AtomicBool;
 // use parking_lot::Mutex;
 use std::*;
 // use sync::RwLock;
