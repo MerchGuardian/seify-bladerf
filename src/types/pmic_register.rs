@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
