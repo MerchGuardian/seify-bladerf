@@ -3,6 +3,9 @@ use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
 
+pub type ComplexI16 = Complex<i16>;
+pub type ComplexI8 = Complex<i8>;
+
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Format {
@@ -55,7 +58,7 @@ pub unsafe trait SampleFormat: Sized {
 }
 
 // Implementations for supported types
-unsafe impl SampleFormat for Complex<i16> {
+unsafe impl SampleFormat for ComplexI16 {
     const FORMAT: Format = Format::Sc16Q11;
 
     fn is_compatible(format: Format) -> bool {
@@ -63,7 +66,7 @@ unsafe impl SampleFormat for Complex<i16> {
     }
 }
 
-unsafe impl SampleFormat for Complex<i8> {
+unsafe impl SampleFormat for ComplexI8 {
     const FORMAT: Format = Format::Sc8Q7;
 
     fn is_compatible(format: Format) -> bool {

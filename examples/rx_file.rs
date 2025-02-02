@@ -1,5 +1,5 @@
 use anyhow::{Context, Ok};
-use bladerf::{BladeRF, BladeRfAny, ChannelLayoutRx, RxChannel, SyncConfig};
+use bladerf::{BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI16, RxChannel, SyncConfig};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_complex::Complex;
 use std::{
@@ -58,7 +58,7 @@ struct Args {
     noprogress: bool,
 }
 
-fn complex_i16_to_u8(arr: &[Complex<i16>]) -> &[u8] {
+fn complex_i16_to_u8(arr: &[ComplexI16]) -> &[u8] {
     let len = std::mem::size_of_val(arr);
     let ptr = arr.as_ptr() as *const u8;
     unsafe { std::slice::from_raw_parts(ptr, len) }
@@ -109,7 +109,7 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| "Cannot Create Sync Config")?;
     let layout = ChannelLayoutRx::SISO(channel);
     let reciever = dev
-        .rx_streamer::<Complex<i16>>(&config, layout)
+        .rx_streamer::<ComplexI16>(&config, layout)
         .with_context(|| "Cannot Get Streamer")?;
 
     let file = File::create(args.outfile).with_context(|| "Cannot Open Output File")?;
@@ -148,7 +148,7 @@ fn main() -> anyhow::Result<()> {
             .with_context(|| "Could not write to file")?;
 
         if !args.noprogress {
-            progress.inc(SAMPLES_PER_BLOCK as u64 * size_of::<Complex<i16>>() as u64);
+            progress.inc(SAMPLES_PER_BLOCK as u64 * size_of::<ComplexI16>() as u64);
         }
 
         Ok(())
