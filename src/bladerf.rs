@@ -822,6 +822,14 @@ pub trait BladeRF: Sized + Drop {
 
     // Miscellaneous
 
+    /// Returns the temperature (C) from the RFIC register.
+    fn get_rfic_temperature(&self) -> Result<f32> {
+        let mut temp = 0f32;
+        let res = unsafe { bladerf_get_rfic_temperature(self.get_device_ptr(), &mut temp) };
+        check_res!(res);
+        Ok(temp)
+    }
+
     /// Retrieve the current timestamp
     fn get_timestamp(&self, dir: Direction) -> Result<u64> {
         let mut timestamp: u64 = 0;

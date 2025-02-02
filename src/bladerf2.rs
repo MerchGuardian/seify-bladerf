@@ -1,5 +1,6 @@
 use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
+use ffi::c_void;
 use marker::PhantomData;
 use mem::ManuallyDrop;
 use sync::atomic::{AtomicBool, Ordering};
@@ -84,6 +85,15 @@ impl BladeRf2 {
             layout,
             _format: PhantomData,
         })
+    }
+
+    pub fn get_pmic_register(&self, register: PmicRegister) -> Result<f32> {
+        let mut out = 0f32;
+        let ptr = &mut out as *mut f32 as *mut c_void;
+        let res = unsafe { bladerf_get_pmic_register(self.device, register as u32, ptr) };
+        check_res!(res);
+
+        Ok(out)
     }
 }
 
