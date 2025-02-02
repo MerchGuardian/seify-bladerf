@@ -10,6 +10,7 @@ use crate::BladeRfAny;
 use crate::Channel;
 use crate::ChannelLayout;
 use crate::ChannelLayoutRx;
+use crate::ChannelLayoutTx;
 use crate::Error;
 // use crate::Format;
 use crate::Result;
@@ -88,21 +89,11 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
     }
 
     pub fn enable(&self) -> Result<()> {
-        match self.layout {
-            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
-            ChannelLayoutRx::MIMO => {
-                panic!("This should be unreachable because of how this is contructed")
-            }
-        }
+        unsafe { self.dev.set_enable_module(Channel::Rx0, true) }
     }
 
     pub fn disable(&self) -> Result<()> {
-        match self.layout {
-            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
-            ChannelLayoutRx::MIMO => {
-                panic!("This should be unreachable because of how this is contructed")
-            }
-        }
+        unsafe { self.dev.set_enable_module(Channel::Rx0, false) }
     }
 }
 
@@ -124,16 +115,12 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: &SyncConfig,
-        mimo: bool,
+        layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<'a, NF, BladeRf2>> {
-        let layout = if mimo {
-            ChannelLayout::RxMIMO
-        } else {
-            ChannelLayout::RxSISO
-        };
         unsafe {
-            self.dev.set_sync_config::<NF>(config, layout)?;
+            self.dev.set_sync_config::<NF>(config, layout.into())?;
         }
+
         Ok(RxSyncStream {
             dev: self.dev,
             layout: self.layout,
@@ -182,16 +169,12 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: &SyncConfig,
-        mimo: bool,
+        layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<'a, NF, BladeRfAny>> {
-        let layout = if mimo {
-            ChannelLayout::RxMIMO
-        } else {
-            ChannelLayout::RxSISO
-        };
         unsafe {
-            self.dev.set_sync_config::<NF>(config, layout)?;
+            self.dev.set_sync_config::<NF>(config, layout.into())?;
         }
+
         Ok(RxSyncStream {
             dev: self.dev,
             layout: self.layout,
@@ -236,6 +219,7 @@ impl<T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'_, T, D> {
 
 pub struct TxSyncStream<'a, T: SampleFormat, D: BladeRF> {
     pub(crate) dev: &'a D,
+    pub(crate) layout: ChannelLayoutTx,
     pub(crate) _format: PhantomData<T>,
 }
 
@@ -262,10 +246,128 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf1> {
             self.dev
                 .set_sync_config::<NF>(config, ChannelLayout::TxSISO)?;
         }
+
         Ok(TxSyncStream {
             dev: self.dev,
+            layout: ChannelLayoutTx::SISO(crate::TxChannel::Tx0),
             _format: PhantomData,
         })
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        unsafe { self.dev.set_enable_module(Channel::Tx0, true) }
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        unsafe { self.dev.set_enable_module(Channel::Tx0, false) }
+    }
+}
+
+impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf2> {
+    pub fn write(&self, buffer: &[T], timeout: Duration) -> Result<()> {
+        let res = unsafe {
+            sys::bladerf_sync_tx(
+                self.dev.device,
+                buffer.as_ptr() as *const _,
+                buffer.len() as u32,
+                std::ptr::null_mut(),
+                timeout.as_millis() as u32,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+        layout: ChannelLayoutTx,
+    ) -> Result<TxSyncStream<'a, NF, BladeRf2>> {
+        unsafe {
+            self.dev.set_sync_config::<NF>(config, layout.into())?;
+        }
+
+        Ok(TxSyncStream {
+            dev: self.dev,
+            layout,
+            _format: PhantomData,
+        })
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutTx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutTx::MIMO => {
+                unsafe { self.dev.set_enable_module(Channel::Tx0, true) }?;
+                unsafe { self.dev.set_enable_module(Channel::Tx1, true) }?;
+                Ok(())
+            }
+        }
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutTx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutTx::MIMO => {
+                unsafe { self.dev.set_enable_module(Channel::Tx0, false) }?;
+                unsafe { self.dev.set_enable_module(Channel::Tx1, false) }?;
+                Ok(())
+            }
+        }
+    }
+}
+
+impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRfAny> {
+    pub fn write(&self, buffer: &[T], timeout: Duration) -> Result<()> {
+        let res = unsafe {
+            sys::bladerf_sync_tx(
+                self.dev.device,
+                buffer.as_ptr() as *const _,
+                buffer.len() as u32,
+                std::ptr::null_mut(),
+                timeout.as_millis() as u32,
+            )
+        };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+        layout: ChannelLayoutTx,
+    ) -> Result<TxSyncStream<'a, NF, BladeRfAny>> {
+        unsafe {
+            self.dev.set_sync_config::<NF>(config, layout.into())?;
+        }
+
+        Ok(TxSyncStream {
+            dev: self.dev,
+            layout,
+            _format: PhantomData,
+        })
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutTx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutTx::MIMO => {
+                unsafe { self.dev.set_enable_module(Channel::Tx0, true) }?;
+                unsafe { self.dev.set_enable_module(Channel::Tx1, true) }?;
+                Ok(())
+            }
+        }
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        match self.layout {
+            ChannelLayoutTx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutTx::MIMO => {
+                unsafe { self.dev.set_enable_module(Channel::Tx0, false) }?;
+                unsafe { self.dev.set_enable_module(Channel::Tx1, false) }?;
+                Ok(())
+            }
+        }
     }
 }
 

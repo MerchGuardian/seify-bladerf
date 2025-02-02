@@ -123,6 +123,7 @@ impl BladeRf1 {
 
         Ok(TxSyncStream {
             dev: self,
+            layout: ChannelLayoutTx::SISO(TxChannel::Tx0),
             _format: PhantomData,
         })
     }

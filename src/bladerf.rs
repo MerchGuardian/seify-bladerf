@@ -1,4 +1,4 @@
-use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig};
+use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig, TxSyncStream};
 use ffi::{c_char, CStr, CString};
 use marker::PhantomData;
 use path::Path;
@@ -63,6 +63,30 @@ impl BladeRfAny {
             device,
             rx_singleton: AtomicBool::new(false),
             tx_singleton: AtomicBool::new(false),
+        })
+    }
+
+    pub fn tx_streamer<T: SampleFormat>(
+        &self,
+        config: &SyncConfig,
+        layout: ChannelLayoutTx,
+    ) -> Result<TxSyncStream<T, Self>> {
+        if self.tx_singleton.load(Ordering::Relaxed) {
+            return Err(Error::Msg(
+                "Already have a TX stream open".to_owned().into_boxed_str(),
+            ));
+        } else {
+            self.tx_singleton.store(true, Ordering::Relaxed);
+        }
+
+        unsafe {
+            self.set_sync_config::<T>(config, layout.into())?;
+        }
+
+        Ok(TxSyncStream {
+            dev: self,
+            layout,
+            _format: PhantomData,
         })
     }
 

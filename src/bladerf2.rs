@@ -37,7 +37,7 @@ impl BladeRf2 {
     pub fn tx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
-        mimo: bool,
+        layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<T, BladeRf2>> {
         if self.tx_singleton.load(Ordering::Relaxed) {
             return Err(Error::Msg(
@@ -47,18 +47,13 @@ impl BladeRf2 {
             self.tx_singleton.store(true, Ordering::Relaxed);
         }
 
-        let layout = if mimo {
-            ChannelLayout::TxMIMO
-        } else {
-            ChannelLayout::TxSISO
-        };
-
         unsafe {
-            self.set_sync_config::<T>(config, layout)?;
+            self.set_sync_config::<T>(config, layout.into())?;
         }
 
         Ok(TxSyncStream {
             dev: self,
+            layout,
             _format: PhantomData,
         })
     }
