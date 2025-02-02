@@ -6,6 +6,7 @@ use crate::{sys::*, Error, Result};
 /// Determined from the bladerf channel macros defined in
 /// <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___c_h_a_n_n_e_l.html#ga832d79e0f128448d2258bd11a39bd45d>
 #[derive(Copy, Clone, Debug, Enum, FromRepr, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[repr(i32)]
 pub enum Channel {
     Rx0 = 0,
