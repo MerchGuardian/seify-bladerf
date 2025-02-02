@@ -12,12 +12,10 @@ use crate::ChannelLayout;
 use crate::ChannelLayoutRx;
 use crate::ChannelLayoutTx;
 use crate::Error;
-// use crate::Format;
 use crate::Result;
 use crate::SampleFormat;
 
 pub struct SyncConfig {
-    // pub(crate) format: Format,
     pub(crate) num_buffers: u32,
     pub(crate) buffer_size: u32,
     pub(crate) num_transfers: u32,
@@ -26,7 +24,6 @@ pub struct SyncConfig {
 
 impl SyncConfig {
     pub fn new(
-        // format: Format,
         num_buffers: u32,
         buffer_size: u32,
         num_transfers: u32,
@@ -40,12 +37,23 @@ impl SyncConfig {
             ))
         } else {
             Ok(Self {
-                // format,
                 num_buffers,
                 buffer_size,
                 num_transfers,
                 stream_timeout,
             })
+        }
+    }
+}
+
+impl Default for SyncConfig {
+    /// Values taken from <https://www.nuand.com/libbladeRF-doc/v2.5.0/sync_no_meta.html>
+    fn default() -> Self {
+        Self {
+            num_buffers: 16,
+            buffer_size: 8192,
+            num_transfers: 8,
+            stream_timeout: 3500,
         }
     }
 }
