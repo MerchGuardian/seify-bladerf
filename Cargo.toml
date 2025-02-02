@@ -29,6 +29,7 @@ thiserror = "1.0.64"
 [dev-dependencies]
 anyhow = "1"
 base64 = "0.22.1"
+bs58 = "0.5.1"
 clap = { version = "4.5.27", features = ["derive"] }
 crossbeam-channel = "0.5"
 crossterm = "0.28"

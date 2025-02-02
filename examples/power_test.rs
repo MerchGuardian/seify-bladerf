@@ -1,10 +1,10 @@
 use anyhow::Ok;
-
 use bladerf::{
     BladeRF, BladeRf2, BladeRfAny, Channel, ChannelLayoutRx, ChannelLayoutTx, PmicRegister,
     SyncConfig,
 };
 use clap::Parser;
+use indicatif::{ProgressBar, ProgressStyle};
 use num_complex::Complex;
 use std::{
     fs,
@@ -18,7 +18,7 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
-use base64;
+use bs58;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
@@ -55,10 +55,14 @@ struct Measurement {
     current: f32,
 }
 
+/// Performs a measurement run for the given configuration, updating the provided global
+/// progress bar with the elapsed time. The progress bar's total represents the total expected
+/// measurement time across all configurations.
 fn perform_sampling(
     dev: &mut BladeRf2,
     hyper: &HyperParameters,
     params: &Parameters,
+    global_pb: &ProgressBar,
 ) -> anyhow::Result<Vec<Measurement>> {
     // Set frequency and sample rate for each channel using hyper parameters.
     for channel in [Channel::Rx0, Channel::Rx1, Channel::Tx0, Channel::Tx1] {
@@ -138,18 +142,18 @@ fn perform_sampling(
     let tx_buf = vec![Complex::<i16>::new(0b1111_1111_1111, 0); hyper.num_samples];
 
     let mut samples_read = 0;
-    let mut last_print = Instant::now();
     let start = Instant::now();
+    let mut last_update = start;
 
     let running = Arc::new(AtomicBool::new(true));
-    let running_clone = Arc::clone(&running);
+    let running2 = Arc::clone(&running);
 
     // Use a scoped thread so that we can safely borrow non-'static data.
     let measurements = std::thread::scope(|s| {
         // Spawn the tx thread.
         let tx_handle = s.spawn(|| {
             let mut samples_written = 0;
-            while running_clone.load(Ordering::Acquire) {
+            while running2.load(Ordering::Acquire) {
                 if let Some(ref mut tx) = sender {
                     tx.write(&tx_buf, hyper.timeout).expect("Write samples");
                     samples_written += hyper.num_samples;
@@ -162,13 +166,18 @@ fn perform_sampling(
         let mut measurements: Vec<Measurement> = Vec::new();
         while start.elapsed() < hyper.sample_period {
             if let Some(ref mut rx) = receiver {
-                rx.read(&mut rx_buf, hyper.timeout)
-                    .expect("Read samples");
+                rx.read(&mut rx_buf, hyper.timeout).expect("Read samples");
                 samples_read += hyper.num_samples;
             }
 
-            if last_print.elapsed() > Duration::from_millis(100) {
-                last_print = Instant::now();
+            if last_update.elapsed() > Duration::from_millis(100) {
+                let now = Instant::now();
+                let dt = now.duration_since(last_update);
+                // Update the global progress bar with the elapsed time in this measurement run.
+                global_pb.inc(dt.as_millis() as u64);
+                last_update = now;
+
+                // Take measurements.
                 let temperature = dev.get_rfic_temperature().expect("Temp error");
                 let voltage_bus = dev
                     .get_pmic_register(PmicRegister::VoltageBus)
@@ -176,8 +185,12 @@ fn perform_sampling(
                 let voltage_shunt = dev
                     .get_pmic_register(PmicRegister::VoltageShunt)
                     .expect("VoltageShunt error");
-                let power = dev.get_pmic_register(PmicRegister::Power).expect("Power error");
-                let current = dev.get_pmic_register(PmicRegister::Current).expect("Current error");
+                let power = dev
+                    .get_pmic_register(PmicRegister::Power)
+                    .expect("Power error");
+                let current = dev
+                    .get_pmic_register(PmicRegister::Current)
+                    .expect("Current error");
                 let timestamp = SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .expect("Time error")
@@ -190,25 +203,31 @@ fn perform_sampling(
                     power,
                     current,
                 });
-                println!(
-                    "{:.1}C, Voltage Bus: {:.2}V, Voltage Shunt: {:.2}V",
-                    temperature, voltage_bus, voltage_shunt
-                );
-                println!("Current: {:.2}A, power: {:.2}W", current, power);
+                // Update the progress bar message with current measurement values.
+                global_pb.set_message(format!(
+                    "Temp: {:.1}C, VBus: {:.2}V, VShunt: {:.2}V, Power: {:.2}W, Curr: {:.2}A",
+                    temperature, voltage_bus, voltage_shunt, power, current
+                ));
             }
+        }
+        // Ensure any remaining time is added.
+        let elapsed = start.elapsed();
+        if elapsed < hyper.sample_period {
+            let remainder = hyper.sample_period - elapsed;
+            global_pb.inc(remainder.as_millis() as u64);
         }
         running.store(false, Ordering::Release);
         if let Some(ref mut rx) = receiver {
             rx.disable().expect("Failed to disable receiver");
         }
         let samples_written = tx_handle.join().unwrap();
-
-        println!(
+        let throughput =
+            (samples_read + samples_written) as f32 / start.elapsed().as_secs_f32() / 1_000_000.0;
+        let summary = format!(
             "Read {} samples, wrote {}. Throughput: {:.2}M samples/sec",
-            samples_read,
-            samples_written,
-            (samples_read + samples_written) as f32 / start.elapsed().as_secs_f32() / 1_000_000.0
+            samples_read, samples_written, throughput
         );
+        global_pb.println(&summary);
         measurements
     });
 
@@ -222,7 +241,10 @@ fn main() -> anyhow::Result<()> {
     if args.output_dir.exists() {
         // If it exists, ensure it is empty.
         if fs::read_dir(&args.output_dir)?.next().is_some() {
-            anyhow::bail!("Output directory '{}' is not empty", args.output_dir.display());
+            anyhow::bail!(
+                "Output directory '{}' is not empty",
+                args.output_dir.display()
+            );
         }
     } else {
         // Create the directory if it does not exist.
@@ -263,6 +285,18 @@ fn main() -> anyhow::Result<()> {
         num_transfers: 5,
     };
 
+    // Calculate the total expected measurement time in milliseconds.
+    let total_configs = (frequencies.len() * channels.len()) as u64;
+    let total_time_ms = total_configs * hyper_params.sample_period.as_millis() as u64;
+
+    // Create a global progress bar for the entire run.
+    let global_pb = ProgressBar::new(total_time_ms);
+    global_pb.set_style(
+        ProgressStyle::with_template("{percent:>3}% [{bar:40.cyan/blue}] {msg}")
+            .unwrap()
+            .progress_chars("##-"),
+    );
+
     // ========== Main Loop ==========
     for frequency in frequencies {
         for channel_set in &channels {
@@ -272,12 +306,12 @@ fn main() -> anyhow::Result<()> {
                 channel_set: channel_set.clone(),
             };
 
-            let measurements = perform_sampling(&mut dev, &hyper_params, &params)?;
+            let measurements = perform_sampling(&mut dev, &hyper_params, &params, &global_pb)?;
 
             // Create a CSV file containing the vector of measurement data.
-            // The filename is the Base64-encoded JSON serialization of the parameters.
+            // The filename is the Base58-encoded JSON serialization of the parameters.
             let params_serialized = serde_json::to_string(&params)?;
-            let filename = format!("{}.csv", base64::encode(&params_serialized));
+            let filename = format!("{}.csv", bs58::encode(&params_serialized).into_string());
             let file_path = args.output_dir.join(&filename);
             let mut file = File::create(&file_path)?;
             writeln!(
@@ -295,6 +329,6 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    global_pb.finish_with_message("All measurements complete");
     Ok(())
 }
-
