@@ -218,8 +218,15 @@ pub trait BladeRF: Sized + Drop {
 
     /// # Safety
     /// Should only be called internally
+    ///
+    /// This function is used by the streamer structs to enable or disable the module.
+    /// If this function is called elsewhere, it may cause issues with the used streamer.
+    ///
+    /// I do not think I can actually cause UB, but it is still not intended for general use.
     unsafe fn set_enable_module(&self, channel: Channel, enable: bool) -> Result<()> {
-        let res = unsafe { bladerf_enable_module(self.get_device_ptr(), channel as i32, enable) };
+        let res = unsafe {
+            bladerf_enable_module(self.get_device_ptr(), channel as bladerf_channel, enable)
+        };
         check_res!(res);
         Ok(())
     }
@@ -316,8 +323,9 @@ pub trait BladeRF: Sized + Drop {
 
     /// # Safety
     /// Intended for internal use only.
-    /// Can only reconfigure at certain times.
-    /// Reconfiguring at the wrong time will result in UB.
+    /// This is used to reconfigure a synchronous stream and is called by the streamer structs.
+    ///
+    /// If this function is called elsewhere, it may cause issues with the used streamer since the type can arbitraily be changed.
     unsafe fn set_sync_config<T: SampleFormat>(
         &self,
         config: &SyncConfig,
@@ -326,8 +334,8 @@ pub trait BladeRF: Sized + Drop {
         let res = unsafe {
             bladerf_sync_config(
                 self.get_device_ptr(),
-                layout as u32,
-                T::FORMAT as u32,
+                layout as bladerf_channel_layout,
+                T::FORMAT as bladerf_format,
                 config.num_buffers,
                 config.buffer_size,
                 config.num_transfers,
@@ -937,6 +945,8 @@ pub trait BladeRF: Sized + Drop {
 
     /// # Safety
     /// Intended for internal use.
+    ///
+    /// This function should be called in the drop implementation of the struct that implements this trait.
     unsafe fn close(&self) {
         unsafe { bladerf_close(self.get_device_ptr()) }
     }
