@@ -1,7 +1,7 @@
 use anyhow::Ok;
 use bladerf::{
-    BladeRF, BladeRf2, BladeRfAny, Channel, ChannelLayoutRx, ChannelLayoutTx, PmicRegister,
-    SyncConfig,
+    BladeRF, BladeRf2, BladeRfAny, Channel, ChannelLayoutRx, ChannelLayoutTx, GainMode,
+    PmicRegister, SyncConfig,
 };
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -39,15 +39,20 @@ struct HyperParameters {
     num_transfers: u32,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Parameters {
     frequency: u64,
     channel_set: Vec<Channel>,
+    rx_gain: i32,
+    tx_gain: i32,
+    external_bias_tee: bool,
+    external_lna: bool,
 }
 
 #[derive(Serialize)]
 struct Measurement {
-    timestamp: u128,
+    /// seconds since Unix epoch.
+    timestamp: f64,
     temperature: f32,
     voltage_bus: f32,
     voltage_shunt: f32,
@@ -56,8 +61,7 @@ struct Measurement {
 }
 
 /// Performs a measurement run for the given configuration, updating the provided global
-/// progress bar with the elapsed time. The progress bar's total represents the total expected
-/// measurement time across all configurations.
+/// progress bar with the elapsed time
 fn perform_sampling(
     dev: &mut BladeRf2,
     hyper: &HyperParameters,
@@ -66,17 +70,26 @@ fn perform_sampling(
 ) -> anyhow::Result<Vec<Measurement>> {
     // Set frequency and sample rate for each channel using hyper parameters.
     for channel in [Channel::Rx0, Channel::Rx1, Channel::Tx0, Channel::Tx1] {
-        dev.set_frequency(channel, params.frequency)
-            .expect("Failed to set frequency");
-        dev.set_sample_rate(channel, hyper.sample_rate)
-            .expect("Failed to set sample rate");
+        dev.set_frequency(channel, params.frequency)?;
+        dev.set_sample_rate(channel, hyper.sample_rate)?;
+
+        dev.set_gain_mode(channel, GainMode::Manual)?;
     }
 
-    // Determine active channels from the parameters.
     let rx0 = params.channel_set.contains(&Channel::Rx0);
     let rx1 = params.channel_set.contains(&Channel::Rx1);
     let tx0 = params.channel_set.contains(&Channel::Tx0);
     let tx1 = params.channel_set.contains(&Channel::Tx1);
+
+    dev.set_bias_tee(Channel::Rx0, params.external_lna && rx0)?;
+    dev.set_bias_tee(Channel::Rx1, params.external_lna && rx1)?;
+    dev.set_bias_tee(Channel::Tx0, params.external_bias_tee && tx0)?;
+    dev.set_bias_tee(Channel::Tx1, params.external_bias_tee && tx1)?;
+
+    dev.set_gain(Channel::Rx0, params.rx_gain as i32)?;
+    dev.set_gain(Channel::Rx1, params.rx_gain as i32)?;
+    dev.set_gain(Channel::Tx0, params.tx_gain as i32)?;
+    dev.set_gain(Channel::Tx1, params.tx_gain as i32)?;
 
     // Setup receiver if needed.
     let mut receiver = if rx0 || rx1 {
@@ -95,7 +108,7 @@ fn perform_sampling(
             hyper.num_transfers,
             hyper.timeout.as_millis() as u32,
         )?;
-        let mut rx_streamer = dev
+        let rx_streamer = dev
             .rx_streamer::<Complex<i16>>(&config, layout)
             .expect("Rx streamer");
         rx_streamer.enable().expect("Enable rx streamer");
@@ -121,7 +134,7 @@ fn perform_sampling(
             hyper.num_transfers,
             hyper.timeout.as_millis() as u32,
         )?;
-        let mut tx_streamer = dev
+        let tx_streamer = dev
             .tx_streamer::<Complex<i16>>(&config, layout)
             .expect("Tx streamer");
         tx_streamer.enable().expect("Enable tx streamer");
@@ -130,12 +143,7 @@ fn perform_sampling(
         None
     };
 
-    println!();
-    println!(
-        "Starting Sample for freq: {} MHz. Channels active: {:?}",
-        params.frequency as f32 / 1_000_000.0,
-        params.channel_set
-    );
+    println!("Sampling {params:#?}");
 
     // Prepare buffers.
     let mut rx_buf = vec![Complex::<i16>::ZERO; hyper.num_samples];
@@ -146,14 +154,15 @@ fn perform_sampling(
     let mut last_update = start;
 
     let running = Arc::new(AtomicBool::new(true));
-    let running2 = Arc::clone(&running);
+    // Move the clone of `running` outside the thread spawn.
+    let running_clone = Arc::clone(&running);
 
     // Use a scoped thread so that we can safely borrow non-'static data.
     let measurements = std::thread::scope(|s| {
-        // Spawn the tx thread.
-        let tx_handle = s.spawn(|| {
+        // Spawn the TX thread using the cloned running flag.
+        let tx_handle = s.spawn(move || {
             let mut samples_written = 0;
-            while running2.load(Ordering::Acquire) {
+            while running_clone.load(Ordering::Acquire) {
                 if let Some(ref mut tx) = sender {
                     tx.write(&tx_buf, hyper.timeout).expect("Write samples");
                     samples_written += hyper.num_samples;
@@ -162,7 +171,7 @@ fn perform_sampling(
             samples_written
         });
 
-        // Main loop: perform rx sampling and log power data at 10Hz.
+        // Main loop: perform RX sampling and log power data at 10Hz.
         let mut measurements: Vec<Measurement> = Vec::new();
         while start.elapsed() < hyper.sample_period {
             if let Some(ref mut rx) = receiver {
@@ -194,7 +203,7 @@ fn perform_sampling(
                 let timestamp = SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .expect("Time error")
-                    .as_millis();
+                    .as_secs_f64();
                 measurements.push(Measurement {
                     timestamp,
                     temperature,
@@ -204,17 +213,14 @@ fn perform_sampling(
                     current,
                 });
                 // Update the progress bar message with current measurement values.
+                let progress = (start.elapsed().as_millis() as f64
+                    / hyper.sample_period.as_millis() as f64)
+                    * 100.0;
                 global_pb.set_message(format!(
-                    "Temp: {:.1}C, VBus: {:.2}V, VShunt: {:.2}V, Power: {:.2}W, Curr: {:.2}A",
-                    temperature, voltage_bus, voltage_shunt, power, current
+                    "{:.1}% - Temp: {:.1}C, VBus: {:.2}V, VShunt: {:.2}V, Power: {:.2}W, Curr: {:.2}A",
+                    progress, temperature, voltage_bus, voltage_shunt, power, current
                 ));
             }
-        }
-        // Ensure any remaining time is added.
-        let elapsed = start.elapsed();
-        if elapsed < hyper.sample_period {
-            let remainder = hyper.sample_period - elapsed;
-            global_pb.inc(remainder.as_millis() as u64);
         }
         running.store(false, Ordering::Release);
         if let Some(ref mut rx) = receiver {
@@ -258,9 +264,10 @@ fn main() -> anyhow::Result<()> {
     // ========== Test Matrix ==========
     let frequencies = [
         87_000_000u64,
-        /*225_000_000,*/ 550_000_000,
+        // 225_000_000,
+        // 550_000_000,
         1_500_000_000,
-        3_000_000_000,
+        // 3_000_000_000,
     ];
 
     let channels = [
@@ -276,6 +283,23 @@ fn main() -> anyhow::Result<()> {
         vec![Channel::Rx0, Channel::Rx1, Channel::Tx0, Channel::Tx1],
     ];
 
+    let amp_config = [
+        // (false, false), (false, true), (true, false), (true, true)
+        (false, false),
+    ];
+
+    // Gain RX1 overall:   60 dB (Range: [-15, 60])
+    //             full:   71 dB (Range: [-4, 71])
+    // Gain RX2 overall:   60 dB (Range: [-15, 60])
+    //             full:   71 dB (Range: [-4, 71])
+    // Gain TX1 overall:   56 dB (Range: [-23.75, 66])
+    //              dsa:  -90 dB (Range: [-89.75, 0])
+    // Gain TX2 overall:   56 dB (Range: [-23.75, 66])
+    //              dsa:  -90 dB (Range: [-89.75, 0])
+
+    let rx_gains = [0, 40, 77];
+    let tx_gains = [-89, -45, 0];
+
     let hyper_params = HyperParameters {
         sample_rate: 5_000_000,
         sample_period: Duration::from_secs(15),
@@ -286,8 +310,38 @@ fn main() -> anyhow::Result<()> {
     };
 
     // Calculate the total expected measurement time in milliseconds.
-    let total_configs = (frequencies.len() * channels.len()) as u64;
+    let total_configs = (frequencies.len() * channels.len() * rx_gains.len()) as u64;
     let total_time_ms = total_configs * hyper_params.sample_period.as_millis() as u64;
+
+    let warmup_time = Duration::from_secs(120);
+    let warmup_pb = ProgressBar::new(warmup_time.as_millis() as u64);
+    warmup_pb.set_style(
+        ProgressStyle::with_template("{percent:>3}% {msg}")
+            .unwrap()
+            .progress_chars("##-"),
+    );
+
+    println!("Warming up radio for {}s", warmup_time.as_secs());
+    let _ = perform_sampling(
+        &mut dev,
+        &HyperParameters {
+            sample_period: warmup_time,
+            sample_rate: hyper_params.sample_rate,
+            num_samples: hyper_params.num_samples,
+            timeout: hyper_params.timeout,
+            num_buffers: hyper_params.num_buffers,
+            num_transfers: hyper_params.num_transfers,
+        },
+        &Parameters {
+            frequency: 815_000_000,
+            channel_set: vec![Channel::Rx0, Channel::Rx1, Channel::Tx0, Channel::Tx1],
+            rx_gain: 70,
+            tx_gain: 0,
+            external_bias_tee: false,
+            external_lna: false,
+        },
+        &warmup_pb,
+    )?;
 
     // Create a global progress bar for the entire run.
     let global_pb = ProgressBar::new(total_time_ms);
@@ -299,33 +353,48 @@ fn main() -> anyhow::Result<()> {
 
     // ========== Main Loop ==========
     for frequency in frequencies {
-        for channel_set in &channels {
-            // Create a parameters struct for the inner loop.
-            let params = Parameters {
-                frequency,
-                channel_set: channel_set.clone(),
-            };
+        for (rx_gain, tx_gain) in rx_gains.into_iter().zip(tx_gains) {
+            for channel_set in &channels {
+                for (external_lna, external_bias_tee) in amp_config {
+                    // Create a parameters struct for the inner loop, including gain and external amp settings.
+                    let params = Parameters {
+                        frequency,
+                        channel_set: channel_set.clone(),
+                        external_bias_tee,
+                        external_lna,
+                        rx_gain,
+                        tx_gain,
+                    };
 
-            let measurements = perform_sampling(&mut dev, &hyper_params, &params, &global_pb)?;
+                    let measurements =
+                        perform_sampling(&mut dev, &hyper_params, &params, &global_pb)?;
 
-            // Create a CSV file containing the vector of measurement data.
-            // The filename is the Base58-encoded JSON serialization of the parameters.
-            let params_serialized = serde_json::to_string(&params)?;
-            let filename = format!("{}.csv", bs58::encode(&params_serialized).into_string());
-            let file_path = args.output_dir.join(&filename);
-            let mut file = File::create(&file_path)?;
-            writeln!(
-                file,
-                "timestamp,temperature,voltage_bus,voltage_shunt,power,current"
-            )?;
-            for m in measurements {
-                writeln!(
-                    file,
-                    "{},{:.1},{:.2},{:.2},{:.2},{:.2}",
-                    m.timestamp, m.temperature, m.voltage_bus, m.voltage_shunt, m.power, m.current
-                )?;
+                    // Create a CSV file containing the vector of measurement data.
+                    // The filename is the Base58-encoded JSON serialization of the parameters.
+                    let params_serialized = serde_json::to_string(&params)?;
+                    let filename =
+                        format!("{}.csv", bs58::encode(&params_serialized).into_string());
+                    let file_path = args.output_dir.join(&filename);
+                    let mut file = File::create(&file_path)?;
+                    writeln!(
+                        file,
+                        "timestamp,temperature,voltage_bus,voltage_shunt,power,current"
+                    )?;
+                    for m in measurements {
+                        writeln!(
+                            file,
+                            "{:.6},{:.1},{:.2},{:.2},{:.2},{:.2}",
+                            m.timestamp,
+                            m.temperature,
+                            m.voltage_bus,
+                            m.voltage_shunt,
+                            m.power,
+                            m.current
+                        )?;
+                    }
+                    println!("Saved measurements to {}", file_path.display());
+                }
             }
-            println!("Saved measurements to {}", file_path.display());
         }
     }
 
