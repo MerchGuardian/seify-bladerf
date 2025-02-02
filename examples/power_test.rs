@@ -1,11 +1,22 @@
 use anyhow::Ok;
-use bladerf::{BladeRF, BladeRf2, BladeRfAny, Channel, ChannelLayoutRx, PmicRegister, SyncConfig};
+use bladerf::{
+    BladeRF, BladeRf2, BladeRfAny, Channel, ChannelLayoutRx, ChannelLayoutTx, PmicRegister,
+    SyncConfig,
+};
 use num_complex::Complex;
-use std::time::{Duration, Instant};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::{Duration, Instant},
+};
 
 fn main() -> anyhow::Result<()> {
+    println!("Opening device");
     let dev = BladeRfAny::open_first()?;
-    let dev: BladeRf2 = dev.try_into().expect("Expected bladerf 2.0");
+    let dev: BladeRf2 = dev.try_into().unwrap();
+    let dev = Box::leak(Box::new(dev));
 
     // ========== Test Matrix ==========
 
@@ -36,6 +47,8 @@ fn main() -> anyhow::Result<()> {
 
     const NUM_SAMPLES: usize = 16_384;
     let timeout = Duration::from_secs(3);
+    let num_buffers = 8;
+    let num_transfers = 5;
 
     // ========== Main Loop ==========
     for frequency in frequencies {
@@ -61,9 +74,37 @@ fn main() -> anyhow::Result<()> {
                 } else {
                     unreachable!();
                 };
-                let config = SyncConfig::new(8, NUM_SAMPLES as u32, 5, timeout.as_millis() as u32)?;
+                let config = SyncConfig::new(
+                    num_buffers,
+                    NUM_SAMPLES as u32,
+                    num_transfers,
+                    timeout.as_millis() as u32,
+                )?;
                 let receiver = dev
                     .rx_streamer::<Complex<i16>>(&config, layout)
+                    .expect("Rx streamer");
+                receiver.enable().expect("Enable rx steramer");
+                Some(receiver)
+            } else {
+                None
+            };
+
+            let tx0 = channel_set.contains(&Channel::Tx0);
+            let tx1 = channel_set.contains(&Channel::Tx1);
+
+            let mut sender = if tx0 || tx1 {
+                let layout = if tx0 && tx1 {
+                    ChannelLayoutTx::MIMO
+                } else if tx0 {
+                    ChannelLayoutTx::SISO(bladerf::TxChannel::Tx0)
+                } else if tx1 {
+                    ChannelLayoutTx::SISO(bladerf::TxChannel::Tx1)
+                } else {
+                    unreachable!();
+                };
+                let config = SyncConfig::new(8, NUM_SAMPLES as u32, 5, timeout.as_millis() as u32)?;
+                let receiver = dev
+                    .tx_streamer::<Complex<i16>>(&config, layout)
                     .expect("Rx streamer");
                 receiver.enable().expect("Enable rx steramer");
                 Some(receiver)
@@ -76,15 +117,31 @@ fn main() -> anyhow::Result<()> {
                 "Starting Sample for freq: {}Mhz. Channels active: {channel_set:?}",
                 frequency as f32 / 1_000_000.0
             );
-            let mut buf = [Complex::<i16>::ZERO; NUM_SAMPLES];
+            let mut rx_buf = [Complex::<i16>::ZERO; NUM_SAMPLES];
+            // 12 bit adc's
+            let tx_buf = [Complex::<i16>::new(0b1111_1111_1111, 0); NUM_SAMPLES];
 
             let mut samples_read = 0;
 
             let mut last_print = Instant::now();
             let start = Instant::now();
+
+            let running = Arc::new(AtomicBool::new(true));
+            let running2 = Arc::clone(&running);
+            let tx_therad = std::thread::spawn(move || {
+                let mut samples_written = 0;
+                while running2.load(Ordering::Acquire) {
+                    if let Some(tx) = sender.as_mut() {
+                        tx.write(&tx_buf, timeout).expect("Read samples");
+                        samples_written += NUM_SAMPLES;
+                    }
+                }
+                samples_written
+            });
+
             while start.elapsed() < sample_period {
                 if let Some(rx) = receiver.as_mut() {
-                    rx.read(&mut buf, timeout).expect("Read samples");
+                    rx.read(&mut rx_buf, timeout).expect("Read samples");
                     samples_read += NUM_SAMPLES;
                 }
 
@@ -101,10 +158,17 @@ fn main() -> anyhow::Result<()> {
                     println!("Current: {current:.2}A, power: {power:.2}W");
                 }
             }
+            running.store(false, Ordering::Release);
+            if let Some(rx) = receiver.as_mut() {
+                rx.disable().expect("Failed to disable module");
+            }
+            let samples_written = tx_therad.join().unwrap();
 
             println!(
-                "Read {samples_read} samples {}M samples/sec",
-                samples_read as f32 / start.elapsed().as_secs_f32() / 1_000_000.0
+                "Read {samples_read} samples, wrote {samples_written} {}M samples/sec",
+                (samples_read + samples_written) as f32
+                    / start.elapsed().as_secs_f32()
+                    / 1_000_000.0
             );
         }
     }
