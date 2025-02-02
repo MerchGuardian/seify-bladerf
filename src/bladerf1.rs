@@ -111,13 +111,12 @@ impl BladeRf1 {
         &self,
         config: &SyncConfig,
     ) -> Result<TxSyncStream<T, BladeRf1>> {
-        if self.tx_singleton.load(Ordering::Acquire) {
-            return Err(Error::Msg(
-                "Already have a TX stream open".to_owned().into_boxed_str(),
-            ));
-        } else {
-            self.tx_singleton.store(true, Ordering::Release);
-        }
+        // TODO: Decide Ordering
+        self.tx_singleton
+            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .map_err(|_err| {
+                Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
+            })?;
 
         unsafe { self.set_sync_config::<T>(config, ChannelLayout::TxSISO)? };
 
@@ -132,13 +131,12 @@ impl BladeRf1 {
         &self,
         config: &SyncConfig,
     ) -> Result<RxSyncStream<T, BladeRf1>> {
-        if self.rx_singleton.load(Ordering::Acquire) {
-            return Err(Error::Msg(
-                "Already have an RX stream open".to_owned().into_boxed_str(),
-            ));
-        } else {
-            self.rx_singleton.store(true, Ordering::Release);
-        }
+        // TODO: Decide Ordering
+        self.rx_singleton
+            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .map_err(|_err| {
+                Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
+            })?;
 
         unsafe { self.set_sync_config::<T>(config, ChannelLayout::RxSISO)? };
 

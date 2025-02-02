@@ -34,14 +34,12 @@ impl BladeRf2 {
         config: &SyncConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<T, BladeRf2>> {
-        if self.tx_singleton.load(Ordering::Relaxed) {
-            return Err(Error::Msg(
-                "Already have a TX stream open".to_owned().into_boxed_str(),
-            ));
-        } else {
-            self.tx_singleton.store(true, Ordering::Relaxed);
-        }
-
+        // TODO: Decide Ordering
+        self.tx_singleton
+            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .map_err(|_err| {
+                Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
+            })?;
         unsafe {
             self.set_sync_config::<T>(config, layout.into())?;
         }
@@ -58,13 +56,12 @@ impl BladeRf2 {
         config: &SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<T, BladeRf2>> {
-        if self.rx_singleton.load(Ordering::Relaxed) {
-            return Err(Error::Msg(
-                "Already have an RX stream open".to_owned().into_boxed_str(),
-            ));
-        } else {
-            self.rx_singleton.store(true, Ordering::Relaxed);
-        }
+        // TODO: Decide Ordering
+        self.rx_singleton
+            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .map_err(|_err| {
+                Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
+            })?;
 
         unsafe {
             self.set_sync_config::<T>(config, layout.into())?;
