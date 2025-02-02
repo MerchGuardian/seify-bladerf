@@ -66,3 +66,6 @@ pub use layout::*;
 
 mod smb_mode;
 pub use smb_mode::*;
+
+mod pmic_register;
+pub use pmic_register::*;

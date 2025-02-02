@@ -1,4 +1,4 @@
-use crate::{sys::*, BladeRF, BladeRfAny, Result};
+use crate::{sys::*, BladeRfAny, Result};
 use bytemuck::cast_slice;
 
 use super::Backend;

@@ -74,7 +74,7 @@ unsafe impl SampleFormat for Complex<i8> {
 
 const SCALE: f32 = 4096.0; //(2^12)
 
-pub(crate) fn brf_ci16_to_cf32(ci16: Complex<i16>) -> Complex32 {
+pub fn ci16_to_cf32(ci16: Complex<i16>) -> Complex32 {
     let re: f32 = ci16.re.into();
     let im: f32 = ci16.im.into();
     Complex::new(re / SCALE, im / SCALE)

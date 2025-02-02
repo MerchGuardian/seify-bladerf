@@ -109,7 +109,7 @@ impl Drop for BladeRfAny {
     }
 }
 
-pub trait BladeRF: Sized + Drop {
+pub trait BladeRF: Sized {
     fn get_device_ptr(&self) -> *mut bladerf;
 
     fn info(&self) -> Result<DevInfo> {
@@ -825,6 +825,14 @@ pub trait BladeRF: Sized + Drop {
     // Expansion IO control
 
     // Miscellaneous
+
+    /// Returns the temperature (C) from the RFIC register.
+    fn get_rfic_temperature(&self) -> Result<f32> {
+        let mut temp = 0f32;
+        let res = unsafe { bladerf_get_rfic_temperature(self.get_device_ptr(), &mut temp) };
+        check_res!(res);
+        Ok(temp)
+    }
 
     /// Retrieve the current timestamp
     fn get_timestamp(&self, dir: Direction) -> Result<u64> {
