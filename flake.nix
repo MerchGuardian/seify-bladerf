@@ -23,7 +23,7 @@
             (import rust-overlay)
           ];
         };
-        rust-pkgs = pkgs.rust-bin.nightly.latest.default.override {
+        rust-pkgs = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
         };
         ndkVersion = "25.1.8937393";

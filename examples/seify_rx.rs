@@ -112,7 +112,7 @@ fn main() -> anyhow::Result<()> {
     let mut file_buf = BufWriter::new(&mut file);
 
     let buffer_read_count_limit = {
-        let sample_count = args.samplerate as f64 * args.duration.unwrap() as f64;
+        let sample_count = args.samplerate as f64 * args.duration.unwrap_or(5.0) as f64;
         let samples_per_block = 8192.0;
         (sample_count / samples_per_block) as u64
     };

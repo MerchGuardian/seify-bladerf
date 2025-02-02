@@ -46,7 +46,7 @@ pub fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_device_info(dev: &BladeRF) -> anyhow::Result<()> {
+fn print_device_info(dev: &BladeRfAny) -> anyhow::Result<()> {
     let fw_version = dev
         .firmware_version()
         .context("Failed to retrieve firmware version")?;
@@ -75,7 +75,7 @@ fn print_device_info(dev: &BladeRF) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_channel_info(dev: &BladeRF, channel: Channel) -> anyhow::Result<()> {
+fn print_channel_info(dev: &BladeRfAny, channel: Channel) -> anyhow::Result<()> {
     println!("  Channel {channel:?}");
 
     // frequency
@@ -154,7 +154,7 @@ fn print_channel_info(dev: &BladeRF, channel: Channel) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_loopback_info(dev: &BladeRF) -> anyhow::Result<()> {
+fn print_loopback_info(dev: &BladeRfAny) -> anyhow::Result<()> {
     let loopback_modes = dev
         .get_loopback_modes()
         .context("Failed to retrieve loopback modes")?;
@@ -175,7 +175,7 @@ fn print_loopback_info(dev: &BladeRF) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_sampling_info(dev: &BladeRF) -> anyhow::Result<()> {
+fn print_sampling_info(dev: &BladeRfAny) -> anyhow::Result<()> {
     // let sampling = dev
     //     .get_sampling()
     //     .context("Failed to retrieve sampling mode")?;
