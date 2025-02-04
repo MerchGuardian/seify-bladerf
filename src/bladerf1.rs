@@ -7,8 +7,8 @@ use sync::atomic::{AtomicBool, Ordering};
 
 pub struct BladeRf1 {
     pub(crate) device: *mut bladerf,
-    rx_singleton: AtomicBool,
-    tx_singleton: AtomicBool,
+    rx_stream_configured: AtomicBool,
+    tx_stream_configured: AtomicBool,
 }
 
 unsafe impl Send for BladeRf1 {}
@@ -112,7 +112,7 @@ impl BladeRf1 {
         config: &SyncConfig,
     ) -> Result<TxSyncStream<T, BladeRf1>> {
         // TODO: Decide Ordering
-        self.tx_singleton
+        self.tx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
             .map_err(|_err| {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
@@ -132,7 +132,7 @@ impl BladeRf1 {
         config: &SyncConfig,
     ) -> Result<RxSyncStream<T, BladeRf1>> {
         // TODO: Decide Ordering
-        self.rx_singleton
+        self.rx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
             .map_err(|_err| {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
@@ -157,8 +157,8 @@ impl TryFrom<BladeRfAny> for BladeRf1 {
 
             let new_dev = BladeRf1 {
                 device: old_dev.device,
-                rx_singleton: AtomicBool::new(false),
-                tx_singleton: AtomicBool::new(false),
+                rx_stream_configured: AtomicBool::new(false),
+                tx_stream_configured: AtomicBool::new(false),
             };
 
             Ok(new_dev)
