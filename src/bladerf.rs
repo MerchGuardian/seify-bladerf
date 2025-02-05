@@ -322,6 +322,7 @@ pub trait BladeRF: Sized + Drop {
     /// This is used to reconfigure a synchronous stream and is called by the streamer structs.
     ///
     /// If this function is called elsewhere, it may cause issues with the used streamer since the type can arbitraily be changed.
+    #[doc(hidden)]
     unsafe fn set_sync_config<T: SampleFormat>(
         &self,
         config: &SyncConfig,
