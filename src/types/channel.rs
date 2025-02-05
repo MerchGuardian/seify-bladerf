@@ -30,3 +30,33 @@ impl TryFrom<bladerf_channel> for Channel {
         Self::from_repr(channel).ok_or_else(|| format!("Invalid bladerf channel: {channel}").into())
     }
 }
+
+#[derive(Copy, Clone, Debug, Enum, FromRepr, PartialEq, Eq)]
+pub enum RxChannel {
+    Rx0,
+    Rx1,
+}
+
+impl From<RxChannel> for Channel {
+    fn from(value: RxChannel) -> Self {
+        match value {
+            RxChannel::Rx0 => Channel::Rx0,
+            RxChannel::Rx1 => Channel::Rx1,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Enum, FromRepr, PartialEq, Eq)]
+pub enum TxChannel {
+    Tx0,
+    Tx1,
+}
+
+impl From<TxChannel> for Channel {
+    fn from(value: TxChannel) -> Self {
+        match value {
+            TxChannel::Tx0 => Channel::Tx0,
+            TxChannel::Tx1 => Channel::Tx1,
+        }
+    }
+}
