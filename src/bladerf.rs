@@ -214,14 +214,12 @@ pub trait BladeRF: Sized + Drop {
     // RX & TX Module Control
     // http://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___m_o_d_u_l_e.html
 
-    /// # Safety
-    /// Should only be called internally
+    /// Should only be called internally by the streamers
     ///
     /// This function is used by the streamer structs to enable or disable the module.
     /// If this function is called elsewhere, it may cause issues with the used streamer.
-    ///
-    /// I do not think I can actually cause UB, but it is still not intended for general use.
-    unsafe fn set_enable_module(&self, channel: Channel, enable: bool) -> Result<()> {
+    #[doc(hidden)]
+    fn set_enable_module(&self, channel: Channel, enable: bool) -> Result<()> {
         let res = unsafe {
             bladerf_enable_module(self.get_device_ptr(), channel as bladerf_channel, enable)
         };

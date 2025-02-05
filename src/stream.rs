@@ -97,11 +97,11 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
     }
 
     pub fn enable(&self) -> Result<()> {
-        unsafe { self.dev.set_enable_module(Channel::Rx0, true) }
+        self.dev.set_enable_module(Channel::Rx0, true)
     }
 
     pub fn disable(&self) -> Result<()> {
-        unsafe { self.dev.set_enable_module(Channel::Rx0, false) }
+        self.dev.set_enable_module(Channel::Rx0, false)
     }
 }
 
@@ -138,10 +138,10 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
 
     pub fn enable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutRx::SISO(ch) => self.dev.set_enable_module(ch.into(), true),
             ChannelLayoutRx::MIMO => {
-                unsafe { self.dev.set_enable_module(Channel::Rx0, true) }?;
-                unsafe { self.dev.set_enable_module(Channel::Rx1, true) }?;
+                self.dev.set_enable_module(Channel::Rx0, true)?;
+                self.dev.set_enable_module(Channel::Rx1, true)?;
                 Ok(())
             }
         }
@@ -149,10 +149,10 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
 
     pub fn disable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutRx::SISO(ch) => self.dev.set_enable_module(ch.into(), false),
             ChannelLayoutRx::MIMO => {
-                unsafe { self.dev.set_enable_module(Channel::Rx0, false) }?;
-                unsafe { self.dev.set_enable_module(Channel::Rx1, false) }?;
+                self.dev.set_enable_module(Channel::Rx0, false)?;
+                self.dev.set_enable_module(Channel::Rx1, false)?;
                 Ok(())
             }
         }
@@ -192,10 +192,10 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
 
     pub fn enable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutRx::SISO(ch) => self.dev.set_enable_module(ch.into(), true),
             ChannelLayoutRx::MIMO => {
-                unsafe { self.dev.set_enable_module(Channel::Rx0, true) }?;
-                unsafe { self.dev.set_enable_module(Channel::Rx1, true) }?;
+                self.dev.set_enable_module(Channel::Rx0, true)?;
+                self.dev.set_enable_module(Channel::Rx1, true)?;
                 Ok(())
             }
         }
@@ -203,10 +203,10 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
 
     pub fn disable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutRx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutRx::SISO(ch) => self.dev.set_enable_module(ch.into(), false),
             ChannelLayoutRx::MIMO => {
-                unsafe { self.dev.set_enable_module(Channel::Rx0, false) }?;
-                unsafe { self.dev.set_enable_module(Channel::Rx1, false) }?;
+                self.dev.set_enable_module(Channel::Rx0, false)?;
+                self.dev.set_enable_module(Channel::Rx1, false)?;
                 Ok(())
             }
         }
@@ -215,11 +215,9 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
 
 impl<T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'_, T, D> {
     fn drop(&mut self) {
-        unsafe {
-            // Ignore the results, just try disable both channels even if they don't exist on the dev.
-            let _ = self.dev.set_enable_module(Channel::Rx0, false);
-            let _ = self.dev.set_enable_module(Channel::Rx1, false);
-        }
+        // Ignore the results, just try disable both channels even if they don't exist on the dev.
+        let _ = self.dev.set_enable_module(Channel::Rx0, false);
+        let _ = self.dev.set_enable_module(Channel::Rx1, false);
     }
 }
 
@@ -263,11 +261,11 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf1> {
     }
 
     pub fn enable(&self) -> Result<()> {
-        unsafe { self.dev.set_enable_module(Channel::Tx0, true) }
+        self.dev.set_enable_module(Channel::Tx0, true)
     }
 
     pub fn disable(&self) -> Result<()> {
-        unsafe { self.dev.set_enable_module(Channel::Tx0, false) }
+        self.dev.set_enable_module(Channel::Tx0, false)
     }
 }
 
@@ -304,10 +302,10 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf2> {
 
     pub fn enable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutTx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutTx::SISO(ch) => self.dev.set_enable_module(ch.into(), true),
             ChannelLayoutTx::MIMO => {
-                unsafe { self.dev.set_enable_module(Channel::Tx0, true) }?;
-                unsafe { self.dev.set_enable_module(Channel::Tx1, true) }?;
+                self.dev.set_enable_module(Channel::Tx0, true)?;
+                self.dev.set_enable_module(Channel::Tx1, true)?;
                 Ok(())
             }
         }
@@ -315,10 +313,10 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRf2> {
 
     pub fn disable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutTx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutTx::SISO(ch) => self.dev.set_enable_module(ch.into(), false),
             ChannelLayoutTx::MIMO => {
-                unsafe { self.dev.set_enable_module(Channel::Tx0, false) }?;
-                unsafe { self.dev.set_enable_module(Channel::Tx1, false) }?;
+                self.dev.set_enable_module(Channel::Tx0, false)?;
+                self.dev.set_enable_module(Channel::Tx1, false)?;
                 Ok(())
             }
         }
@@ -358,10 +356,10 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRfAny> {
 
     pub fn enable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutTx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), true) },
+            ChannelLayoutTx::SISO(ch) => self.dev.set_enable_module(ch.into(), true),
             ChannelLayoutTx::MIMO => {
-                unsafe { self.dev.set_enable_module(Channel::Tx0, true) }?;
-                unsafe { self.dev.set_enable_module(Channel::Tx1, true) }?;
+                self.dev.set_enable_module(Channel::Tx0, true)?;
+                self.dev.set_enable_module(Channel::Tx1, true)?;
                 Ok(())
             }
         }
@@ -369,10 +367,10 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRfAny> {
 
     pub fn disable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutTx::SISO(ch) => unsafe { self.dev.set_enable_module(ch.into(), false) },
+            ChannelLayoutTx::SISO(ch) => self.dev.set_enable_module(ch.into(), false),
             ChannelLayoutTx::MIMO => {
-                unsafe { self.dev.set_enable_module(Channel::Tx0, false) }?;
-                unsafe { self.dev.set_enable_module(Channel::Tx1, false) }?;
+                self.dev.set_enable_module(Channel::Tx0, false)?;
+                self.dev.set_enable_module(Channel::Tx1, false)?;
                 Ok(())
             }
         }
@@ -381,10 +379,8 @@ impl<'a, T: SampleFormat> TxSyncStream<'a, T, BladeRfAny> {
 
 impl<T: SampleFormat, D: BladeRF> Drop for TxSyncStream<'_, T, D> {
     fn drop(&mut self) {
-        unsafe {
-            // Ignore the results, just try disable both channels even if they don't exist on the dev.
-            let _ = self.dev.set_enable_module(Channel::Tx0, false);
-            let _ = self.dev.set_enable_module(Channel::Tx1, false);
-        }
+        // Ignore the results, just try disable both channels even if they don't exist on the dev.
+        let _ = self.dev.set_enable_module(Channel::Tx0, false);
+        let _ = self.dev.set_enable_module(Channel::Tx1, false);
     }
 }
