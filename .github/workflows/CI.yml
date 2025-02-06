@@ -86,7 +86,9 @@ jobs:
 
     - name: Install libbladerf
       # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
-      run: .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES
+      run: |
+        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /LOG="libbladerf_install.log"
+        type libbladerf_install.log
 
-    - name: build
+    - name: build 
       run: cargo build
