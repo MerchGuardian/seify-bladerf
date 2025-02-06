@@ -70,7 +70,7 @@ jobs:
 
   build-windows:
     env:
-      BLADERF_INCLUDE_PATH: "C:/Program Files/bladeRF/include"
+      BLADERF_INCLUDE_PATH: "D:\\a\\seify-bladerf\\bladeRF\\include"
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
@@ -87,7 +87,7 @@ jobs:
     - name: Install libbladerf
       # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
       run: |
-        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /LOG="libbladerf_install.log"
+        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /DIR="D:\a\seify-bladerf\bladeRF" /LOG="libbladerf_install.log"
         ls
         ls $Env:BLADERF_INCLUDE_PATH
         type libbladerf_install.log
