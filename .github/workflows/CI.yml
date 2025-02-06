@@ -88,6 +88,8 @@ jobs:
       # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
       run: |
         .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /LOG="libbladerf_install.log"
+        ls
+        ls $Env:BLADERF_INCLUDE_PATH
         type libbladerf_install.log
 
     - name: build 
