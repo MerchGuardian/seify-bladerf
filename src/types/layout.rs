@@ -1,3 +1,5 @@
+// Allow clippy::unnecessary_cast since the cast is needed for when bindgen runs on windows. The enum variants get cast to i32 on windows.
+#![allow(clippy::unnecessary_cast)]
 use enum_map::Enum;
 use strum::FromRepr;
 
@@ -8,10 +10,10 @@ use super::{RxChannel, TxChannel};
 #[derive(Copy, Clone, Debug, Enum, FromRepr, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ChannelLayout {
-    RxSISO = bladerf_channel_layout_BLADERF_RX_X1,
-    RxMIMO = bladerf_channel_layout_BLADERF_RX_X2,
-    TxSISO = bladerf_channel_layout_BLADERF_TX_X1,
-    TxMIMO = bladerf_channel_layout_BLADERF_TX_X2,
+    RxSISO = bladerf_channel_layout_BLADERF_RX_X1 as u32,
+    RxMIMO = bladerf_channel_layout_BLADERF_RX_X2 as u32,
+    TxSISO = bladerf_channel_layout_BLADERF_TX_X1 as u32,
+    TxMIMO = bladerf_channel_layout_BLADERF_TX_X2 as u32,
 }
 
 impl ChannelLayout {
@@ -33,7 +35,8 @@ impl TryFrom<bladerf_channel_layout> for ChannelLayout {
     type Error = Error;
 
     fn try_from(channel: bladerf_channel_layout) -> Result<Self> {
-        Self::from_repr(channel).ok_or_else(|| format!("Invalid bladerf channel: {channel}").into())
+        Self::from_repr(channel as u32)
+            .ok_or_else(|| format!("Invalid bladerf channel: {channel}").into())
     }
 }
 
