@@ -81,12 +81,11 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Download libladerf
-      run: Invoke-WebRequest https://github.com/Nuand/bladeRF/releases/download/2024.05/bladeRF-win-installer-2024.05.exe -OutFile libbladerf_install.exe
-
-    - name: Install libbladerf
+    - name: Download and install libladerf
       # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
-      run: .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES
+      run: |
+        Invoke-WebRequest https://github.com/Nuand/bladeRF/releases/download/2024.05/bladeRF-win-installer-2024.05.exe -OutFile libbladerf_install.exe
+        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES
 
     - name: build 
       run: cargo build
