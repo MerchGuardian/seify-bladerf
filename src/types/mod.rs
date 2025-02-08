@@ -69,3 +69,6 @@ pub use smb_mode::*;
 
 mod expansion_module;
 pub use expansion_module::*;
+
+mod fpga_size;
+pub use fpga_size::*;
