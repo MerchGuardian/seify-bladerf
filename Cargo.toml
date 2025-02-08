@@ -40,3 +40,4 @@ tempfile = "3.13"
 hwtest_any = []
 hwtest_brf1 = ["hwtest_any"]
 hwtest_brf2 = ["hwtest_any"]
+hwtest_xb200 = []
