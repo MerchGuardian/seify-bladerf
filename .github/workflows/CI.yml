@@ -84,8 +84,8 @@ jobs:
     - name: Download and install libladerf
       # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
       run: |
-        Invoke-WebRequest https://github.com/Nuand/bladeRF/releases/download/2024.05/bladeRF-win-installer-2024.05.exe -OutFile libbladerf_install.exe
-        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="D:\a\seify-bladerf\bladerf-install.log" /SAVEINF="D:\a\seify-bladerf\bladerf-install.inf"
+        Invoke-WebRequest https://github.com/Nuand/bladeRF/releases/download/2024.05/bladeRF-win-installer-2024.05.exe -OutFile ..\libbladerf_install.exe
+        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="D:\a\seify-bladerf\bladerf-install.log" /SAVEINF="D:\a\seify-bladerf\bladerf-install.inf" /DIR="D:\a\seify-bladerf\bladeRF"
         ls "C:\Program Files\"
         ls
         ls ..
