@@ -17,10 +17,20 @@ use crate::{sys::*, Error, Result};
 /// | DcOffsetQ | Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits. |
 /// | Phase | Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096]. |
 /// | Gain | Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096]. |
-
 pub trait CorrectionValue: Sized {
     const TYPE: Correction;
-    fn new(value: i16) -> Option<Self>;
+
+    const MAX: i16;
+    const MIN: i16;
+
+    fn new(value: i16) -> Option<Self> {
+        if (Self::MIN..=Self::MAX).contains(&value) {
+            Some(unsafe { Self::new_unchecked(value) })
+        } else {
+            None
+        }
+    }
+
     fn value(&self) -> i16;
     /// # Safety
     /// Make sure the value is within the range for the given correction
@@ -30,33 +40,14 @@ pub trait CorrectionValue: Sized {
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionDcOffsetI(pub i16);
 
-// Implement constructors with validation for each struct
-impl CorrectionDcOffsetI {
-    const MAX: i16 = 2048;
-    const MIN: i16 = -2048;
-
-    pub fn new(value: i16) -> Option<Self> {
-        if (Self::MIN..=Self::MAX).contains(&value) {
-            Some(Self(value))
-        } else {
-            None
-        }
-    }
-
-    pub fn into_inner(self) -> i16 {
-        self.0
-    }
-}
-
 impl CorrectionValue for CorrectionDcOffsetI {
     const TYPE: Correction = Correction::DcOffsetI;
 
-    fn new(value: i16) -> Option<Self> {
-        Self::new(value)
-    }
+    const MAX: i16 = 2048;
+    const MIN: i16 = -2048;
 
     fn value(&self) -> i16 {
-        self.into_inner()
+        self.0
     }
 
     unsafe fn new_unchecked(value: i16) -> Self {
@@ -92,32 +83,14 @@ impl SaturatingAdd for CorrectionDcOffsetI {
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionDcOffsetQ(pub i16);
 
-impl CorrectionDcOffsetQ {
-    const MAX: i16 = 2048;
-    const MIN: i16 = -2048;
-
-    pub fn new(value: i16) -> Option<Self> {
-        if (Self::MIN..=Self::MAX).contains(&value) {
-            Some(Self(value))
-        } else {
-            None
-        }
-    }
-
-    pub fn into_inner(self) -> i16 {
-        self.0
-    }
-}
-
 impl CorrectionValue for CorrectionDcOffsetQ {
     const TYPE: Correction = Correction::DcOffsetQ;
 
-    fn new(value: i16) -> Option<Self> {
-        Self::new(value)
-    }
+    const MAX: i16 = 2048;
+    const MIN: i16 = -2048;
 
     fn value(&self) -> i16 {
-        self.into_inner()
+        self.0
     }
 
     unsafe fn new_unchecked(value: i16) -> Self {
@@ -153,32 +126,14 @@ impl SaturatingAdd for CorrectionDcOffsetQ {
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionPhase(pub i16);
 
-impl CorrectionPhase {
-    const MAX: i16 = 4096;
-    const MIN: i16 = -4096;
-
-    pub fn new(value: i16) -> Option<Self> {
-        if (Self::MIN..=Self::MAX).contains(&value) {
-            Some(Self(value))
-        } else {
-            None
-        }
-    }
-
-    pub fn into_inner(self) -> i16 {
-        self.0
-    }
-}
-
 impl CorrectionValue for CorrectionPhase {
     const TYPE: Correction = Correction::Phase;
 
-    fn new(value: i16) -> Option<Self> {
-        Self::new(value)
-    }
+    const MAX: i16 = 4096;
+    const MIN: i16 = -4096;
 
     fn value(&self) -> i16 {
-        self.into_inner()
+        self.0
     }
 
     unsafe fn new_unchecked(value: i16) -> Self {
@@ -214,32 +169,14 @@ impl SaturatingAdd for CorrectionPhase {
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionGain(pub i16);
 
-impl CorrectionGain {
-    const MAX: i16 = 4096;
-    const MIN: i16 = -4096;
-
-    pub fn new(value: i16) -> Option<Self> {
-        if (Self::MIN..=Self::MAX).contains(&value) {
-            Some(Self(value))
-        } else {
-            None
-        }
-    }
-
-    pub fn into_inner(self) -> i16 {
-        self.0
-    }
-}
-
 impl CorrectionValue for CorrectionGain {
     const TYPE: Correction = Correction::Gain;
 
-    fn new(value: i16) -> Option<Self> {
-        Self::new(value)
-    }
+    const MAX: i16 = 4096;
+    const MIN: i16 = -4096;
 
     fn value(&self) -> i16 {
-        self.into_inner()
+        self.0
     }
 
     unsafe fn new_unchecked(value: i16) -> Self {
