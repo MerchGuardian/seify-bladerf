@@ -75,11 +75,14 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
+      with:
+        path: main
 
     - uses: actions/checkout@v4
       with:
         repository: Nuand/bladeRF
         ref: libbladeRF_v2.5.0
+        path: bladeRF
   
     - name: Install rustup
       uses: actions-rs/toolchain@v1
