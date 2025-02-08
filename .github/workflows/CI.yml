@@ -88,9 +88,10 @@ jobs:
         .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="D:\a\seify-bladerf\bladerf-install.log" /SAVEINF="D:\a\seify-bladerf\bladerf-install.inf"
         ls "C:\Program Files\"
         ls
-        cargo build
+        ls ..
         type D:\a\seify-bladerf\bladerf-install.log
         type D:\a\seify-bladerf\bladerf-install.inf
+        cargo build
 
     # - name: build 
       # run: cargo build
