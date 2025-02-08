@@ -1,5 +1,5 @@
 use std::{
-    io::{stdout, Write},
+    io::stdout,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
@@ -9,7 +9,10 @@ use std::{
 };
 
 use anyhow::Context;
-use bladerf::{Channel, ChannelLayout, Format, GainMode, Loopback};
+use bladerf::{
+    BladeRF, Channel, ChannelLayoutRx, ChannelLayoutTx, ComplexI16, RxChannel, SyncConfig,
+    TxChannel,
+};
 use crossterm::{
     cursor::{self},
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -27,7 +30,7 @@ struct Config {
     sample_rate_hz: u32,
     bandwidth_hz: u32,
     num_buffers: u32,
-    buffer_size: u32,
+    buffer_size: usize,
     num_transfers: u32,
     timeout: Duration,
     bit_rate: u32,
@@ -75,12 +78,10 @@ impl UIState {
 }
 
 fn rx(
-    device: Arc<bladerf::BladeRF>,
+    device: Arc<bladerf::BladeRfAny>,
     c: Config,
     ui_state: Arc<Mutex<UIState>>,
 ) -> anyhow::Result<()> {
-    let timeout = Duration::from_millis(250);
-
     let samples_per_bit = c.sample_rate_hz / c.bit_rate;
 
     let mut samples = vec![Complex::<i16>::ZERO; c.buffer_size as usize];
@@ -93,13 +94,21 @@ fn rx(
     let mut sample_buffer = Vec::new();
     let mut bits = Vec::new();
 
-    while RUNNING.load(Ordering::Acquire) {
-        let mut meta = None;
-        device
-            .sync_rx(&mut samples, meta.as_mut(), timeout)
-            .context("Receive samples")?;
+    let config = SyncConfig::new(c.num_buffers, c.buffer_size, c.num_transfers, 3500)
+        .with_context(|| "Cannot Create Sync Config")?;
+    let layout = ChannelLayoutRx::SISO(RxChannel::Rx0);
 
+    let rx = device
+        .rx_streamer::<ComplexI16>(&config, layout)
+        .context("Receive samples")?;
+
+    rx.enable().context("Failed to enable rx")?;
+
+    while RUNNING.load(Ordering::Acquire) {
         // ===== Calculate power =====
+
+        rx.read(&mut samples, c.timeout)
+            .context("Failed to read samples")?;
 
         sample_count += samples.len();
         bytes += samples.len() * std::mem::size_of_val(&samples[0]);
@@ -190,20 +199,18 @@ fn bits_to_byte(bits: &[u8]) -> u8 {
 }
 
 fn tx(
-    device: Arc<bladerf::BladeRF>,
+    device: Arc<bladerf::BladeRfAny>,
     c: Config,
     ui_state: Arc<Mutex<UIState>>,
 ) -> anyhow::Result<()> {
-    let timeout = Duration::from_millis(250);
-
     let samples_per_bit = c.sample_rate_hz / c.bit_rate;
 
     // Define preamble and sync word
-    let preamble = [
+    let preamble: &[u8] = &[
         1, 0, 1, 0, 1, 0, 1, 0, // 0xAA
         1, 0, 1, 0, 1, 0, 1, 0,
     ];
-    let sync_word = [0, 1, 0, 1, 0, 1, 0, 1];
+    let sync_word: &[u8] = &[0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1];
 
     // Define the bitstream to send (e.g., "Hello")
     let message = b"Hello";
@@ -216,15 +223,25 @@ fn tx(
     }
 
     // Combine preamble, sync word, and message
-    let bitstream = [/*preamble, sync_word,*/ message_bits].concat();
+    let bitstream = [preamble, sync_word, &message_bits].concat();
     let bitstream_len = bitstream.len();
     let mut bit_index = 0;
 
-    let mut samples = vec![Complex::<i16>::ZERO; c.buffer_size as usize];
+    let mut samples = vec![Complex::<i16>::ZERO; c.buffer_size];
 
     let mut last_print = Instant::now();
     let mut sample_count = 0;
     let mut bytes = 0;
+
+    let config =
+        SyncConfig::new(16, c.buffer_size, 8, 3500).with_context(|| "Cannot Create Sync Config")?;
+    let layout = ChannelLayoutTx::SISO(TxChannel::Tx0);
+
+    let tx = device
+        .tx_streamer::<ComplexI16>(&config, layout)
+        .context("Transmit samples")?;
+
+    tx.enable().context("Failed to enable tx")?;
 
     while RUNNING.load(Ordering::Acquire) {
         // Fill the samples buffer according to the bitstream
@@ -243,11 +260,8 @@ fn tx(
             sample_pos = end;
         }
 
-        // Transmit the samples
-        let mut meta = None;
-        device
-            .sync_tx(&samples, meta.as_mut(), timeout)
-            .context("Transmit samples")?;
+        tx.write(&samples, c.timeout)
+            .context("Failed to write samples")?;
 
         sample_count += samples.len();
         bytes += samples.len() * std::mem::size_of_val(&samples[0]);
@@ -269,67 +283,6 @@ fn tx(
             sample_count = 0;
         }
     }
-
-    Ok(())
-}
-
-impl Config {
-    fn write(&self, device: &bladerf::BladeRF, channel: Channel) -> anyhow::Result<()> {
-        println!("Writing parameters for {channel:?}");
-
-        device.set_sample_rate(channel, self.sample_rate_hz)?;
-        device.set_frequency(channel, self.frequency_hz)?;
-        device.set_bandwidth(channel, self.bandwidth_hz)?;
-        if channel.is_rx() {
-            device.set_gain(channel, 0)?;
-            device.set_gain_mode(channel, GainMode::Default)?;
-        }
-
-        Ok(())
-    }
-}
-
-fn setup(device: &bladerf::BladeRF, c: &Config) -> anyhow::Result<()> {
-    device
-        .load_fpga_from_env()
-        .context("Failed to load FPGA bitstream")?;
-
-    let _ = device
-        .set_rx_mux(bladerf::RxMux::Baseband)
-        .map_err(|e| println!("failed to set rx mux to baseband: {e:?}"));
-    device.set_loopback(Loopback::None)?;
-
-    println!("Setting device receive configuration");
-
-    device.sync_config(
-        ChannelLayout::RxSISO,
-        Format::Sc16Q11,
-        c.num_buffers,
-        c.buffer_size,
-        c.num_transfers,
-        c.timeout,
-    )?;
-
-    c.write(device, Channel::Rx1)
-        .context("Failed to write parameters for Rx2")?;
-
-    device.enable_module(Channel::Rx1)?;
-
-    println!("Setting device send configuration");
-
-    device.sync_config(
-        ChannelLayout::TxSISO,
-        Format::Sc16Q11,
-        c.num_buffers,
-        c.buffer_size,
-        c.num_transfers,
-        c.timeout,
-    )?;
-
-    c.write(device, Channel::Tx1)
-        .context("Failed to write parameters for Tx1")?;
-
-    device.enable_module(Channel::Tx1)?;
 
     Ok(())
 }
@@ -382,7 +335,7 @@ fn tui_app() -> anyhow::Result<()> {
         "libbladerf version: {}",
         bladerf::version().context("Failed to obtain bladerf version")?
     );
-    let device = bladerf::BladeRF::open_first().context("Failed to list BladeRF devices")?;
+    let device = bladerf::BladeRfAny::open_first().context("Failed to list BladeRF devices")?;
     println!("Found: {:?}", device.info().map(|i| i.serial()));
     let serial_number = device
         .get_serial()
@@ -422,7 +375,36 @@ fn tui_app() -> anyhow::Result<()> {
 
     let config = Config::default();
 
-    setup(&device, &config).context("Failed to setup Blade RF")?;
+    for channel in [Channel::Rx0, Channel::Tx0] {
+        device
+            .set_frequency(channel.into(), config.frequency_hz)
+            .with_context(|| {
+                format!(
+                    "Unable to set frequency ({}) on the given channel ({:?}).",
+                    config.frequency_hz, channel
+                )
+            })?;
+
+        log::debug!("Frequency set to {}", config.frequency_hz);
+
+        device
+            .set_sample_rate(channel.into(), config.sample_rate_hz)
+            .with_context(|| {
+                format!(
+                    "Unable to set sample rate ({}) on the given channel ({:?}).",
+                    config.sample_rate_hz, channel
+                )
+            })?;
+
+        device
+            .set_bandwidth(channel.into(), config.bandwidth_hz)
+            .with_context(|| {
+                format!(
+                    "Unable to set bandwidth ({}) on the given channel ({:?}).",
+                    config.sample_rate_hz, channel
+                )
+            })?;
+    }
 
     println!("Device ready, starting tasks");
 
@@ -434,7 +416,6 @@ fn tui_app() -> anyhow::Result<()> {
 
     let ui_state_rx = Arc::clone(&ui_state);
     let ui_state_tx = Arc::clone(&ui_state);
-    let ui_state_input = Arc::clone(&ui_state);
 
     let receiver = thread::spawn(move || rx(device_rx, config_rx, ui_state_rx));
     let sender = thread::spawn(move || tx(device_tx, config_tx, ui_state_tx));
@@ -495,6 +476,17 @@ fn tui_app() -> anyhow::Result<()> {
                 match key_event.code {
                     KeyCode::Char('q') => {
                         RUNNING.store(false, Ordering::Release);
+
+                        use crossterm::{cursor, QueueableCommand};
+                        use std::io::{stdout, Write};
+                        let mut stdout = stdout();
+
+                        stdout
+                            .queue(cursor::MoveTo(0, 0))?
+                            .queue(Clear(ClearType::All))?
+                            .queue(Print("Exiting (please wait)..."))?;
+
+                        stdout.flush().unwrap();
                     }
                     KeyCode::Enter => {
                         if let Ok(threshold) = threshold_textbox.parse::<u64>() {
