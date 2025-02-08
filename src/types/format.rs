@@ -1,3 +1,5 @@
+// Allow clippy::unnecessary_cast since the cast is needed for when bindgen runs on windows. The enum variants get cast to i32 on windows.
+#![allow(clippy::unnecessary_cast)]
 use num_complex::Complex;
 use strum::FromRepr;
 
@@ -11,9 +13,9 @@ pub type ComplexI8 = Complex<i8>;
 pub enum Format {
     // TODO: See if we can pull in the bladerf docs wholesale
     #[doc = "[`bladerf_format_BLADERF_FORMAT_SC16_Q11`]"]
-    Sc16Q11 = bladerf_format_BLADERF_FORMAT_SC16_Q11,
+    Sc16Q11 = bladerf_format_BLADERF_FORMAT_SC16_Q11 as u32,
     #[doc = "[`bladerf_format_BLADERF_FORMAT_SC8_Q7`]"]
-    Sc8Q7 = bladerf_format_BLADERF_FORMAT_SC8_Q7,
+    Sc8Q7 = bladerf_format_BLADERF_FORMAT_SC8_Q7 as u32,
     // TODO: implement meta parsing
     // #[doc = "[`bladerf_format_BLADERF_FORMAT_SC16_Q11_META`]"]
     // Sc16Q11Meta = bladerf_format_BLADERF_FORMAT_SC16_Q11_META,
@@ -27,7 +29,8 @@ impl TryFrom<bladerf_format> for Format {
     type Error = Error;
 
     fn try_from(format: bladerf_format) -> Result<Self> {
-        Self::from_repr(format).ok_or_else(|| format!("Invalid bladerf format: {format}").into())
+        Self::from_repr(format as u32)
+            .ok_or_else(|| format!("Invalid bladerf format: {format}").into())
     }
 }
 

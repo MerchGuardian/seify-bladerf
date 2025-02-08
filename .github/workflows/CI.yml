@@ -4,9 +4,11 @@ on:
     branches:
     - master
   pull_request:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+
 jobs:
   fmt:
     runs-on: ubuntu-latest
@@ -19,6 +21,7 @@ jobs:
           components: rustfmt
       - name: cargo fmt --check
         run: cargo fmt --check
+
   clippy:
     runs-on: ubuntu-latest
     name: ${{ matrix.toolchain }} / clippy
@@ -42,6 +45,7 @@ jobs:
         with:
           reporter: 'github-pr-check'
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
   build-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -52,6 +56,7 @@ jobs:
         nix_path: nixpkgs=channel:nixos-unstable
     - name: cargo fmt --check
       run: "nix develop --command bash -c 'cargo build && cargo doc --no-deps'"
+
   build-macos:
     runs-on: macos-latest
     timeout-minutes: 10
@@ -62,3 +67,25 @@ jobs:
         nix_path: nixpkgs=channel:nixos-unstable
     - name: cargo fmt --check
       run: "nix develop --command bash -c 'cargo build'"
+
+  build-windows:
+    env:
+      BLADERF_INCLUDE_PATH: "C:/Program Files/bladeRF/include"
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+  
+    - name: Install rustup
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Download and install libladerf
+      # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
+      run: |
+        Invoke-WebRequest https://github.com/Nuand/bladeRF/releases/download/2024.05/bladeRF-win-installer-2024.05.exe -OutFile libbladerf_install.exe
+        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES
+
+    - name: build 
+      run: cargo build

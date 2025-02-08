@@ -1,3 +1,4 @@
+use crate::expansion_boards::Xb200;
 use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use marker::PhantomData;
@@ -145,6 +146,24 @@ impl BladeRf1 {
             layout: ChannelLayoutRx::SISO(RxChannel::Rx0),
             _format: PhantomData,
         })
+    }
+
+    fn expansion_attach(&self, module: ExpansionModule) -> Result<()> {
+        let res = unsafe { bladerf_expansion_attach(self.device, module as bladerf_xb) };
+        check_res!(res);
+        Ok(())
+    }
+
+    pub fn get_attached_expansion(&self) -> Result<ExpansionModule> {
+        let mut module = bladerf_xb_BLADERF_XB_NONE;
+        let res = unsafe { bladerf_expansion_get_attached(self.device, &mut module) };
+        check_res!(res);
+        ExpansionModule::try_from(module)
+    }
+
+    pub fn get_xb200(&self) -> Result<Xb200> {
+        self.expansion_attach(ExpansionModule::Xb200)?;
+        Ok(Xb200 { device: self })
     }
 }
 
