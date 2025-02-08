@@ -22,6 +22,8 @@ pub use bladerf2::*;
 mod stream;
 pub use stream::*;
 
+pub mod expansion_boards;
+
 pub use libbladerf_sys as sys;
 use sys::*;
 
