@@ -1,4 +1,4 @@
-use crate::{sys::*, BladeRF, Result};
+use crate::{sys::*, BladeRfAny, Result};
 use bytemuck::cast_slice;
 
 use super::Backend;
@@ -31,8 +31,8 @@ impl DevInfo {
         String::from_utf8_lossy(cast_slice(&self.0.product)).to_string()
     }
 
-    pub fn open(&self) -> Result<BladeRF> {
-        BladeRF::open_with_devinfo(self)
+    pub fn open(&self) -> Result<BladeRfAny> {
+        BladeRfAny::open_with_devinfo(self)
     }
 }
 

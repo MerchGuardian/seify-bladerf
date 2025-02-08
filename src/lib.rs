@@ -4,6 +4,9 @@
 #![allow(non_upper_case_globals)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+#[cfg(not(target_endian = "little"))]
+compile_error!("This library only supports little endian architecture");
+
 mod error;
 
 pub use error::{Error, Result};
@@ -12,6 +15,12 @@ pub use types::*;
 #[macro_use]
 mod bladerf;
 pub use bladerf::*;
+mod bladerf1;
+pub use bladerf1::*;
+mod bladerf2;
+pub use bladerf2::*;
+mod stream;
+pub use stream::*;
 
 pub use libbladerf_sys as sys;
 use sys::*;
@@ -42,7 +51,7 @@ pub fn set_usb_reset_on_open(enabled: bool) {
 pub fn get_device_list() -> Result<Vec<DevInfo>> {
     let mut devices: *mut bladerf_devinfo = std::ptr::null_mut();
 
-    let n = unsafe { bladerf_get_device_list(&mut devices as *mut *mut _) } as isize;
+    let n = unsafe { bladerf_get_device_list(&mut devices) } as isize;
     check_res!(n);
 
     assert!(!devices.is_null());
