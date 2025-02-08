@@ -1,13 +1,11 @@
 use anyhow::{Context, Ok};
-use bladerf::{BladeRF, BladeRfAny, Channel, SyncConfig};
-use log::info;
+use bladerf::{BladeRF, BladeRfAny, ChannelLayoutRx, RxChannel, SyncConfig};
 use num_complex::Complex;
 use seify::RxStreamer;
 use std::{
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
-    time::Duration,
 };
 
 use clap::{Parser, ValueEnum};
@@ -18,7 +16,6 @@ enum CliChannel {
     Ch1,
 }
 
-/// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -34,8 +31,8 @@ struct Args {
     #[arg(short, long)]
     samplerate: u32,
 
-    #[arg(short, long)]
-    channel: Option<CliChannel>,
+    #[arg(short, long, default_value = "CliChannel::Ch0")]
+    channel: CliChannel,
 
     #[arg(long)]
     duration: Option<f32>,
@@ -74,17 +71,12 @@ fn main() -> anyhow::Result<()> {
         BladeRfAny::open_first()?
     };
 
-    let channel = args
-        .channel
-        .map(|c| match c {
-            CliChannel::Ch0 => Channel::Rx0,
-            CliChannel::Ch1 => Channel::Rx1,
-        })
-        .unwrap_or(Channel::Rx0);
+    let channel = match args.channel {
+        CliChannel::Ch0 => RxChannel::Rx0,
+        CliChannel::Ch1 => RxChannel::Rx1,
+    };
 
-    println!("Hi");
-
-    dev.set_frequency(channel, args.frequency)
+    dev.set_frequency(channel.into(), args.frequency)
         .with_context(|| {
             format!(
                 "Unable to set frequency ({}) on the given channel ({:?}).",
@@ -92,7 +84,7 @@ fn main() -> anyhow::Result<()> {
             )
         })?;
 
-    dev.set_sample_rate(channel, args.samplerate)
+    dev.set_sample_rate(channel.into(), args.samplerate)
         .with_context(|| {
             format!(
                 "Unable to set sample rate ({}) on the given channel ({:?}).",
@@ -100,11 +92,9 @@ fn main() -> anyhow::Result<()> {
             )
         })?;
 
-    println!("Hi2");
-
     let config = SyncConfig::new(16, 8192, 8, 3500)?;
 
-    let reciever = dev.rx_streamer::<Complex<i16>>(&config, false)?;
+    let reciever = dev.rx_streamer::<Complex<i16>>(&config, ChannelLayoutRx::SISO(channel))?;
 
     let mut file = File::create(args.outfile)?;
 
@@ -117,15 +107,6 @@ fn main() -> anyhow::Result<()> {
     };
 
     rx_seify(reciever, buffer_read_count_limit, &mut file_buf);
-    // println!("Hi3 {buffer_read_count_limit}");
-
-    // reciever.enable(channel)?;
-
-    // println!("Hi4");
-
-    // let tmp_vec = Vec::with_capacity(8192);
-
-    println!("Fin");
 
     Ok(())
 }

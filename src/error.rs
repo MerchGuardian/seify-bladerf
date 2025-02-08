@@ -90,3 +90,30 @@ impl Error {
         }
     }
 }
+
+#[cfg(feature = "seify")]
+impl From<Error> for seify::Error {
+    fn from(err: Error) -> Self {
+        match err {
+            Error::Range => todo!(),
+            Error::IO => seify::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("libbladerf reported: {err}"),
+            )),
+            Error::Timeout => todo!(),
+            Error::Nodev => seify::Error::DeviceError,
+            Error::Unsupported => seify::Error::NotSupported,
+            Error::NoFile => seify::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("libbladerf reported: {err}"),
+            )),
+            Error::QueueFull => seify::Error::Overflow,
+            Error::Permission => seify::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                format!("libbladerf reported: {err}"),
+            )),
+            Error::NotInit => seify::Error::FeatureNotEnabled,
+            _ => seify::Error::Misc(format!("libbladerf reported: {err}")),
+        }
+    }
+}
