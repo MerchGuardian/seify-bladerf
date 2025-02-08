@@ -94,8 +94,13 @@ fn rx(
     let mut sample_buffer = Vec::new();
     let mut bits = Vec::new();
 
-    let config = SyncConfig::new(c.num_buffers, c.buffer_size, c.num_transfers, 3500)
-        .with_context(|| "Cannot Create Sync Config")?;
+    let config = SyncConfig::new(
+        c.num_buffers,
+        c.buffer_size,
+        c.num_transfers,
+        Duration::from_secs(3),
+    )
+    .with_context(|| "Cannot Create Sync Config")?;
     let layout = ChannelLayoutRx::SISO(RxChannel::Rx0);
 
     let rx = device
@@ -233,8 +238,13 @@ fn tx(
     let mut sample_count = 0;
     let mut bytes = 0;
 
-    let config =
-        SyncConfig::new(16, c.buffer_size, 8, 3500).with_context(|| "Cannot Create Sync Config")?;
+    let config = SyncConfig::new(
+        c.num_buffers,
+        c.buffer_size,
+        c.num_transfers,
+        Duration::from_secs(3),
+    )
+    .with_context(|| "Cannot Create Sync Config")?;
     let layout = ChannelLayoutTx::SISO(TxChannel::Tx0);
 
     let tx = device
