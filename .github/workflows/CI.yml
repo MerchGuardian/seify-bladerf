@@ -86,9 +86,10 @@ jobs:
       run: |
         Invoke-WebRequest https://github.com/Nuand/bladeRF/releases/download/2024.05/bladeRF-win-installer-2024.05.exe -OutFile libbladerf_install.exe
         .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="D:\a\seify-bladerf\bladerf-install.log" /DIR="D:\a\seify-bladerf\bladeRF" /SAVEINF="D:\a\seify-bladerf\bladerf-install.inf"
-        ls D:\a\seify-bladerf\bladeRF
+        ls D:\a\seify-bladerf
+        cargo build
         type D:\a\seify-bladerf\bladerf-install.log
         type D:\a\seify-bladerf\bladerf-install.inf
 
-    - name: build 
-      run: cargo build
+    # - name: build 
+      # run: cargo build
