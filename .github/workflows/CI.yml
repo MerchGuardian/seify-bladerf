@@ -85,8 +85,10 @@ jobs:
       # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
       run: |
         Invoke-WebRequest https://github.com/Nuand/bladeRF/releases/download/2024.05/bladeRF-win-installer-2024.05.exe -OutFile libbladerf_install.exe
-        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /LOG="D:\a\seify-bladerf\bladerf-install.log"
-        cat D:\a\seify-bladerf\bladerf-install.log
+        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="D:\a\seify-bladerf\bladerf-install.log" /DIR="D:\a\seify-bladerf\bladeRF" /SAVEINF="D:\a\seify-bladerf\bladerf-install.inf"
+        ls D:\a\seify-bladerf\bladeRF
+        type D:\a\seify-bladerf\bladerf-install.log
+        type D:\a\seify-bladerf\bladerf-install.inf
 
     - name: build 
       run: cargo build
