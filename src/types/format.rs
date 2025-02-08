@@ -1,6 +1,7 @@
 // Allow clippy::unnecessary_cast since the cast is needed for when bindgen runs on windows. The enum variants get cast to i32 on windows.
 #![allow(clippy::unnecessary_cast)]
-use num_complex::Complex;
+use num_complex::{Complex, Complex32};
+use num_traits::Zero;
 use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
@@ -42,7 +43,7 @@ impl TryFrom<bladerf_format> for Format {
 /// Currently this is only implemented for:
 /// - `Format::Sc16Q11` => `Complex<i16>`
 /// - `Format::Sc8Q7` => `Complex<i8>`
-pub unsafe trait SampleFormat: Sized {
+pub unsafe trait SampleFormat: Sized + Zero + Copy + Send {
     const FORMAT: Format;
 
     /// Returns true if this data type is commutable with the given format enum
@@ -75,4 +76,12 @@ unsafe impl SampleFormat for ComplexI8 {
     fn is_compatible(format: Format) -> bool {
         matches!(format, Format::Sc8Q7)
     }
+}
+
+const SCALE: f32 = 4096.0; //(2^12)
+
+pub(crate) fn brf_ci16_to_cf32(ci16: Complex<i16>) -> Complex32 {
+    let re: f32 = ci16.re.into();
+    let im: f32 = ci16.im.into();
+    Complex::new(re / SCALE, im / SCALE)
 }
