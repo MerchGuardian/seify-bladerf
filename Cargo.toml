@@ -36,4 +36,11 @@ ctrlc = "3.4.5"
 indicatif = "0.17.11"
 once_cell = "1.20"
 pretty_env_logger = "0.5.0"
+serial_test = "3.2.0"
 tempfile = "3.13"
+
+[features]
+hwtest_any = []
+hwtest_brf1 = ["hwtest_any"]
+hwtest_brf2 = ["hwtest_any"]
+hwtest_xb200 = []

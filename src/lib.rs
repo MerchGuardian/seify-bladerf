@@ -22,6 +22,8 @@ pub use bladerf2::*;
 mod stream;
 pub use stream::*;
 
+pub mod expansion_boards;
+
 pub use libbladerf_sys as sys;
 use sys::*;
 
@@ -40,7 +42,7 @@ pub fn version() -> Result<Version> {
 }
 
 pub fn set_log_level(level: LogLevel) {
-    unsafe { bladerf_log_set_verbosity(level as u32) }
+    unsafe { bladerf_log_set_verbosity(level as bladerf_log_level) }
 }
 
 pub fn set_usb_reset_on_open(enabled: bool) {
