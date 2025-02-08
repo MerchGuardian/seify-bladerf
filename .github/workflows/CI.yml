@@ -70,7 +70,7 @@ jobs:
 
   build-windows:
     env:
-      BLADERF_INCLUDE_PATH: "D:/a/seify-bladerf/bladeRF/host/libraries/libbladeRF/include"
+      BLADERF_INCLUDE_PATH: "D:/a/seify-bladerf/seify-bladerf/bladeRF/host/libraries/libbladeRF/include"
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
@@ -102,4 +102,6 @@ jobs:
     #     cargo build
 
     - name: build 
-      run: cargo build
+      run: |
+        cd main
+        cargo build
