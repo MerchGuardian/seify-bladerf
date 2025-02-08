@@ -19,16 +19,20 @@ pub struct SyncConfig {
     pub(crate) num_buffers: u32,
     pub(crate) buffer_size: u32,
     pub(crate) num_transfers: u32,
-    pub(crate) stream_timeout: u32,
+    pub(crate) stream_timeout: Duration,
 }
 
 impl SyncConfig {
     pub fn new(
         num_buffers: u32,
-        buffer_size: u32,
+        buffer_size: usize,
         num_transfers: u32,
-        stream_timeout: u32,
+        stream_timeout: Duration,
     ) -> Result<Self> {
+        let buffer_size: u32 = buffer_size
+            .try_into()
+            .map_err(|e| Error::msg(format!("Buffer size too big: {e:?}")))?;
+
         if buffer_size % 1024 != 0 {
             Err(Error::msg("Buffer size must be a multiple of 1024"))
         } else if num_buffers <= num_transfers {
@@ -53,7 +57,7 @@ impl Default for SyncConfig {
             num_buffers: 16,
             buffer_size: 8192,
             num_transfers: 8,
-            stream_timeout: 3500,
+            stream_timeout: Duration::from_secs_f64(3.5),
         }
     }
 }

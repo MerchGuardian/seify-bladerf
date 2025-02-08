@@ -336,7 +336,12 @@ pub trait BladeRF: Sized + Drop {
                 config.num_buffers,
                 config.buffer_size,
                 config.num_transfers,
-                config.stream_timeout,
+                config.stream_timeout.as_millis().try_into().map_err(|_| {
+                    Error::msg(format!(
+                        "Stream timeout to large for u32 millis: {}",
+                        config.stream_timeout.as_millis()
+                    ))
+                })?,
             )
         };
         check_res!(res);
