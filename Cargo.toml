@@ -4,6 +4,7 @@ repository = "https://github.com/MerchGuardian/seify-bladerf"
 authors = [
     "Troy Neubauer <troy@foxhunter.ai>",
     "Ryan Kurte <ryankurte@gmail.com>",
+    "Erik Fong <quantumerikfong@gmail.com>",
 ]
 description = "WIP Rust wrapper for libbladerf"
 readme = "README.md"
