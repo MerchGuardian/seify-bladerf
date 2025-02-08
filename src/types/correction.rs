@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use num::{traits::SaturatingAdd, One};
+use num::traits::SaturatingAdd;
 use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
@@ -32,6 +32,7 @@ pub trait CorrectionValue: Sized {
     }
 
     fn value(&self) -> i16;
+
     /// # Safety
     /// Make sure the value is within the range for the given correction
     unsafe fn new_unchecked(val: i16) -> Self;
@@ -230,13 +231,51 @@ impl TryFrom<bladerf_correction> for Correction {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn corrections_add_saturating() {
-        todo!()
+        let correction_a = CorrectionDcOffsetI::new(CorrectionDcOffsetI::MAX - 8).unwrap();
+        let correction_b = CorrectionDcOffsetI::new(50).unwrap();
+        let new_correction = correction_a.saturating_add(&correction_b);
+        assert_eq!(new_correction.value(), CorrectionDcOffsetI::MAX);
+
+        let correction_a = CorrectionDcOffsetQ::new(CorrectionDcOffsetQ::MAX - 8).unwrap();
+        let correction_b = CorrectionDcOffsetQ::new(50).unwrap();
+        let new_correction = correction_a.saturating_add(&correction_b);
+        assert_eq!(new_correction.value(), CorrectionDcOffsetQ::MAX);
+
+        let correction_a = CorrectionGain::new(CorrectionGain::MAX - 8).unwrap();
+        let correction_b = CorrectionGain::new(50).unwrap();
+        let new_correction = correction_a.saturating_add(&correction_b);
+        assert_eq!(new_correction.value(), CorrectionGain::MAX);
+
+        let correction_a = CorrectionPhase::new(CorrectionPhase::MAX - 8).unwrap();
+        let correction_b = CorrectionPhase::new(50).unwrap();
+        let new_correction = correction_a.saturating_add(&correction_b);
+        assert_eq!(new_correction.value(), CorrectionPhase::MAX);
     }
 
     #[test]
     fn corrections_add_wrapping() {
-        todo!()
+        let correction_a = CorrectionDcOffsetI::new(CorrectionDcOffsetI::MAX - 8).unwrap();
+        let correction_b = CorrectionDcOffsetI::new(50).unwrap();
+        let new_correction = correction_a + correction_b;
+        assert_eq!(new_correction.value(), CorrectionDcOffsetI::MIN + 50 - 8);
+
+        let correction_a = CorrectionDcOffsetQ::new(CorrectionDcOffsetQ::MAX - 8).unwrap();
+        let correction_b = CorrectionDcOffsetQ::new(50).unwrap();
+        let new_correction = correction_a + correction_b;
+        assert_eq!(new_correction.value(), CorrectionDcOffsetQ::MIN + 50 - 8);
+
+        let correction_a = CorrectionGain::new(CorrectionGain::MAX - 6).unwrap();
+        let correction_b = CorrectionGain::new(50).unwrap();
+        let new_correction = correction_a + correction_b;
+        assert_eq!(new_correction.value(), CorrectionGain::MIN + 50 - 6);
+
+        let correction_a = CorrectionPhase::new(CorrectionPhase::MAX - 6).unwrap();
+        let correction_b = CorrectionPhase::new(50).unwrap();
+        let new_correction = correction_a + correction_b;
+        assert_eq!(new_correction.value(), CorrectionPhase::MIN + 50 - 6);
     }
 }
