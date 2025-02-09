@@ -19,7 +19,7 @@ pub struct SyncConfig {
     pub(crate) num_buffers: u32,
     pub(crate) buffer_size: u32,
     pub(crate) num_transfers: u32,
-    pub(crate) stream_timeout: Duration,
+    pub(crate) stream_timeout: u32,
 }
 
 impl SyncConfig {
@@ -44,7 +44,12 @@ impl SyncConfig {
                 num_buffers,
                 buffer_size,
                 num_transfers,
-                stream_timeout,
+                stream_timeout: stream_timeout.as_millis().try_into().map_err(|_| {
+                    Error::msg(format!(
+                        "Stream timeout to large for u32 millis: {}",
+                        stream_timeout.as_millis()
+                    ))
+                })?,
             })
         }
     }
@@ -57,7 +62,7 @@ impl Default for SyncConfig {
             num_buffers: 16,
             buffer_size: 8192,
             num_transfers: 8,
-            stream_timeout: Duration::from_secs_f64(3.5),
+            stream_timeout: 3500,
         }
     }
 }
