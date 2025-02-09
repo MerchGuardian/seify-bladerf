@@ -29,6 +29,13 @@ impl SyncConfig {
         num_transfers: u32,
         stream_timeout: Duration,
     ) -> Result<Self> {
+        let stream_timeout = stream_timeout.as_millis().try_into().map_err(|_| {
+            Error::msg(format!(
+                "Stream timeout to large for u32 millis: {}",
+                stream_timeout.as_millis()
+            ))
+        })?;
+
         let buffer_size: u32 = buffer_size
             .try_into()
             .map_err(|e| Error::msg(format!("Buffer size too big: {e:?}")))?;
@@ -44,12 +51,7 @@ impl SyncConfig {
                 num_buffers,
                 buffer_size,
                 num_transfers,
-                stream_timeout: stream_timeout.as_millis().try_into().map_err(|_| {
-                    Error::msg(format!(
-                        "Stream timeout to large for u32 millis: {}",
-                        stream_timeout.as_millis()
-                    ))
-                })?,
+                stream_timeout,
             })
         }
     }
