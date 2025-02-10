@@ -20,6 +20,11 @@ pub fn main() -> anyhow::Result<()> {
 
         let dev = d.open().context("Failed to open device")?;
 
+        let speed = dev
+            .get_device_speed()
+            .context("Failed to get device speed")?;
+        println!("Speed: {speed:?}");
+
         dev.load_fpga_from_env()
             .context("Failed to load FPGA bitstream")?;
 
@@ -48,12 +53,12 @@ pub fn main() -> anyhow::Result<()> {
 
 fn print_device_info(dev: &BladeRfAny) -> anyhow::Result<()> {
     let fw_version = dev
-        .firmware_version()
+        .get_firmware_version()
         .context("Failed to retrieve firmware version")?;
     println!("  Firmware Version: {fw_version}");
 
     let fpga_version = dev
-        .fpga_version()
+        .get_fpga_version()
         .context("Failed to retrieve FPGA version")?;
     println!("  FPGA Version: {fpga_version}");
 

@@ -42,7 +42,7 @@ pub fn main() -> anyhow::Result<()> {
         };
 
         if let Ok(current) = dev
-            .firmware_version()
+            .get_firmware_version()
             .map_err(|e| println!("Failed to obtain firmware version: {e:?}"))
         {
             if current == desired_firmware_version {
@@ -80,7 +80,7 @@ pub fn main() -> anyhow::Result<()> {
                         continue;
                     };
                     let Ok(new_version) = dev
-                        .firmware_version()
+                        .get_firmware_version()
                         .map_err(|e| println!("Failed to read firmware version: {e:?}"))
                     else {
                         continue;
