@@ -163,7 +163,7 @@ pub trait BladeRF: Sized + Drop {
         Ok(serial_str.to_string())
     }
 
-    fn device_speed(&self) -> Result<DeviceSpeed> {
+    fn get_device_speed(&self) -> Result<DeviceSpeed> {
         let speed = unsafe { bladerf_device_speed(self.get_device_ptr()) };
         speed.try_into()
     }
@@ -175,7 +175,7 @@ pub trait BladeRF: Sized + Drop {
         fpga_size.try_into()
     }
 
-    fn firmware_version(&self) -> Result<Version> {
+    fn get_firmware_version(&self) -> Result<Version> {
         let mut version = bladerf_version {
             major: 0,
             minor: 0,
@@ -201,7 +201,7 @@ pub trait BladeRF: Sized + Drop {
         }
     }
 
-    fn fpga_version(&self) -> Result<Version> {
+    fn get_fpga_version(&self) -> Result<Version> {
         let mut version = bladerf_version {
             major: 0,
             minor: 0,
