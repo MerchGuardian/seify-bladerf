@@ -163,6 +163,11 @@ pub trait BladeRF: Sized + Drop {
         Ok(serial_str.to_string())
     }
 
+    fn device_speed(&self) -> Result<DeviceSpeed> {
+        let speed = unsafe { bladerf_device_speed(self.get_device_ptr()) };
+        speed.try_into()
+    }
+
     fn get_fpga_size(&self) -> Result<FpgaSize> {
         let mut fpga_size: bladerf_fpga_size = bladerf_fpga_size_BLADERF_FPGA_UNKNOWN;
         let res = unsafe { bladerf_get_fpga_size(self.get_device_ptr(), &mut fpga_size) };
