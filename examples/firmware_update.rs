@@ -42,7 +42,7 @@ pub fn main() -> anyhow::Result<()> {
         };
 
         if let Ok(current) = dev
-            .firmware_version()
+            .get_firmware_version()
             .map_err(|e| println!("Failed to obtain firmware version: {e:?}"))
         {
             if current == desired_firmware_version {
@@ -76,11 +76,11 @@ pub fn main() -> anyhow::Result<()> {
                 let start = Instant::now();
                 // Try to reconnect and verify firmware version for up to 5 seconds
                 while start.elapsed().as_secs() < 5 {
-                    let Ok(dev) = BladeRF::open_with_devinfo(&info) else {
+                    let Ok(dev) = BladeRfAny::open_with_devinfo(&info) else {
                         continue;
                     };
                     let Ok(new_version) = dev
-                        .firmware_version()
+                        .get_firmware_version()
                         .map_err(|e| println!("Failed to read firmware version: {e:?}"))
                     else {
                         continue;

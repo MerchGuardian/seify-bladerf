@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use num::{traits::SaturatingAdd, One};
+use num::traits::SaturatingAdd;
 use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
@@ -17,11 +17,22 @@ use crate::{sys::*, Error, Result};
 /// | DcOffsetQ | Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits. |
 /// | Phase | Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096]. |
 /// | Gain | Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096]. |
-
 pub trait CorrectionValue: Sized {
     const TYPE: Correction;
-    fn new(value: i16) -> Option<Self>;
+
+    const MAX: i16;
+    const MIN: i16;
+
+    fn new(value: i16) -> Option<Self> {
+        if (Self::MIN..=Self::MAX).contains(&value) {
+            Some(unsafe { Self::new_unchecked(value) })
+        } else {
+            None
+        }
+    }
+
     fn value(&self) -> i16;
+
     /// # Safety
     /// Make sure the value is within the range for the given correction
     unsafe fn new_unchecked(val: i16) -> Self;
@@ -30,33 +41,14 @@ pub trait CorrectionValue: Sized {
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionDcOffsetI(pub i16);
 
-// Implement constructors with validation for each struct
-impl CorrectionDcOffsetI {
-    const MAX: i16 = 2048;
-    const MIN: i16 = -2048;
-
-    pub fn new(value: i16) -> Option<Self> {
-        if (Self::MIN..=Self::MAX).contains(&value) {
-            Some(Self(value))
-        } else {
-            None
-        }
-    }
-
-    pub fn into_inner(self) -> i16 {
-        self.0
-    }
-}
-
 impl CorrectionValue for CorrectionDcOffsetI {
     const TYPE: Correction = Correction::DcOffsetI;
 
-    fn new(value: i16) -> Option<Self> {
-        Self::new(value)
-    }
+    const MAX: i16 = 2048;
+    const MIN: i16 = -2048;
 
     fn value(&self) -> i16 {
-        self.into_inner()
+        self.0
     }
 
     unsafe fn new_unchecked(value: i16) -> Self {
@@ -92,32 +84,14 @@ impl SaturatingAdd for CorrectionDcOffsetI {
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionDcOffsetQ(pub i16);
 
-impl CorrectionDcOffsetQ {
-    const MAX: i16 = 2048;
-    const MIN: i16 = -2048;
-
-    pub fn new(value: i16) -> Option<Self> {
-        if (Self::MIN..=Self::MAX).contains(&value) {
-            Some(Self(value))
-        } else {
-            None
-        }
-    }
-
-    pub fn into_inner(self) -> i16 {
-        self.0
-    }
-}
-
 impl CorrectionValue for CorrectionDcOffsetQ {
     const TYPE: Correction = Correction::DcOffsetQ;
 
-    fn new(value: i16) -> Option<Self> {
-        Self::new(value)
-    }
+    const MAX: i16 = 2048;
+    const MIN: i16 = -2048;
 
     fn value(&self) -> i16 {
-        self.into_inner()
+        self.0
     }
 
     unsafe fn new_unchecked(value: i16) -> Self {
@@ -153,32 +127,14 @@ impl SaturatingAdd for CorrectionDcOffsetQ {
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionPhase(pub i16);
 
-impl CorrectionPhase {
-    const MAX: i16 = 4096;
-    const MIN: i16 = -4096;
-
-    pub fn new(value: i16) -> Option<Self> {
-        if (Self::MIN..=Self::MAX).contains(&value) {
-            Some(Self(value))
-        } else {
-            None
-        }
-    }
-
-    pub fn into_inner(self) -> i16 {
-        self.0
-    }
-}
-
 impl CorrectionValue for CorrectionPhase {
     const TYPE: Correction = Correction::Phase;
 
-    fn new(value: i16) -> Option<Self> {
-        Self::new(value)
-    }
+    const MAX: i16 = 4096;
+    const MIN: i16 = -4096;
 
     fn value(&self) -> i16 {
-        self.into_inner()
+        self.0
     }
 
     unsafe fn new_unchecked(value: i16) -> Self {
@@ -214,32 +170,14 @@ impl SaturatingAdd for CorrectionPhase {
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionGain(pub i16);
 
-impl CorrectionGain {
-    const MAX: i16 = 4096;
-    const MIN: i16 = -4096;
-
-    pub fn new(value: i16) -> Option<Self> {
-        if (Self::MIN..=Self::MAX).contains(&value) {
-            Some(Self(value))
-        } else {
-            None
-        }
-    }
-
-    pub fn into_inner(self) -> i16 {
-        self.0
-    }
-}
-
 impl CorrectionValue for CorrectionGain {
     const TYPE: Correction = Correction::Gain;
 
-    fn new(value: i16) -> Option<Self> {
-        Self::new(value)
-    }
+    const MAX: i16 = 4096;
+    const MIN: i16 = -4096;
 
     fn value(&self) -> i16 {
-        self.into_inner()
+        self.0
     }
 
     unsafe fn new_unchecked(value: i16) -> Self {
@@ -293,13 +231,51 @@ impl TryFrom<bladerf_correction> for Correction {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn corrections_add_saturating() {
-        todo!()
+        let correction_a = CorrectionDcOffsetI::new(CorrectionDcOffsetI::MAX - 8).unwrap();
+        let correction_b = CorrectionDcOffsetI::new(50).unwrap();
+        let new_correction = correction_a.saturating_add(&correction_b);
+        assert_eq!(new_correction.value(), CorrectionDcOffsetI::MAX);
+
+        let correction_a = CorrectionDcOffsetQ::new(CorrectionDcOffsetQ::MAX - 8).unwrap();
+        let correction_b = CorrectionDcOffsetQ::new(50).unwrap();
+        let new_correction = correction_a.saturating_add(&correction_b);
+        assert_eq!(new_correction.value(), CorrectionDcOffsetQ::MAX);
+
+        let correction_a = CorrectionGain::new(CorrectionGain::MAX - 8).unwrap();
+        let correction_b = CorrectionGain::new(50).unwrap();
+        let new_correction = correction_a.saturating_add(&correction_b);
+        assert_eq!(new_correction.value(), CorrectionGain::MAX);
+
+        let correction_a = CorrectionPhase::new(CorrectionPhase::MAX - 8).unwrap();
+        let correction_b = CorrectionPhase::new(50).unwrap();
+        let new_correction = correction_a.saturating_add(&correction_b);
+        assert_eq!(new_correction.value(), CorrectionPhase::MAX);
     }
 
     #[test]
     fn corrections_add_wrapping() {
-        todo!()
+        let correction_a = CorrectionDcOffsetI::new(CorrectionDcOffsetI::MAX - 8).unwrap();
+        let correction_b = CorrectionDcOffsetI::new(50).unwrap();
+        let new_correction = correction_a + correction_b;
+        assert_eq!(new_correction.value(), CorrectionDcOffsetI::MIN + 50 - 8);
+
+        let correction_a = CorrectionDcOffsetQ::new(CorrectionDcOffsetQ::MAX - 8).unwrap();
+        let correction_b = CorrectionDcOffsetQ::new(50).unwrap();
+        let new_correction = correction_a + correction_b;
+        assert_eq!(new_correction.value(), CorrectionDcOffsetQ::MIN + 50 - 8);
+
+        let correction_a = CorrectionGain::new(CorrectionGain::MAX - 6).unwrap();
+        let correction_b = CorrectionGain::new(50).unwrap();
+        let new_correction = correction_a + correction_b;
+        assert_eq!(new_correction.value(), CorrectionGain::MIN + 50 - 6);
+
+        let correction_a = CorrectionPhase::new(CorrectionPhase::MAX - 6).unwrap();
+        let correction_b = CorrectionPhase::new(50).unwrap();
+        let new_correction = correction_a + correction_b;
+        assert_eq!(new_correction.value(), CorrectionPhase::MIN + 50 - 6);
     }
 }

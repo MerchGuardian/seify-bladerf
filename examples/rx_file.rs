@@ -18,7 +18,7 @@ enum CliChannel {
     Ch1,
 }
 
-const SAMPLES_PER_BLOCK: u32 = 8192;
+const SAMPLES_PER_BLOCK: usize = 8192;
 
 /// Simple program to receive samples from a bladeRF and write them to a file.
 ///
@@ -105,7 +105,7 @@ fn main() -> anyhow::Result<()> {
 
     log::debug!("Sample rate set to {}", args.samplerate);
 
-    let config = SyncConfig::new(16, SAMPLES_PER_BLOCK, 8, 3500)
+    let config = SyncConfig::new(16, SAMPLES_PER_BLOCK, 8, Duration::from_secs(3))
         .with_context(|| "Cannot Create Sync Config")?;
     let layout = ChannelLayoutRx::SISO(channel);
     let reciever = dev
@@ -114,7 +114,7 @@ fn main() -> anyhow::Result<()> {
 
     let file = File::create(args.outfile).with_context(|| "Cannot Open Output File")?;
     let mut file_buf = BufWriter::new(file);
-    let mut buffer = [Complex::new(0_i16, 0); SAMPLES_PER_BLOCK as usize];
+    let mut buffer = [Complex::new(0_i16, 0); SAMPLES_PER_BLOCK];
 
     log::debug!("Opened file for writing");
 

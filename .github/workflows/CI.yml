@@ -46,7 +46,7 @@ jobs:
           reporter: 'github-pr-check'
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-linux:
+  build-and-test-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,7 +55,7 @@ jobs:
       with:
         nix_path: nixpkgs=channel:nixos-unstable
     - name: cargo fmt --check
-      run: "nix develop --command bash -c 'cargo build && cargo doc --no-deps'"
+      run: "nix develop --command bash -c 'cargo b --all && cargo t && cargo doc --no-deps'"
 
   build-macos:
     runs-on: macos-latest
@@ -70,22 +70,26 @@ jobs:
 
   build-windows:
     env:
-      BLADERF_INCLUDE_PATH: "C:/Program Files/bladeRF/include"
+      BLADERF_INCLUDE_PATH: "D:/a/seify-bladerf/seify-bladerf/bladeRF/host/libraries/libbladeRF/include"
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
+      with:
+        path: main
+
+    - uses: actions/checkout@v4
+      with:
+        repository: Nuand/bladeRF
+        ref: libbladeRF_v2.5.0
+        path: bladeRF
   
     - name: Install rustup
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
 
-    - name: Download and install libladerf
-      # https://jrsoftware.org/ishelp/index.php?topic=setupcmdline
-      run: |
-        Invoke-WebRequest https://github.com/Nuand/bladeRF/releases/download/2024.05/bladeRF-win-installer-2024.05.exe -OutFile libbladerf_install.exe
-        .\libbladerf_install.exe /SP /SILENT /SUPPRESSMSGBOXES
-
     - name: build 
-      run: cargo build
+      run: |
+        cd main
+        cargo build
