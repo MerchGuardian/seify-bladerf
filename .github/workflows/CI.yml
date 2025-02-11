@@ -46,7 +46,7 @@ jobs:
           reporter: 'github-pr-check'
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-linux:
+  build-and-test-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,7 +55,7 @@ jobs:
       with:
         nix_path: nixpkgs=channel:nixos-unstable
     - name: cargo fmt --check
-      run: "nix develop --command bash -c 'cargo build && cargo doc --no-deps'"
+      run: "nix develop --command bash -c 'cargo b --all && cargo t && cargo doc --no-deps'"
 
   build-macos:
     runs-on: macos-latest

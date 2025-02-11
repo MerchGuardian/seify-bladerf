@@ -1,5 +1,6 @@
 // Allow clippy::unnecessary_cast since the cast is needed for when bindgen runs on windows. The enum variants get cast to i32 on windows.
 #![allow(clippy::unnecessary_cast)]
+use fixed::{types::extra::U11, FixedI16};
 use num_complex::{Complex, Complex32};
 use num_traits::Zero;
 use strum::FromRepr;
@@ -8,6 +9,12 @@ use crate::{sys::*, Error, Result};
 
 pub type ComplexI16 = Complex<i16>;
 pub type ComplexI8 = Complex<i8>;
+
+type FixedI11F = FixedI16<U11>;
+
+/// Complex fixed point type with 11 fractional bits to match the 12 bit samples.
+/// This way i16 values in the range [-2048, 2048) map to [-1.0, 1.0)
+pub type ComplexI12 = Complex<FixedI11F>;
 
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(u32)]
@@ -41,9 +48,10 @@ impl TryFrom<bladerf_format> for Format {
 /// `is_compatible` must only return true if it is valid to re-interpret bytes from the device as `Self`.
 ///
 /// Currently this is only implemented for:
-/// - `Format::Sc16Q11` => `Complex<i16>`
-/// - `Format::Sc8Q7` => `Complex<i8>`
-pub unsafe trait SampleFormat: Sized + Zero + Copy + Send {
+/// - `Format::Sc16Q11` => [ComplexI16]
+/// - `Format::Sc8Q7` => [ComplexI8]
+/// - `Format::Sc16Q11` => [ComplexI12]
+pub unsafe trait SampleFormat: Sized {
     const FORMAT: Format;
 
     /// Returns true if this data type is commutable with the given format enum
@@ -78,10 +86,39 @@ unsafe impl SampleFormat for ComplexI8 {
     }
 }
 
+unsafe impl SampleFormat for ComplexI12 {
+    const FORMAT: Format = Format::Sc16Q11;
+
+    fn is_compatible(format: Format) -> bool {
+        matches!(format, Format::Sc16Q11)
+    }
+}
+
 const SCALE: f32 = 4096.0; //(2^12)
 
 pub(crate) fn brf_ci16_to_cf32(ci16: Complex<i16>) -> Complex32 {
     let re: f32 = ci16.re.into();
     let im: f32 = ci16.im.into();
     Complex::new(re / SCALE, im / SCALE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sanity_check_fixed_i11() {
+        let neg_one = FixedI11F::from_num(-1);
+        let inner = neg_one.to_bits();
+        assert_eq!(inner, -2048);
+
+        assert_eq!(neg_one.to_num::<f32>(), -1.0_f32);
+
+        // This value would not actually be represented/output by the bladeRF.
+        let pos_one = FixedI11F::from_num(1);
+        let inner = pos_one.to_bits();
+        assert_eq!(inner, 2048);
+
+        assert_eq!(pos_one.to_num::<f32>(), 1.0_f32);
+    }
 }
