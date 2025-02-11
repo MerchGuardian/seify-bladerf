@@ -4,6 +4,7 @@ repository = "https://github.com/MerchGuardian/seify-bladerf"
 authors = [
     "Troy Neubauer <troy@foxhunter.ai>",
     "Ryan Kurte <ryankurte@gmail.com>",
+    "Erik Fong <quantumerikfong@gmail.com>",
 ]
 description = "WIP Rust wrapper for libbladerf"
 readme = "README.md"
@@ -17,12 +18,13 @@ members = ["libbladerf-sys"]
 [dependencies]
 bytemuck = "1.18.0"
 enum-map = "2.7.3"
+fixed = "1.28.0"
 libbladerf-sys = { version = "0.1.0", path = "./libbladerf-sys" }
 log = "0.4.22"
 num-complex = "0.4.6"
 parking_lot = "0.12.3"
 strum = { version = "0.26.3", features = ["derive", "strum_macros"] }
-thiserror = "1.0.64"
+thiserror = "2"
 num = "0.4.3"
 
 [dev-dependencies]

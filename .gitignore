@@ -16,3 +16,5 @@ Cargo.lock
 *.rbf
 
 log.txt
+
+**/.DS_Store
