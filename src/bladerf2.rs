@@ -55,7 +55,7 @@ impl BladeRf2 {
         &self,
         config: &SyncConfig,
         layout: ChannelLayoutRx,
-    ) -> Result<RxSyncStream<T, BladeRf2>> {
+    ) -> Result<RxSyncStream<&Self, T, BladeRf2>> {
         // TODO: Decide Ordering
         self.rx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -70,6 +70,7 @@ impl BladeRf2 {
         Ok(RxSyncStream {
             dev: self,
             layout,
+            _devtype: PhantomData,
             _format: PhantomData,
         })
     }
