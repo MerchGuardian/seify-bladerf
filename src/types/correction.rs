@@ -31,6 +31,24 @@ pub trait CorrectionValue: Sized {
         }
     }
 
+    fn new_saturating(value: i16) -> Self {
+        if value > Self::MAX {
+            unsafe { Self::new_unchecked(Self::MAX) }
+        } else if value < Self::MIN {
+            unsafe { Self::new_unchecked(Self::MIN) }
+        } else {
+            unsafe { Self::new_unchecked(value) }
+        }
+    }
+
+    fn max() -> Self {
+        unsafe { Self::new_unchecked(Self::MAX) }
+    }
+
+    fn min() -> Self {
+        unsafe { Self::new_unchecked(Self::MIN) }
+    }
+
     fn value(&self) -> i16;
 
     /// # Safety
@@ -56,31 +74,6 @@ impl CorrectionValue for CorrectionDcOffsetI {
     }
 }
 
-impl Add for CorrectionDcOffsetI {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        let new = self.0 + rhs.0;
-        match Self::new(new) {
-            Some(val) => val,
-            None => {
-                let wrapped_offet = new - Self::MAX;
-                unsafe { Self::new_unchecked(Self::MIN + wrapped_offet) }
-            }
-        }
-    }
-}
-
-impl SaturatingAdd for CorrectionDcOffsetI {
-    fn saturating_add(&self, rhs: &Self) -> Self {
-        let new = self.0 + rhs.0;
-        match Self::new(new) {
-            Some(val) => val,
-            None => unsafe { Self::new_unchecked(Self::MAX) },
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionDcOffsetQ(pub i16);
 
@@ -96,31 +89,6 @@ impl CorrectionValue for CorrectionDcOffsetQ {
 
     unsafe fn new_unchecked(value: i16) -> Self {
         Self(value)
-    }
-}
-
-impl Add for CorrectionDcOffsetQ {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        let new = self.0 + rhs.0;
-        match Self::new(new) {
-            Some(val) => val,
-            None => {
-                let wrapped_offet = new - Self::MAX;
-                unsafe { Self::new_unchecked(Self::MIN + wrapped_offet) }
-            }
-        }
-    }
-}
-
-impl SaturatingAdd for CorrectionDcOffsetQ {
-    fn saturating_add(&self, rhs: &Self) -> Self {
-        let new = self.0 + rhs.0;
-        match Self::new(new) {
-            Some(val) => val,
-            None => unsafe { Self::new_unchecked(Self::MAX) },
-        }
     }
 }
 
@@ -142,31 +110,6 @@ impl CorrectionValue for CorrectionPhase {
     }
 }
 
-impl Add for CorrectionPhase {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        let new = self.0 + rhs.0;
-        match Self::new(new) {
-            Some(val) => val,
-            None => {
-                let wrapped_offet = new - Self::MAX;
-                unsafe { Self::new_unchecked(Self::MIN + wrapped_offet) }
-            }
-        }
-    }
-}
-
-impl SaturatingAdd for CorrectionPhase {
-    fn saturating_add(&self, rhs: &Self) -> Self {
-        let new = self.0 + rhs.0;
-        match Self::new(new) {
-            Some(val) => val,
-            None => unsafe { Self::new_unchecked(Self::MAX) },
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct CorrectionGain(pub i16);
 
@@ -182,31 +125,6 @@ impl CorrectionValue for CorrectionGain {
 
     unsafe fn new_unchecked(value: i16) -> Self {
         Self(value)
-    }
-}
-
-impl Add for CorrectionGain {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        let new = self.0 + rhs.0;
-        match Self::new(new) {
-            Some(val) => val,
-            None => {
-                let wrapped_offet = new - Self::MAX;
-                unsafe { Self::new_unchecked(Self::MIN + wrapped_offet) }
-            }
-        }
-    }
-}
-
-impl SaturatingAdd for CorrectionGain {
-    fn saturating_add(&self, rhs: &Self) -> Self {
-        let new = self.0 + rhs.0;
-        match Self::new(new) {
-            Some(val) => val,
-            None => unsafe { Self::new_unchecked(Self::MAX) },
-        }
     }
 }
 
@@ -226,56 +144,5 @@ impl TryFrom<bladerf_correction> for Correction {
     fn try_from(value: bladerf_correction) -> Result<Self> {
         Self::from_repr(value as i32)
             .ok_or_else(|| Error::msg(format!("Invalid Correction value: {value}")))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn corrections_add_saturating() {
-        let correction_a = CorrectionDcOffsetI::new(CorrectionDcOffsetI::MAX - 8).unwrap();
-        let correction_b = CorrectionDcOffsetI::new(50).unwrap();
-        let new_correction = correction_a.saturating_add(&correction_b);
-        assert_eq!(new_correction.value(), CorrectionDcOffsetI::MAX);
-
-        let correction_a = CorrectionDcOffsetQ::new(CorrectionDcOffsetQ::MAX - 8).unwrap();
-        let correction_b = CorrectionDcOffsetQ::new(50).unwrap();
-        let new_correction = correction_a.saturating_add(&correction_b);
-        assert_eq!(new_correction.value(), CorrectionDcOffsetQ::MAX);
-
-        let correction_a = CorrectionGain::new(CorrectionGain::MAX - 8).unwrap();
-        let correction_b = CorrectionGain::new(50).unwrap();
-        let new_correction = correction_a.saturating_add(&correction_b);
-        assert_eq!(new_correction.value(), CorrectionGain::MAX);
-
-        let correction_a = CorrectionPhase::new(CorrectionPhase::MAX - 8).unwrap();
-        let correction_b = CorrectionPhase::new(50).unwrap();
-        let new_correction = correction_a.saturating_add(&correction_b);
-        assert_eq!(new_correction.value(), CorrectionPhase::MAX);
-    }
-
-    #[test]
-    fn corrections_add_wrapping() {
-        let correction_a = CorrectionDcOffsetI::new(CorrectionDcOffsetI::MAX - 8).unwrap();
-        let correction_b = CorrectionDcOffsetI::new(50).unwrap();
-        let new_correction = correction_a + correction_b;
-        assert_eq!(new_correction.value(), CorrectionDcOffsetI::MIN + 50 - 8);
-
-        let correction_a = CorrectionDcOffsetQ::new(CorrectionDcOffsetQ::MAX - 8).unwrap();
-        let correction_b = CorrectionDcOffsetQ::new(50).unwrap();
-        let new_correction = correction_a + correction_b;
-        assert_eq!(new_correction.value(), CorrectionDcOffsetQ::MIN + 50 - 8);
-
-        let correction_a = CorrectionGain::new(CorrectionGain::MAX - 6).unwrap();
-        let correction_b = CorrectionGain::new(50).unwrap();
-        let new_correction = correction_a + correction_b;
-        assert_eq!(new_correction.value(), CorrectionGain::MIN + 50 - 6);
-
-        let correction_a = CorrectionPhase::new(CorrectionPhase::MAX - 6).unwrap();
-        let correction_b = CorrectionPhase::new(50).unwrap();
-        let new_correction = correction_a + correction_b;
-        assert_eq!(new_correction.value(), CorrectionPhase::MIN + 50 - 6);
     }
 }
