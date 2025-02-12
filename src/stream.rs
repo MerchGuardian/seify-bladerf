@@ -1,4 +1,6 @@
+use std::borrow::Borrow;
 use std::marker::PhantomData;
+use std::sync::Arc;
 use std::time::Duration;
 
 use libbladerf_sys as sys;
@@ -69,19 +71,20 @@ impl Default for SyncConfig {
     }
 }
 
-pub struct RxSyncStream<'a, T: SampleFormat, D: BladeRF> {
-    pub(crate) dev: &'a D,
+pub struct RxSyncStream<T: Borrow<D>, F: SampleFormat, D: BladeRF> {
+    pub(crate) dev: T,
     pub(crate) layout: ChannelLayoutRx,
-    pub(crate) _format: PhantomData<T>,
+    pub(crate) _devtype: PhantomData<D>,
+    pub(crate) _format: PhantomData<F>,
 }
 
 // RX Stream Brf1
 
-impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
-    pub fn read(&self, buffer: &mut [T], timeout: Duration) -> Result<()> {
+impl<T: Borrow<BladeRf1> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRf1> {
+    pub fn read(&self, buffer: &mut [F], timeout: Duration) -> Result<()> {
         let res = unsafe {
             sys::bladerf_sync_rx(
-                self.dev.device,
+                self.dev.borrow().device,
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
                 std::ptr::null_mut(),
@@ -92,10 +95,20 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
         Ok(())
     }
 
+    pub fn enable(&self) -> Result<()> {
+        self.dev.borrow().set_enable_module(Channel::Rx0, true)
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        self.dev.borrow().set_enable_module(Channel::Rx0, false)
+    }
+}
+
+impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf1, F, BladeRf1> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: &SyncConfig,
-    ) -> Result<RxSyncStream<'a, NF, BladeRf1>> {
+    ) -> Result<RxSyncStream<&'a BladeRf1, NF, BladeRf1>> {
         unsafe {
             self.dev
                 .set_sync_config::<NF>(config, ChannelLayout::RxSISO)?;
@@ -103,24 +116,38 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf1> {
         Ok(RxSyncStream {
             dev: self.dev,
             layout: self.layout,
+            _devtype: PhantomData,
             _format: PhantomData,
         })
     }
+}
 
-    pub fn enable(&self) -> Result<()> {
-        self.dev.set_enable_module(Channel::Rx0, true)
-    }
-
-    pub fn disable(&self) -> Result<()> {
-        self.dev.set_enable_module(Channel::Rx0, false)
+impl<F: SampleFormat> RxSyncStream<Arc<BladeRf1>, F, BladeRf1> {
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+    ) -> Result<RxSyncStream<Arc<BladeRf1>, NF, BladeRf1>> {
+        unsafe {
+            self.dev
+                .as_ref()
+                .set_sync_config::<NF>(config, ChannelLayout::RxSISO)?;
+        }
+        Ok(RxSyncStream {
+            dev: self.dev.clone(),
+            layout: self.layout,
+            _devtype: PhantomData,
+            _format: PhantomData,
+        })
     }
 }
 
-impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
-    pub fn read(&self, buffer: &mut [T], timeout: Duration) -> Result<()> {
+////////////////////////////////////////////////////////////////////////////////
+
+impl<T: Borrow<BladeRf2> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRf2> {
+    pub fn read(&self, buffer: &mut [F], timeout: Duration) -> Result<()> {
         let res = unsafe {
             sys::bladerf_sync_rx(
-                self.dev.device,
+                self.dev.borrow().device,
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
                 std::ptr::null_mut(),
@@ -131,28 +158,12 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
         Ok(())
     }
 
-    pub fn reconfigure<NF: SampleFormat>(
-        self,
-        config: &SyncConfig,
-        layout: ChannelLayoutRx,
-    ) -> Result<RxSyncStream<'a, NF, BladeRf2>> {
-        unsafe {
-            self.dev.set_sync_config::<NF>(config, layout.into())?;
-        }
-
-        Ok(RxSyncStream {
-            dev: self.dev,
-            layout: self.layout,
-            _format: PhantomData,
-        })
-    }
-
     pub fn enable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutRx::SISO(ch) => self.dev.set_enable_module(ch.into(), true),
+            ChannelLayoutRx::SISO(ch) => self.dev.borrow().set_enable_module(ch.into(), true),
             ChannelLayoutRx::MIMO => {
-                self.dev.set_enable_module(Channel::Rx0, true)?;
-                self.dev.set_enable_module(Channel::Rx1, true)?;
+                self.dev.borrow().set_enable_module(Channel::Rx0, true)?;
+                self.dev.borrow().set_enable_module(Channel::Rx1, true)?;
                 Ok(())
             }
         }
@@ -160,21 +171,63 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRf2> {
 
     pub fn disable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutRx::SISO(ch) => self.dev.set_enable_module(ch.into(), false),
+            ChannelLayoutRx::SISO(ch) => self.dev.borrow().set_enable_module(ch.into(), false),
             ChannelLayoutRx::MIMO => {
-                self.dev.set_enable_module(Channel::Rx0, false)?;
-                self.dev.set_enable_module(Channel::Rx1, false)?;
+                self.dev.borrow().set_enable_module(Channel::Rx0, false)?;
+                self.dev.borrow().set_enable_module(Channel::Rx1, false)?;
                 Ok(())
             }
         }
     }
 }
 
-impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
-    pub fn read(&self, buffer: &mut [T], timeout: Duration) -> Result<()> {
+impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf2, F, BladeRf2> {
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+        layout: ChannelLayoutRx,
+    ) -> Result<RxSyncStream<&'a BladeRf2, NF, BladeRf2>> {
+        unsafe {
+            self.dev.set_sync_config::<NF>(config, layout.into())?;
+        }
+
+        Ok(RxSyncStream {
+            dev: self.dev,
+            layout: self.layout,
+            _devtype: PhantomData,
+            _format: PhantomData,
+        })
+    }
+}
+
+impl<F: SampleFormat> RxSyncStream<Arc<BladeRf2>, F, BladeRf2> {
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+        layout: ChannelLayoutRx,
+    ) -> Result<RxSyncStream<Arc<BladeRf2>, NF, BladeRf2>> {
+        unsafe {
+            self.dev
+                .as_ref()
+                .set_sync_config::<NF>(config, layout.into())?;
+        }
+
+        Ok(RxSyncStream {
+            dev: self.dev.clone(),
+            layout: self.layout,
+            _devtype: PhantomData,
+            _format: PhantomData,
+        })
+    }
+}
+
+// //////////////////////////////////////////////////////////////////////////////////
+
+impl<T: Borrow<BladeRfAny> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRfAny> {
+    pub fn read(&self, buffer: &mut [F], timeout: Duration) -> Result<()> {
         let res = unsafe {
             sys::bladerf_sync_rx(
-                self.dev.device,
+                self.dev.borrow().device,
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
                 std::ptr::null_mut(),
@@ -185,28 +238,12 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
         Ok(())
     }
 
-    pub fn reconfigure<NF: SampleFormat>(
-        self,
-        config: &SyncConfig,
-        layout: ChannelLayoutRx,
-    ) -> Result<RxSyncStream<'a, NF, BladeRfAny>> {
-        unsafe {
-            self.dev.set_sync_config::<NF>(config, layout.into())?;
-        }
-
-        Ok(RxSyncStream {
-            dev: self.dev,
-            layout: self.layout,
-            _format: PhantomData,
-        })
-    }
-
     pub fn enable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutRx::SISO(ch) => self.dev.set_enable_module(ch.into(), true),
+            ChannelLayoutRx::SISO(ch) => self.dev.borrow().set_enable_module(ch.into(), true),
             ChannelLayoutRx::MIMO => {
-                self.dev.set_enable_module(Channel::Rx0, true)?;
-                self.dev.set_enable_module(Channel::Rx1, true)?;
+                self.dev.borrow().set_enable_module(Channel::Rx0, true)?;
+                self.dev.borrow().set_enable_module(Channel::Rx1, true)?;
                 Ok(())
             }
         }
@@ -214,21 +251,61 @@ impl<'a, T: SampleFormat> RxSyncStream<'a, T, BladeRfAny> {
 
     pub fn disable(&self) -> Result<()> {
         match self.layout {
-            ChannelLayoutRx::SISO(ch) => self.dev.set_enable_module(ch.into(), false),
+            ChannelLayoutRx::SISO(ch) => self.dev.borrow().set_enable_module(ch.into(), false),
             ChannelLayoutRx::MIMO => {
-                self.dev.set_enable_module(Channel::Rx0, false)?;
-                self.dev.set_enable_module(Channel::Rx1, false)?;
+                self.dev.borrow().set_enable_module(Channel::Rx0, false)?;
+                self.dev.borrow().set_enable_module(Channel::Rx1, false)?;
                 Ok(())
             }
         }
     }
 }
 
-impl<T: SampleFormat, D: BladeRF> Drop for RxSyncStream<'_, T, D> {
+impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+        layout: ChannelLayoutRx,
+    ) -> Result<RxSyncStream<&'a BladeRfAny, NF, BladeRfAny>> {
+        unsafe {
+            self.dev.set_sync_config::<NF>(config, layout.into())?;
+        }
+
+        Ok(RxSyncStream {
+            dev: self.dev,
+            layout: self.layout,
+            _devtype: PhantomData,
+            _format: PhantomData,
+        })
+    }
+}
+
+impl<F: SampleFormat> RxSyncStream<Arc<BladeRfAny>, F, BladeRfAny> {
+    pub fn reconfigure<NF: SampleFormat>(
+        self,
+        config: &SyncConfig,
+        layout: ChannelLayoutRx,
+    ) -> Result<RxSyncStream<Arc<BladeRfAny>, NF, BladeRfAny>> {
+        unsafe {
+            self.dev
+                .as_ref()
+                .set_sync_config::<NF>(config, layout.into())?;
+        }
+
+        Ok(RxSyncStream {
+            dev: self.dev.clone(),
+            layout: self.layout,
+            _devtype: PhantomData,
+            _format: PhantomData,
+        })
+    }
+}
+
+impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> Drop for RxSyncStream<T, F, D> {
     fn drop(&mut self) {
         // Ignore the results, just try disable both channels even if they don't exist on the dev.
-        let _ = self.dev.set_enable_module(Channel::Rx0, false);
-        let _ = self.dev.set_enable_module(Channel::Rx1, false);
+        let _ = self.dev.borrow().set_enable_module(Channel::Rx0, false);
+        let _ = self.dev.borrow().set_enable_module(Channel::Rx1, false);
     }
 }
 
