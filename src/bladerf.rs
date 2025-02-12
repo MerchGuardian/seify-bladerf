@@ -840,8 +840,9 @@ pub trait BladeRF: Sized + Drop {
             )
         };
         check_res!(res);
-        // Safety: the bladerf should return a valid value in the correct range.
-        Ok(unsafe { T::new_unchecked(value) })
+        T::new(value).ok_or(Error::Msg(
+            format!("Invalid correction value returned from bladerf: {value}").into_boxed_str(),
+        ))
     }
 
     // Corrections and Calibration
