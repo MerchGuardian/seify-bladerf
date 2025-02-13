@@ -1,7 +1,5 @@
 use std::{io, rc::Rc, sync::Arc, thread};
 
-use num::traits::SaturatingAdd;
-use num_complex::Complex32;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -11,10 +9,12 @@ use ratatui::{
     DefaultTerminal,
 };
 
+use num::traits::Num;
+
 use ratatui::prelude::*;
 
 use bladerf::{
-    BladeRF, CorrectionDcOffsetI, CorrectionDcOffsetQ, CorrectionGain, CorrectionPhase,
+    BladeRF, BladeRfAny, CorrectionDcOffsetI, CorrectionDcOffsetQ, CorrectionGain, CorrectionPhase,
     CorrectionValue,
 };
 use tui_textarea::{Input, Key, TextArea};
@@ -51,7 +51,7 @@ impl SelectedInput {
 
 pub struct App<'a> {
     channel: bladerf::Channel,
-    device: &'a BladeRF,
+    device: &'a BladeRfAny,
     selected_input: SelectedInput,
     focused: bool,
     exit: bool,
@@ -67,21 +67,21 @@ fn validate_frequency(val: &str) -> Result<u64, String> {
     }
 }
 
-fn validate_correction<T: CorrectionValue>(val: &str) -> Result<T, String> {
+fn validate_correction<T: CorrectionValue>(val: &str) -> Result<i16, String> {
     match val.parse::<i16>().map(|x| T::new(x)) {
         Err(err) => Err(format!("{}", err)),
-        Ok(Some(x)) => Ok(x),
+        Ok(Some(x)) => Ok(x.value()),
         Ok(None) => Err(format!("Value `{val}` out of range")),
     }
 }
 
 /// A custom numeric input widget with validation
-pub struct NumericInput<'a, T: SaturatingAdd, E> {
+pub struct NumericInput<'a, T: Num, E> {
     textarea: TextArea<'a>,
     validation_fn: IntValidationFunction<T, E>, // Validation logic
 }
 
-impl<'a, T: SaturatingAdd> NumericInput<'a, T, String> {
+impl<'a, T: Num> NumericInput<'a, T, String> {
     /// Creates a new `NumericInput` with the provided initial value and validation function.
     pub fn new<F>(initial_value: String, validation_fn: F) -> Self
     where
@@ -155,7 +155,7 @@ trait NumericInputHandle {
     fn num_render(&self, area: Rect, buf: &mut Buffer);
 }
 
-impl<'a, T: SaturatingAdd> NumericInputHandle for &mut NumericInput<'a, T, String> {
+impl<'a, T: Num> NumericInputHandle for &mut NumericInput<'a, T, String> {
     fn handle_input(&mut self, input: Input) {
         self.handle_input_inner(input);
     }
@@ -173,7 +173,7 @@ impl<'a, T: SaturatingAdd> NumericInputHandle for &mut NumericInput<'a, T, Strin
     }
 }
 
-impl<'a, T: SaturatingAdd> NumericInputHandle for NumericInput<'a, T, String> {
+impl<'a, T: Num> NumericInputHandle for NumericInput<'a, T, String> {
     fn handle_input(&mut self, input: Input) {
         self.handle_input_inner(input);
     }
@@ -191,7 +191,7 @@ impl<'a, T: SaturatingAdd> NumericInputHandle for NumericInput<'a, T, String> {
     }
 }
 
-impl<'a, T: SaturatingAdd, E> Widget for &NumericInput<'a, T, E> {
+impl<'a, T: Num, E> Widget for &NumericInput<'a, T, E> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -200,7 +200,7 @@ impl<'a, T: SaturatingAdd, E> Widget for &NumericInput<'a, T, E> {
     }
 }
 
-impl<'a, T: SaturatingAdd, E> Widget for NumericInput<'a, T, E> {
+impl<'a, T: Num, E> Widget for NumericInput<'a, T, E> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -211,7 +211,7 @@ impl<'a, T: SaturatingAdd, E> Widget for NumericInput<'a, T, E> {
 
 trait NumericInputWidget: NumericInputHandle + Widget {}
 
-impl<'a, T: SaturatingAdd> NumericInputWidget for NumericInput<'a, T, String> {}
+impl<'a, T: Num> NumericInputWidget for NumericInput<'a, T, String> {}
 
 impl Widget for &dyn NumericInputWidget {
     fn render(self, area: Rect, buf: &mut Buffer)
@@ -240,7 +240,7 @@ enum MyAppAction {
 }
 
 impl<'a> App<'a> {
-    fn new(dev: &'a BladeRF) -> App<'a> {
+    fn new(dev: &'a BladeRfAny) -> App<'a> {
         let channel = bladerf::Channel::Tx0;
         App {
             channel,
@@ -390,36 +390,28 @@ impl<'a> App<'a> {
                     }
                     SelectedInput::DcOffsetI => {
                         if let Some(val) = icorr_input.inner_val() {
-                            icorr_input
-                                .textarea
-                                .set_yank_text((val.into_inner() + 1).to_string());
+                            icorr_input.textarea.set_yank_text((val + 1).to_string());
                             icorr_input.textarea.select_all();
                             icorr_input.textarea.paste();
                         }
                     }
                     SelectedInput::DcOffsetQ => {
                         if let Some(val) = qcorr_input.inner_val() {
-                            qcorr_input
-                                .textarea
-                                .set_yank_text((val.into_inner() + 1).to_string());
+                            qcorr_input.textarea.set_yank_text((val + 1).to_string());
                             qcorr_input.textarea.select_all();
                             qcorr_input.textarea.paste();
                         }
                     }
                     SelectedInput::Phase => {
                         if let Some(val) = phase_input.inner_val() {
-                            phase_input
-                                .textarea
-                                .set_yank_text((val.into_inner() + 1).to_string());
+                            phase_input.textarea.set_yank_text((val + 1).to_string());
                             phase_input.textarea.select_all();
                             phase_input.textarea.paste();
                         }
                     }
                     SelectedInput::Gain => {
                         if let Some(val) = gain_input.inner_val() {
-                            gain_input
-                                .textarea
-                                .set_yank_text((val.into_inner() + 1).to_string());
+                            gain_input.textarea.set_yank_text((val + 1).to_string());
                             gain_input.textarea.select_all();
                             gain_input.textarea.paste();
                         }
@@ -439,36 +431,28 @@ impl<'a> App<'a> {
                     }
                     SelectedInput::DcOffsetI => {
                         if let Some(val) = icorr_input.inner_val() {
-                            icorr_input
-                                .textarea
-                                .set_yank_text((val.into_inner() - 1).to_string());
+                            icorr_input.textarea.set_yank_text((val - 1).to_string());
                             icorr_input.textarea.select_all();
                             icorr_input.textarea.paste();
                         }
                     }
                     SelectedInput::DcOffsetQ => {
                         if let Some(val) = qcorr_input.inner_val() {
-                            qcorr_input
-                                .textarea
-                                .set_yank_text((val.into_inner() - 1).to_string());
+                            qcorr_input.textarea.set_yank_text((val - 1).to_string());
                             qcorr_input.textarea.select_all();
                             qcorr_input.textarea.paste();
                         }
                     }
                     SelectedInput::Phase => {
                         if let Some(val) = phase_input.inner_val() {
-                            phase_input
-                                .textarea
-                                .set_yank_text((val.into_inner() - 1).to_string());
+                            phase_input.textarea.set_yank_text((val - 1).to_string());
                             phase_input.textarea.select_all();
                             phase_input.textarea.paste();
                         }
                     }
                     SelectedInput::Gain => {
                         if let Some(val) = gain_input.inner_val() {
-                            gain_input
-                                .textarea
-                                .set_yank_text((val.into_inner() - 1).to_string());
+                            gain_input.textarea.set_yank_text((val - 1).to_string());
                             gain_input.textarea.select_all();
                             gain_input.textarea.paste();
                         }
@@ -481,16 +465,16 @@ impl<'a> App<'a> {
                     self.set_freq(val);
                 }
                 if let Ok(val) = (icorr_input.validation_fn)(icorr_input.value().as_str()) {
-                    self.set_corr(val);
+                    self.set_corr(CorrectionDcOffsetI::new_saturating(val));
                 }
                 if let Ok(val) = (qcorr_input.validation_fn)(qcorr_input.value().as_str()) {
-                    self.set_corr(val);
+                    self.set_corr(CorrectionDcOffsetQ::new_saturating(val));
                 }
                 if let Ok(val) = (phase_input.validation_fn)(phase_input.value().as_str()) {
-                    self.set_corr(val);
+                    self.set_corr(CorrectionPhase::new_saturating(val));
                 }
                 if let Ok(val) = (gain_input.validation_fn)(gain_input.value().as_str()) {
-                    self.set_corr(val);
+                    self.set_corr(CorrectionGain::new_saturating(val));
                 }
             }
         }
@@ -525,28 +509,28 @@ impl<'a> App<'a> {
         self.device
             .get_correction::<CorrectionDcOffsetI>(self.channel)
             .unwrap()
-            .into_inner()
+            .value()
     }
 
     fn get_qcorr(&self) -> i16 {
         self.device
             .get_correction::<CorrectionDcOffsetQ>(self.channel)
             .unwrap()
-            .into_inner()
+            .value()
     }
 
     fn get_phase(&self) -> i16 {
         self.device
             .get_correction::<CorrectionPhase>(self.channel)
             .unwrap()
-            .into_inner()
+            .value()
     }
 
     fn get_gain(&self) -> i16 {
         self.device
             .get_correction::<CorrectionGain>(self.channel)
             .unwrap()
-            .into_inner()
+            .value()
     }
 
     fn set_freq(&self, freq: u64) {
@@ -558,7 +542,7 @@ impl<'a> App<'a> {
     }
 
     /// updates the application's state based on user input
-    fn handle_events<T: SaturatingAdd>(
+    fn handle_events<T: Num>(
         &mut self,
         idk: Option<&mut NumericInput<'_, T, String>>,
     ) -> io::Result<MyAppAction> {
@@ -609,7 +593,7 @@ impl<'a> Widget for &App<'a> {
 
 fn main() -> io::Result<()> {
     let device =
-        BladeRF::open_first().map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
+        BladeRfAny::open_first().map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
 
     let arc_dev = Arc::new(device);
     let thread_arc_dev = arc_dev.clone();
