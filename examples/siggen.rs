@@ -505,32 +505,38 @@ impl<'a> App<'a> {
         self.device.get_frequency(self.channel).unwrap()
     }
 
-    fn get_icorr(&self) -> i16 {
-        self.device
+    fn get_icorr(&self) -> String {
+        match self
+            .device
             .get_correction::<CorrectionDcOffsetI>(self.channel)
-            .unwrap()
-            .value()
+        {
+            Ok(x) => x.value().to_string(),
+            Err(err) => err.to_string(),
+        }
     }
 
-    fn get_qcorr(&self) -> i16 {
-        self.device
+    fn get_qcorr(&self) -> String {
+        match self
+            .device
             .get_correction::<CorrectionDcOffsetQ>(self.channel)
-            .unwrap()
-            .value()
+        {
+            Ok(x) => x.value().to_string(),
+            Err(err) => err.to_string(),
+        }
     }
 
-    fn get_phase(&self) -> i16 {
-        self.device
-            .get_correction::<CorrectionPhase>(self.channel)
-            .unwrap()
-            .value()
+    fn get_phase(&self) -> String {
+        match self.device.get_correction::<CorrectionPhase>(self.channel) {
+            Ok(x) => x.value().to_string(),
+            Err(err) => err.to_string(),
+        }
     }
 
-    fn get_gain(&self) -> i16 {
-        self.device
-            .get_correction::<CorrectionGain>(self.channel)
-            .unwrap()
-            .value()
+    fn get_gain(&self) -> String {
+        match self.device.get_correction::<CorrectionGain>(self.channel) {
+            Ok(x) => x.value().to_string(),
+            Err(err) => err.to_string(),
+        }
     }
 
     fn set_freq(&self, freq: u64) {
