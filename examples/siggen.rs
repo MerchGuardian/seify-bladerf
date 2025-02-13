@@ -278,7 +278,7 @@ impl<'a> App<'a> {
                 "Use up down arrow keys to select field".into(),
                 "Hit enter to edit a field and ender again to exit, upon exit the value will be updated".into(),
                 "You can use the left right arroy keys to move between values".into(),
-                "Esc to quit (I don't know how to handle SIGINT".into()
+                "Esc or Ctrl-C to quit".into()
             ]);
 
             frequency_input.unset_focus();
