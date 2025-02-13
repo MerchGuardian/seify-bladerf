@@ -1,4 +1,4 @@
-use std::{io, rc::Rc, sync::Arc, thread};
+use std::{io, rc::Rc, sync::Arc};
 
 use ratatui::{
     buffer::Buffer,
@@ -81,7 +81,7 @@ pub struct NumericInput<'a, T: Num, E> {
     validation_fn: IntValidationFunction<T, E>, // Validation logic
 }
 
-impl<'a, T: Num> NumericInput<'a, T, String> {
+impl<T: Num> NumericInput<'_, T, String> {
     /// Creates a new `NumericInput` with the provided initial value and validation function.
     pub fn new<F>(initial_value: String, validation_fn: F) -> Self
     where
@@ -155,7 +155,7 @@ trait NumericInputHandle {
     fn num_render(&self, area: Rect, buf: &mut Buffer);
 }
 
-impl<'a, T: Num> NumericInputHandle for &mut NumericInput<'a, T, String> {
+impl<T: Num> NumericInputHandle for &mut NumericInput<'_, T, String> {
     fn handle_input(&mut self, input: Input) {
         self.handle_input_inner(input);
     }
@@ -173,7 +173,7 @@ impl<'a, T: Num> NumericInputHandle for &mut NumericInput<'a, T, String> {
     }
 }
 
-impl<'a, T: Num> NumericInputHandle for NumericInput<'a, T, String> {
+impl<T: Num> NumericInputHandle for NumericInput<'_, T, String> {
     fn handle_input(&mut self, input: Input) {
         self.handle_input_inner(input);
     }
@@ -191,7 +191,7 @@ impl<'a, T: Num> NumericInputHandle for NumericInput<'a, T, String> {
     }
 }
 
-impl<'a, T: Num, E> Widget for &NumericInput<'a, T, E> {
+impl<T: Num, E> Widget for &NumericInput<'_, T, E> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -200,7 +200,7 @@ impl<'a, T: Num, E> Widget for &NumericInput<'a, T, E> {
     }
 }
 
-impl<'a, T: Num, E> Widget for NumericInput<'a, T, E> {
+impl<T: Num, E> Widget for NumericInput<'_, T, E> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -211,7 +211,7 @@ impl<'a, T: Num, E> Widget for NumericInput<'a, T, E> {
 
 trait NumericInputWidget: NumericInputHandle + Widget {}
 
-impl<'a, T: Num> NumericInputWidget for NumericInput<'a, T, String> {}
+impl<T: Num> NumericInputWidget for NumericInput<'_, T, String> {}
 
 impl Widget for &dyn NumericInputWidget {
     fn render(self, area: Rect, buf: &mut Buffer)
@@ -594,7 +594,7 @@ impl<'a> App<'a> {
     }
 }
 
-impl<'a> Widget for &App<'a> {
+impl Widget for &App<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Line::from(" BladeRF SigGen ".bold());
 
@@ -607,10 +607,6 @@ fn main() -> io::Result<()> {
         BladeRfAny::open_first().map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
 
     let arc_dev = Arc::new(device);
-    let thread_arc_dev = arc_dev.clone();
-    thread::spawn(move || {
-        thread_arc_dev.set_gain(bladerf::Channel::Tx0, 0).unwrap();
-    });
 
     let mut terminal = ratatui::init();
     let app_result = App::new(&arc_dev).run(&mut terminal);
