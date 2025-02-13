@@ -574,6 +574,11 @@ impl<'a> App<'a> {
                     app_action = MyAppAction::Decrement;
                 }
                 Input {
+                    key: Key::Char('c'),
+                    ctrl: true,
+                    ..
+                } => self.exit(),
+                Input {
                     key: Key::Right, ..
                 } => {
                     app_action = MyAppAction::Increment;
