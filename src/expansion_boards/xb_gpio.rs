@@ -4,21 +4,52 @@ use crate::{BladeRF, Error, Result};
 use embedded_hal::digital::{ErrorType, InputPin, OutputPin, PinState};
 use libbladerf_sys as sys;
 
-struct Disabled;
-struct Input;
-struct Output;
+trait IntoPin<D: BladeRF> {
+    const PIN: u8;
 
-const fn pin_to_bitmask(pin: u8) -> u32 {
-    1 << pin
+    fn get_dev(&self) -> &D;
+
+    fn into_input(&self) -> Result<XbGpioPin<'_, Input, D>> {
+        gpio_dir_masked_write(self.get_dev(), pin_to_bitmask(Self::PIN), 0)?;
+        Ok(XbGpioPin {
+            pin: Self::PIN,
+            device: self.get_dev(),
+            _direction: PhantomData,
+        })
+    }
 }
 
-struct XbGpioPin<'a, T, D: BladeRF> {
+// impl<T: IntoPin, D: BladeRF> InputPin for T {
+//     fn is_high(&mut self) -> std::result::Result<bool, Self::Error> {
+//         todo!()
+//     }
+//     fn is_low(&mut self) -> std::result::Result<bool, Self::Error> {
+//         todo!()
+//     }
+// }
+
+pub struct Disabled;
+pub struct Input;
+pub struct Output;
+
+const fn pin_to_bitmask(pin: u8) -> u32 {
+    1 << (pin - 1)
+}
+
+pub struct XbGpioPin<'a, T, D: BladeRF> {
     pin: u8,
     device: &'a D,
     _direction: PhantomData<T>,
 }
 
 impl<'a, T, D: BladeRF> XbGpioPin<'a, T, D> {
+    pub fn new(pin: u8, device: &'a D) -> XbGpioPin<'a, Disabled, D> {
+        XbGpioPin {
+            pin,
+            device,
+            _direction: PhantomData,
+        }
+    }
     pub fn into_input(self) -> Result<XbGpioPin<'a, Input, D>> {
         gpio_dir_masked_write(self.device, pin_to_bitmask(self.pin), 0)?;
         Ok(XbGpioPin {

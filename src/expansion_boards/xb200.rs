@@ -1,10 +1,12 @@
 use crate::{sys::*, BladeRF, Result};
 use crate::{BladeRf1, Direction};
 
+use super::xb200_gpio::Xb200Pins;
 use super::{Xb200Filter, Xb200Path};
 
 pub struct Xb200<'a> {
     pub(crate) device: &'a BladeRf1,
+    pub(crate) periph_taken: bool,
 }
 
 impl Xb200<'_> {
@@ -60,5 +62,14 @@ impl Xb200<'_> {
 
         check_res!(res);
         path.try_into()
+    }
+
+    pub fn take_periph(&mut self) -> Option<Xb200Pins> {
+        if self.periph_taken {
+            None
+        } else {
+            self.periph_taken = true;
+            Some(Xb200Pins::new(self.device))
+        }
     }
 }
