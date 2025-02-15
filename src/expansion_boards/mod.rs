@@ -6,3 +6,5 @@ pub use xb200_filter::*;
 
 mod xb200_path;
 pub use xb200_path::*;
+
+mod xb_gpio;
