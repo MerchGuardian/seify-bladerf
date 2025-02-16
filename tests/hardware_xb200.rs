@@ -51,7 +51,7 @@ fn get_set_path() -> Result<()> {
 
 #[test]
 #[serial]
-fn take_pins() -> Result<()> {
+fn set_output_pin() -> Result<()> {
     let device: BladeRf1 = BladeRfAny::open_first()?.try_into()?;
 
     let mut xb200 = device.get_xb200()?;
@@ -64,6 +64,23 @@ fn take_pins() -> Result<()> {
     sleep(Duration::from_millis(100));
     test_pin.set_low()?;
     sleep(Duration::from_millis(100));
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn set_input_pin() -> Result<()> {
+    let device: BladeRf1 = BladeRfAny::open_first()?.try_into()?;
+
+    let mut xb200 = device.get_xb200()?;
+
+    let pins = xb200.take_periph().unwrap();
+
+    let test_pin = pins.j16_1.into_input()?;
+
+    let state = test_pin.read()?;
+    println!("{state:?}");
 
     Ok(())
 }

@@ -72,7 +72,7 @@ impl<'a, T, D: BladeRF> XbGpioPin<'a, T, D> {
 impl<D: BladeRF> XbGpioPin<'_, Input, D> {
     pub fn read(&self) -> Result<PinState> {
         let state_raw = gpio_read(self.device)?;
-        if ((state_raw >> self.pin) & 1) == 1 {
+        if ((state_raw >> (self.pin - 1)) & 1) == 1 {
             Ok(PinState::High)
         } else {
             Ok(PinState::Low)
