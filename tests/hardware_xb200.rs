@@ -58,13 +58,12 @@ fn take_pins() -> Result<()> {
 
     let pins = xb200.take_periph().unwrap();
 
-    // J7_2 is the only pin that really seems to function. Some of the other seems to have odd behavior.
-    let mut test_pin = pins.j7_2.into_output()?;
+    let mut test_pin = pins.j16_1.into_output()?;
 
     test_pin.set_high()?;
-    sleep(Duration::from_secs(2));
+    sleep(Duration::from_millis(100));
     test_pin.set_low()?;
-    sleep(Duration::from_secs(2));
+    sleep(Duration::from_millis(100));
 
     Ok(())
 }

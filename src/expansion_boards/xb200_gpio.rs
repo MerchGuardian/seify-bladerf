@@ -12,7 +12,7 @@ use crate::BladeRf1;
 // J16_4  = 20
 // J16_5  = 21
 // J16_6  = 24
-use super::xb_gpio::{self, Disabled, XbGpioPin};
+use super::xb_gpio::{Disabled, XbGpioPin};
 pub struct Xb200Pins<'a> {
     pub j7_1: XbGpioPin<'a, Disabled, BladeRf1>,
     pub j7_2: XbGpioPin<'a, Disabled, BladeRf1>,

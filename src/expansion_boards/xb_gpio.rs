@@ -1,23 +1,23 @@
-use std::{marker::PhantomData, u32};
+use std::marker::PhantomData;
 
 use crate::{BladeRF, Error, Result};
 use embedded_hal::digital::{ErrorType, InputPin, OutputPin, PinState};
 use libbladerf_sys as sys;
 
-trait IntoPin<D: BladeRF> {
-    const PIN: u8;
+// trait IntoPin<D: BladeRF> {
+//     const PIN: u8;
 
-    fn get_dev(&self) -> &D;
+//     fn get_dev(&self) -> &D;
 
-    fn into_input(&self) -> Result<XbGpioPin<'_, Input, D>> {
-        gpio_dir_masked_write(self.get_dev(), pin_to_bitmask(Self::PIN), 0)?;
-        Ok(XbGpioPin {
-            pin: Self::PIN,
-            device: self.get_dev(),
-            _direction: PhantomData,
-        })
-    }
-}
+//     fn into_input(&self) -> Result<XbGpioPin<'_, Input, D>> {
+//         gpio_dir_masked_write(self.get_dev(), pin_to_bitmask(Self::PIN), 0)?;
+//         Ok(XbGpioPin {
+//             pin: Self::PIN,
+//             device: self.get_dev(),
+//             _direction: PhantomData,
+//         })
+//     }
+// }
 
 // impl<T: IntoPin, D: BladeRF> InputPin for T {
 //     fn is_high(&mut self) -> std::result::Result<bool, Self::Error> {
@@ -43,7 +43,7 @@ pub struct XbGpioPin<'a, T, D: BladeRF> {
 }
 
 impl<'a, T, D: BladeRF> XbGpioPin<'a, T, D> {
-    pub fn new(pin: u8, device: &'a D) -> XbGpioPin<'a, Disabled, D> {
+    pub(crate) fn new(pin: u8, device: &'a D) -> XbGpioPin<'a, Disabled, D> {
         XbGpioPin {
             pin,
             device,
@@ -69,7 +69,7 @@ impl<'a, T, D: BladeRF> XbGpioPin<'a, T, D> {
     }
 }
 
-impl<'a, D: BladeRF> XbGpioPin<'a, Input, D> {
+impl<D: BladeRF> XbGpioPin<'_, Input, D> {
     pub fn read(&self) -> Result<PinState> {
         let state_raw = gpio_read(self.device)?;
         if ((state_raw >> self.pin) & 1) == 1 {
@@ -84,8 +84,8 @@ impl<D: BladeRF> XbGpioPin<'_, Output, D> {
     pub fn write(&self, state: PinState) -> Result<()> {
         let mask = pin_to_bitmask(self.pin);
         match state {
-            PinState::High => gpio_dir_masked_write(self.device, mask, u32::MAX),
-            PinState::Low => gpio_dir_masked_write(self.device, mask, 0),
+            PinState::High => gpio_masked_write(self.device, mask, u32::MAX),
+            PinState::Low => gpio_masked_write(self.device, mask, 0),
         }
     }
 }
@@ -94,7 +94,7 @@ impl<T, D: BladeRF> ErrorType for XbGpioPin<'_, T, D> {
     type Error = Error;
 }
 
-impl<'a, D: BladeRF> InputPin for XbGpioPin<'a, Input, D> {
+impl<D: BladeRF> InputPin for XbGpioPin<'_, Input, D> {
     fn is_high(&mut self) -> std::result::Result<bool, Self::Error> {
         match self.read()? {
             PinState::High => Ok(true),
@@ -119,8 +119,6 @@ impl<D: BladeRF> OutputPin for XbGpioPin<'_, Output, D> {
         self.write(PinState::High)
     }
 }
-
-impl<'a, D: BladeRF> XbGpioPin<'a, Output, D> {}
 
 fn gpio_read<D: BladeRF>(dev: &D) -> Result<u32> {
     let mut val = 0;
