@@ -5,11 +5,8 @@ use bladerf::{
 };
 
 fn main() -> Result<()> {
-
-    // Open the first available BladeRF device
     let device = BladeRfAny::open_first().context("Unable to open BladeRF device")?;
 
-    // Use TX channel 0
     let channel = Channel::Tx1;
 
     println!("v,I correction,Q correction,phase correction,gain correction");
