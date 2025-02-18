@@ -4,30 +4,6 @@ use crate::{BladeRF, Error, Result};
 use embedded_hal::digital::{ErrorType, InputPin, OutputPin, PinState};
 use libbladerf_sys as sys;
 
-// trait IntoPin<D: BladeRF> {
-//     const PIN: u8;
-
-//     fn get_dev(&self) -> &D;
-
-//     fn into_input(&self) -> Result<XbGpioPin<'_, Input, D>> {
-//         gpio_dir_masked_write(self.get_dev(), pin_to_bitmask(Self::PIN), 0)?;
-//         Ok(XbGpioPin {
-//             pin: Self::PIN,
-//             device: self.get_dev(),
-//             _direction: PhantomData,
-//         })
-//     }
-// }
-
-// impl<T: IntoPin, D: BladeRF> InputPin for T {
-//     fn is_high(&mut self) -> std::result::Result<bool, Self::Error> {
-//         todo!()
-//     }
-//     fn is_low(&mut self) -> std::result::Result<bool, Self::Error> {
-//         todo!()
-//     }
-// }
-
 pub struct Disabled;
 pub struct Input;
 pub struct Output;
