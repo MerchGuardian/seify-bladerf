@@ -4,6 +4,25 @@ use crate::{BladeRF, Error, Result};
 use embedded_hal::digital::{ErrorType, InputPin, OutputPin, PinState};
 use libbladerf_sys as sys;
 
+#[macro_export]
+macro_rules! bladerf_gpio {
+    ($struct_name:ident<$dev:ty>, $( $physical_name:ident = $pin_id:literal ),+) => {
+        use $crate::expansion_boards::xb_gpio::{Disabled, XbGpioPin};
+
+        pub struct $struct_name<'a> {
+            $(pub $physical_name: XbGpioPin<'a, Disabled, $dev>,)+
+        }
+
+        impl $struct_name<'_> {
+            pub(crate) fn new(dev: &$dev) -> $struct_name {
+                $struct_name {
+                    $($physical_name: XbGpioPin::<Disabled, $dev>::new($pin_id, dev),)+
+                }
+            }
+        }
+    };
+}
+
 pub struct Disabled;
 pub struct Input;
 pub struct Output;
@@ -103,7 +122,7 @@ fn gpio_read<D: BladeRF>(dev: &D) -> Result<u32> {
     Ok(val)
 }
 
-fn gpio_write<D: BladeRF>(dev: &D, val: u32) -> Result<()> {
+fn _gpio_write<D: BladeRF>(dev: &D, val: u32) -> Result<()> {
     let result = unsafe { sys::bladerf_expansion_gpio_write(dev.get_device_ptr(), val) };
     check_res!(result);
     Ok(())
@@ -116,14 +135,14 @@ fn gpio_masked_write<D: BladeRF>(dev: &D, mask: u32, value: u32) -> Result<()> {
     Ok(())
 }
 
-fn gpio_dir_read<D: BladeRF>(dev: &D) -> Result<u32> {
+fn _gpio_dir_read<D: BladeRF>(dev: &D) -> Result<u32> {
     let mut dir = 0;
     let result = unsafe { sys::bladerf_expansion_gpio_dir_read(dev.get_device_ptr(), &mut dir) };
     check_res!(result);
     Ok(dir)
 }
 
-fn gpio_dir_write<D: BladeRF>(dev: &D, outputs: u32) -> Result<()> {
+fn _gpio_dir_write<D: BladeRF>(dev: &D, outputs: u32) -> Result<()> {
     let result = unsafe { sys::bladerf_expansion_gpio_dir_write(dev.get_device_ptr(), outputs) };
     check_res!(result);
     Ok(())
