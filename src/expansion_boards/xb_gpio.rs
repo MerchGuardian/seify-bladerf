@@ -31,6 +31,10 @@ const fn pin_to_bitmask(pin: u8) -> u32 {
     1 << (pin - 1)
 }
 
+const fn pinstate_from_reg(pin: u8, reg: u32) -> bool {
+    ((reg >> (pin - 1)) & 1) == 1
+}
+
 pub struct XbGpioPin<'a, T, D: BladeRF> {
     pin: u8,
     device: &'a D,
@@ -67,7 +71,7 @@ impl<'a, T, D: BladeRF> XbGpioPin<'a, T, D> {
 impl<D: BladeRF> XbGpioPin<'_, Input, D> {
     pub fn read(&self) -> Result<PinState> {
         let state_raw = gpio_read(self.device)?;
-        if ((state_raw >> (self.pin - 1)) & 1) == 1 {
+        if pinstate_from_reg(self.pin, state_raw) {
             Ok(PinState::High)
         } else {
             Ok(PinState::Low)
