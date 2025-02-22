@@ -119,6 +119,7 @@ impl<D: BladeRF> OutputPin for XbGpioPin<'_, Output, D> {
     }
 }
 
+#[inline]
 fn gpio_read<D: BladeRF>(dev: &D) -> Result<u32> {
     let mut val = 0;
     let result = unsafe { sys::bladerf_expansion_gpio_read(dev.get_device_ptr(), &mut val) };
@@ -126,12 +127,14 @@ fn gpio_read<D: BladeRF>(dev: &D) -> Result<u32> {
     Ok(val)
 }
 
+#[inline]
 fn _gpio_write<D: BladeRF>(dev: &D, val: u32) -> Result<()> {
     let result = unsafe { sys::bladerf_expansion_gpio_write(dev.get_device_ptr(), val) };
     check_res!(result);
     Ok(())
 }
 
+#[inline]
 fn gpio_masked_write<D: BladeRF>(dev: &D, mask: u32, value: u32) -> Result<()> {
     let result =
         unsafe { sys::bladerf_expansion_gpio_masked_write(dev.get_device_ptr(), mask, value) };
@@ -139,6 +142,7 @@ fn gpio_masked_write<D: BladeRF>(dev: &D, mask: u32, value: u32) -> Result<()> {
     Ok(())
 }
 
+#[inline]
 fn _gpio_dir_read<D: BladeRF>(dev: &D) -> Result<u32> {
     let mut dir = 0;
     let result = unsafe { sys::bladerf_expansion_gpio_dir_read(dev.get_device_ptr(), &mut dir) };
@@ -146,12 +150,14 @@ fn _gpio_dir_read<D: BladeRF>(dev: &D) -> Result<u32> {
     Ok(dir)
 }
 
+#[inline]
 fn _gpio_dir_write<D: BladeRF>(dev: &D, outputs: u32) -> Result<()> {
     let result = unsafe { sys::bladerf_expansion_gpio_dir_write(dev.get_device_ptr(), outputs) };
     check_res!(result);
     Ok(())
 }
 
+#[inline]
 fn gpio_dir_masked_write<D: BladeRF>(dev: &D, mask: u32, outputs: u32) -> Result<()> {
     let result = unsafe {
         sys::bladerf_expansion_gpio_dir_masked_write(dev.get_device_ptr(), mask, outputs)
