@@ -163,7 +163,10 @@ impl BladeRf1 {
 
     pub fn get_xb200(&self) -> Result<Xb200> {
         self.expansion_attach(ExpansionModule::Xb200)?;
-        Ok(Xb200 { device: self })
+        Ok(Xb200 {
+            device: self,
+            periph_taken: false,
+        })
     }
 }
 
