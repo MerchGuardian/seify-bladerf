@@ -1,7 +1,7 @@
 use crate::{sys::*, BladeRF, Result};
 use crate::{BladeRf1, Direction};
 
-use super::xb200_gpio::Xb200Pins;
+use super::xb_gpio_impls::Xb200Pins;
 use super::{Xb200Filter, Xb200Path};
 
 pub struct Xb200<'a> {
