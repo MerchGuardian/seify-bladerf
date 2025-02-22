@@ -814,18 +814,14 @@ pub trait BladeRF: Sized + Drop {
     // **Correction Functions**
 
     /// Set the value of the specified correction parameter
-    fn set_correction(
-        &self,
-        channel: Channel,
-        corr: Correction,
-        value: CorrectionValue,
-    ) -> Result<()> {
+    fn set_correction<T: CorrectionValue>(&self, channel: Channel, corr: T) -> Result<()> {
+        let correction_type: Correction = T::TYPE;
         let res = unsafe {
             bladerf_set_correction(
                 self.get_device_ptr(),
                 channel as bladerf_channel,
-                corr as bladerf_correction,
-                value,
+                correction_type as bladerf_correction,
+                corr.value(),
             )
         };
         check_res!(res);
@@ -833,8 +829,9 @@ pub trait BladeRF: Sized + Drop {
     }
 
     /// Obtain the current value of the specified correction parameter
-    fn get_correction(&self, channel: Channel, corr: Correction) -> Result<CorrectionValue> {
-        let mut value: CorrectionValue = 0;
+    fn get_correction<T: CorrectionValue>(&self, channel: Channel) -> Result<T> {
+        let corr = T::TYPE;
+        let mut value: i16 = 0;
         let res = unsafe {
             bladerf_get_correction(
                 self.get_device_ptr(),
@@ -844,7 +841,9 @@ pub trait BladeRF: Sized + Drop {
             )
         };
         check_res!(res);
-        Ok(value)
+        T::new(value).ok_or(Error::Msg(
+            format!("Invalid correction value returned from bladerf: {value}").into_boxed_str(),
+        ))
     }
 
     // Corrections and Calibration

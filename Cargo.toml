@@ -17,6 +17,7 @@ members = ["libbladerf-sys"]
 
 [dependencies]
 bytemuck = "1.18.0"
+embedded-hal = "1.0.0"
 enum-map = "2.7.3"
 fixed = "1.28.0"
 libbladerf-sys = { version = "0.1.0", path = "./libbladerf-sys" }
