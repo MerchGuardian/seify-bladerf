@@ -2,7 +2,6 @@
 #![allow(clippy::unnecessary_cast)]
 use fixed::{types::extra::U11, FixedI16};
 use num_complex::{Complex, Complex32};
-use num_traits::Zero;
 use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
@@ -94,12 +93,11 @@ unsafe impl SampleFormat for ComplexI12 {
     }
 }
 
-const SCALE: f32 = 4096.0; //(2^12)
-
-pub(crate) fn brf_ci16_to_cf32(ci16: Complex<i16>) -> Complex32 {
-    let re: f32 = ci16.re.into();
-    let im: f32 = ci16.im.into();
-    Complex::new(re / SCALE, im / SCALE)
+#[inline]
+pub fn brf_ci12_to_cf32(sample: ComplexI12) -> Complex32 {
+    let re: f32 = sample.re.to_num::<f32>();
+    let im: f32 = sample.im.to_num::<f32>();
+    Complex::new(re, im)
 }
 
 #[cfg(test)]
