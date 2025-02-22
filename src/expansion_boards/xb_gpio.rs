@@ -27,10 +27,13 @@ pub struct Disabled;
 pub struct Input;
 pub struct Output;
 
+/// Does the same functionality as the [macro from libbladerf](https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___e_x_p___i_o.html#gacd71bfd7bad1258be5a94d158aed62d8)
+/// For a given pin number 1-32, set the corresponding bit of a u32.
 const fn pin_to_bitmask(pin: u8) -> u32 {
     1 << (pin - 1)
 }
 
+/// Performs a sort of inverse of [pin_to_bitmask] where it takes a pin ID to mask out and look at the corresponding bit from the register.
 const fn pinstate_from_reg(pin: u8, reg: u32) -> bool {
     ((reg >> (pin - 1)) & 1) == 1
 }
