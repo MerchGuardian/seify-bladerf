@@ -111,7 +111,7 @@ impl BladeRf1 {
     pub fn tx_streamer<T: SampleFormat>(
         &self,
         config: &SyncConfig,
-    ) -> Result<TxSyncStream<T, BladeRf1>> {
+    ) -> Result<TxSyncStream<&Self, T, BladeRf1>> {
         // TODO: Decide Ordering
         self.tx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -124,6 +124,7 @@ impl BladeRf1 {
         Ok(TxSyncStream {
             dev: self,
             layout: ChannelLayoutTx::SISO(TxChannel::Tx0),
+            _devtype: PhantomData,
             _format: PhantomData,
         })
     }

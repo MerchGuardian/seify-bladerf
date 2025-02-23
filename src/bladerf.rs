@@ -70,7 +70,7 @@ impl BladeRfAny {
         &self,
         config: &SyncConfig,
         layout: ChannelLayoutTx,
-    ) -> Result<TxSyncStream<T, Self>> {
+    ) -> Result<TxSyncStream<&Self, T, Self>> {
         // TODO: Decide Ordering
         self.tx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -85,6 +85,7 @@ impl BladeRfAny {
         Ok(TxSyncStream {
             dev: self,
             layout,
+            _devtype: PhantomData,
             _format: PhantomData,
         })
     }
