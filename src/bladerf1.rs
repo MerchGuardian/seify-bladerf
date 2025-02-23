@@ -1,5 +1,5 @@
 use crate::expansion_boards::Xb200;
-use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
+use crate::streamers::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use marker::PhantomData;
 use mem::ManuallyDrop;
