@@ -39,7 +39,9 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> TxSyncStream<T, F, D> {
         Ok(())
     }
 
-    pub(crate) fn new(
+    /// # Safety
+    /// Need to ensure multiple streamers are not configured since a reconfiguration of one can change the sample type leading to our of bounds memory accesses.
+    pub(crate) unsafe fn new(
         dev: T,
         config: &SyncConfig,
         layout: ChannelLayoutTx,
@@ -63,7 +65,8 @@ impl<'a, F: SampleFormat, D: BladeRF> TxSyncStream<&'a D, F, D> {
         config: &SyncConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<&'a D, NF, D>> {
-        TxSyncStream::new(self.dev, config, layout)
+        // Safety: the previous streamer is moved, and is dropped so we are save to construct a new one.
+        unsafe { TxSyncStream::new(self.dev, config, layout) }
     }
 }
 
@@ -73,7 +76,8 @@ impl<F: SampleFormat, D: BladeRF> TxSyncStream<Arc<D>, F, D> {
         config: &SyncConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<Arc<D>, NF, D>> {
-        TxSyncStream::new(self.dev.clone(), config, layout)
+        // Safety: the previous streamer is moved, and is dropped so we are save to construct a new one.
+        unsafe { TxSyncStream::new(self.dev.clone(), config, layout) }
     }
 }
 

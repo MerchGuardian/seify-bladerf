@@ -118,7 +118,8 @@ impl BladeRf1 {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
 
-        TxSyncStream::new(self, config, ChannelLayoutTx::SISO(TxChannel::Tx0))
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { TxSyncStream::new(self, config, ChannelLayoutTx::SISO(TxChannel::Tx0)) }
     }
 
     pub fn rx_streamer<T: SampleFormat>(
@@ -132,7 +133,8 @@ impl BladeRf1 {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
 
-        RxSyncStream::new(self, config, ChannelLayoutRx::SISO(RxChannel::Rx0))
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { RxSyncStream::new(self, config, ChannelLayoutRx::SISO(RxChannel::Rx0)) }
     }
 
     fn expansion_attach(&self, module: ExpansionModule) -> Result<()> {

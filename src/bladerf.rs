@@ -77,7 +77,8 @@ impl BladeRfAny {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
 
-        TxSyncStream::new(self, config, layout)
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { TxSyncStream::new(self, config, layout) }
     }
 
     pub fn rx_streamer<T: SampleFormat>(
@@ -92,7 +93,8 @@ impl BladeRfAny {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
 
-        RxSyncStream::new(self, config, layout)
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { RxSyncStream::new(self, config, layout) }
     }
 }
 
