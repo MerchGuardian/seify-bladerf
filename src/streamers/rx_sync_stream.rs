@@ -83,6 +83,7 @@ impl<F: SampleFormat, D: BladeRF> RxSyncStream<Arc<D>, F, D> {
 
 impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> Drop for RxSyncStream<T, F, D> {
     fn drop(&mut self) {
+        println!("Dropping rx sync stream!");
         // Ignore the results, just try disable both channels even if they don't exist on the dev.
         let _ = self.dev.borrow().set_enable_module(Channel::Rx0, false);
         let _ = self.dev.borrow().set_enable_module(Channel::Rx1, false);

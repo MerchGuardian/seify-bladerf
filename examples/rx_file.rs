@@ -7,7 +7,7 @@ use std::{
     io::{BufWriter, Write},
     path::PathBuf,
     sync::mpsc::TryRecvError,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use clap::{Parser, ValueEnum};
@@ -85,6 +85,8 @@ fn main() -> anyhow::Result<()> {
 
     log::debug!("Configuring channel {:?}", channel);
 
+    dev.load_fpga_from_env().context("Load FPGA bitstream")?;
+
     dev.set_frequency(channel.into(), args.frequency)
         .with_context(|| {
             format!(
@@ -108,9 +110,10 @@ fn main() -> anyhow::Result<()> {
     let config = SyncConfig::new(16, SAMPLES_PER_BLOCK, 8, Duration::from_secs(3))
         .with_context(|| "Cannot Create Sync Config")?;
     let layout = ChannelLayoutRx::SISO(channel);
-    let reciever = dev
-        .rx_streamer::<ComplexI16>(&config, layout)
-        .with_context(|| "Cannot Get Streamer")?;
+    let mut reciever = Some(
+        dev.rx_streamer::<ComplexI16>(&config, layout)
+            .with_context(|| "Cannot Get Streamer")?,
+    );
 
     let file = File::create(args.outfile).with_context(|| "Cannot Open Output File")?;
     let mut file_buf = BufWriter::new(file);
@@ -118,7 +121,11 @@ fn main() -> anyhow::Result<()> {
 
     log::debug!("Opened file for writing");
 
-    reciever.enable().with_context(|| "Cannot Enable Stream")?;
+    reciever
+        .as_ref()
+        .unwrap()
+        .enable()
+        .with_context(|| "Cannot Enable Stream")?;
 
     log::debug!("Stream enabled");
 
@@ -136,8 +143,11 @@ fn main() -> anyhow::Result<()> {
     .unwrap();
     let progress = ProgressBar::no_length().with_style(bar_style);
 
+    let mut last_reconfigure = Instant::now();
     let mut reciever_inner = || -> anyhow::Result<()> {
         reciever
+            .as_ref()
+            .unwrap()
             .read(&mut buffer, Duration::from_secs(1))
             .with_context(|| "Cannot Read Samples")?;
 
@@ -149,6 +159,18 @@ fn main() -> anyhow::Result<()> {
 
         if !args.noprogress {
             progress.inc(SAMPLES_PER_BLOCK as u64 * size_of::<ComplexI16>() as u64);
+        }
+
+        if last_reconfigure.elapsed().as_millis() > 100 {
+            last_reconfigure = Instant::now();
+            println!("Triggering reconfig!");
+            reciever = Some(
+                reciever
+                    .take()
+                    .unwrap()
+                    .reconfigure::<ComplexI16>(&config, layout)
+                    .expect("reconfigure"),
+            );
         }
 
         Ok(())
