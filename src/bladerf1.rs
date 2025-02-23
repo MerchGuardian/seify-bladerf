@@ -1,7 +1,6 @@
 use crate::expansion_boards::Xb200;
 use crate::streamers::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
-use marker::PhantomData;
 use mem::ManuallyDrop;
 use std::*;
 use sync::atomic::{AtomicBool, Ordering};
@@ -119,14 +118,7 @@ impl BladeRf1 {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe { self.set_sync_config::<T>(config, ChannelLayout::TxSISO)? };
-
-        Ok(TxSyncStream {
-            dev: self,
-            layout: ChannelLayoutTx::SISO(TxChannel::Tx0),
-            _devtype: PhantomData,
-            _format: PhantomData,
-        })
+        TxSyncStream::new(self, config, ChannelLayoutTx::SISO(TxChannel::Tx0))
     }
 
     pub fn rx_streamer<T: SampleFormat>(
@@ -140,14 +132,7 @@ impl BladeRf1 {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe { self.set_sync_config::<T>(config, ChannelLayout::RxSISO)? };
-
-        Ok(RxSyncStream {
-            dev: self,
-            layout: ChannelLayoutRx::SISO(RxChannel::Rx0),
-            _devtype: PhantomData,
-            _format: PhantomData,
-        })
+        RxSyncStream::new(self, config, ChannelLayoutRx::SISO(RxChannel::Rx0))
     }
 
     fn expansion_attach(&self, module: ExpansionModule) -> Result<()> {

@@ -1,6 +1,5 @@
 use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig, TxSyncStream};
 use ffi::{c_char, CStr, CString};
-use marker::PhantomData;
 use path::Path;
 use std::{mem::ManuallyDrop, *};
 use sync::atomic::{AtomicBool, Ordering};
@@ -78,16 +77,7 @@ impl BladeRfAny {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe {
-            self.set_sync_config::<T>(config, layout.into())?;
-        }
-
-        Ok(TxSyncStream {
-            dev: self,
-            layout,
-            _devtype: PhantomData,
-            _format: PhantomData,
-        })
+        TxSyncStream::new(self, config, layout)
     }
 
     pub fn rx_streamer<T: SampleFormat>(
@@ -102,16 +92,7 @@ impl BladeRfAny {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe {
-            self.set_sync_config::<T>(config, layout.into())?;
-        }
-
-        Ok(RxSyncStream {
-            dev: self,
-            layout,
-            _devtype: PhantomData,
-            _format: PhantomData,
-        })
+        RxSyncStream::new(self, config, layout)
     }
 }
 

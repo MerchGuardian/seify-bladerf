@@ -10,7 +10,6 @@ use crate::BladeRf1;
 use crate::BladeRf2;
 use crate::BladeRfAny;
 use crate::Channel;
-use crate::ChannelLayout;
 use crate::ChannelLayoutTx;
 use crate::Result;
 use crate::SampleFormat;
@@ -40,7 +39,11 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> TxSyncStream<T, F, D> {
         Ok(())
     }
 
-    fn new(dev: T, config: &SyncConfig, layout: ChannelLayoutTx) -> Result<TxSyncStream<T, F, D>> {
+    pub(crate) fn new(
+        dev: T,
+        config: &SyncConfig,
+        layout: ChannelLayoutTx,
+    ) -> Result<TxSyncStream<T, F, D>> {
         unsafe {
             dev.borrow().set_sync_config::<F>(config, layout.into())?;
         }

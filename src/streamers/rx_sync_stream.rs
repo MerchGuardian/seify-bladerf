@@ -39,7 +39,11 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> RxSyncStream<T, F, D> {
         Ok(())
     }
 
-    fn new(dev: T, config: &SyncConfig, layout: ChannelLayoutRx) -> Result<RxSyncStream<T, F, D>> {
+    pub(crate) fn new(
+        dev: T,
+        config: &SyncConfig,
+        layout: ChannelLayoutRx,
+    ) -> Result<RxSyncStream<T, F, D>> {
         unsafe {
             dev.borrow().set_sync_config::<F>(config, layout.into())?;
         }
