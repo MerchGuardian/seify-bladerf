@@ -25,7 +25,7 @@ pub struct TxSyncStream<T: Borrow<D>, F: SampleFormat, D: BladeRF> {
 }
 
 impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> TxSyncStream<T, F, D> {
-    pub fn write(&self, buffer: &[T], timeout: Duration) -> Result<()> {
+    pub fn write(&self, buffer: &[F], timeout: Duration) -> Result<()> {
         let res = unsafe {
             sys::bladerf_sync_tx(
                 self.dev.borrow().get_device_ptr(),
