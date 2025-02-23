@@ -73,6 +73,14 @@ impl<F: SampleFormat, D: BladeRF> RxSyncStream<Arc<D>, F, D> {
     }
 }
 
+impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> Drop for RxSyncStream<T, F, D> {
+    fn drop(&mut self) {
+        // Ignore the results, just try disable both channels even if they don't exist on the dev.
+        let _ = self.dev.borrow().set_enable_module(Channel::Rx0, false);
+        let _ = self.dev.borrow().set_enable_module(Channel::Rx1, false);
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // RX Stream Brf1
 
@@ -195,13 +203,5 @@ impl<F: SampleFormat> RxSyncStream<Arc<BladeRfAny>, F, BladeRfAny> {
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<Arc<BladeRfAny>, NF, BladeRfAny>> {
         self.reconfigure_inner(config, layout)
-    }
-}
-
-impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> Drop for RxSyncStream<T, F, D> {
-    fn drop(&mut self) {
-        // Ignore the results, just try disable both channels even if they don't exist on the dev.
-        let _ = self.dev.borrow().set_enable_module(Channel::Rx0, false);
-        let _ = self.dev.borrow().set_enable_module(Channel::Rx1, false);
     }
 }
