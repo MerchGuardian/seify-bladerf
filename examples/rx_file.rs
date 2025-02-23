@@ -171,6 +171,8 @@ fn main() -> anyhow::Result<()> {
                     .reconfigure::<ComplexI16>(&config, layout)
                     .expect("reconfigure"),
             );
+
+            reciever.as_ref().unwrap().enable().expect("enable");
         }
 
         Ok(())

@@ -20,7 +20,6 @@ use super::SyncConfig;
 pub struct RxSyncStream<T: Borrow<D>, F: SampleFormat, D: BladeRF> {
     pub(crate) dev: T,
     pub(crate) layout: ChannelLayoutRx,
-    should_cleanup: bool,
     pub(crate) _devtype: PhantomData<D>,
     pub(crate) _format: PhantomData<F>,
 }
@@ -54,7 +53,6 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> RxSyncStream<T, F, D> {
         Ok(RxSyncStream {
             dev,
             layout,
-            should_cleanup: true,
             _devtype: PhantomData,
             _format: PhantomData,
         })
@@ -63,11 +61,10 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> RxSyncStream<T, F, D> {
 
 impl<'a, F: SampleFormat, D: BladeRF> RxSyncStream<&'a D, F, D> {
     fn reconfigure_inner<NF: SampleFormat>(
-        mut self,
+        self,
         config: &SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<&'a D, NF, D>> {
-        self.should_cleanup = false;
         // Safety: the previous streamer is moved, and is dropped so we are save to construct a new one.
         unsafe { RxSyncStream::new(self.dev, config, layout) }
     }
@@ -75,11 +72,10 @@ impl<'a, F: SampleFormat, D: BladeRF> RxSyncStream<&'a D, F, D> {
 
 impl<F: SampleFormat, D: BladeRF> RxSyncStream<Arc<D>, F, D> {
     fn reconfigure_inner<NF: SampleFormat>(
-        mut self,
+        self,
         config: &SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<Arc<D>, NF, D>> {
-        self.should_cleanup = false;
         // Safety: the previous streamer is moved, and is dropped so we are save to construct a new one.
         unsafe { RxSyncStream::new(self.dev.clone(), config, layout) }
     }
@@ -87,14 +83,10 @@ impl<F: SampleFormat, D: BladeRF> RxSyncStream<Arc<D>, F, D> {
 
 impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> Drop for RxSyncStream<T, F, D> {
     fn drop(&mut self) {
-        if self.should_cleanup {
-            println!("Dropping rx sync stream!");
-            // Ignore the results, just try disable both channels even if they don't exist on the dev.
-            let _ = self.dev.borrow().set_enable_module(Channel::Rx0, false);
-            let _ = self.dev.borrow().set_enable_module(Channel::Rx1, false);
-        } else {
-            println!("Skipping cleanup");
-        }
+        println!("Dropping rx sync stream!");
+        // Ignore the results, just try disable both channels even if they don't exist on the dev.
+        let _ = self.dev.borrow().set_enable_module(Channel::Rx0, false);
+        let _ = self.dev.borrow().set_enable_module(Channel::Rx1, false);
     }
 }
 
