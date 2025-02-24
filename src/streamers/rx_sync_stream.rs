@@ -65,8 +65,12 @@ impl<'a, F: SampleFormat, D: BladeRF> RxSyncStream<&'a D, F, D> {
         config: &SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<&'a D, NF, D>> {
+        let dev = self.dev;
+        // Drop needs to happen before constructing a new streamer since disabling voids the configuration and a new one need to be instatiated
+        // Otherwise, a new RxSyncStream is created THEN the Drop trait is called calling disable and the stream immediately becomes invalid.
+        drop(self);
         // Safety: the previous streamer is moved, and is dropped so we are save to construct a new one.
-        unsafe { RxSyncStream::new(self.dev, config, layout) }
+        unsafe { RxSyncStream::new(dev, config, layout) }
     }
 }
 
@@ -76,8 +80,12 @@ impl<F: SampleFormat, D: BladeRF> RxSyncStream<Arc<D>, F, D> {
         config: &SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<Arc<D>, NF, D>> {
+        let dev = self.dev.clone();
+        // Drop needs to happen before constructing a new streamer since disabling voids the configuration and a new one need to be instatiated
+        // Otherwise, a new RxSyncStream is created THEN the Drop trait is called calling disable and the stream immediately becomes invalid.
+        drop(self);
         // Safety: the previous streamer is moved, and is dropped so we are save to construct a new one.
-        unsafe { RxSyncStream::new(self.dev.clone(), config, layout) }
+        unsafe { RxSyncStream::new(dev, config, layout) }
     }
 }
 
