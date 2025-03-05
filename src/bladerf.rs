@@ -1,5 +1,5 @@
-use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig, TxSyncStream};
-use ffi::{c_char, CStr, CString};
+use crate::{RxSyncStream, SyncConfig, TxSyncStream, error::*, sys::*, types::*};
+use ffi::{CStr, CString, c_char};
 use path::Path;
 use std::{mem::ManuallyDrop, *};
 use sync::atomic::{AtomicBool, Ordering};
@@ -83,7 +83,7 @@ impl BladeRfAny {
 
     pub fn rx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<&Self, T, BladeRfAny>> {
         // TODO: Decide Ordering
