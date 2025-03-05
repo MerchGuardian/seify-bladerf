@@ -1,8 +1,8 @@
 use std::{
     io::stdout,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread,
     time::{Duration, Instant},
@@ -104,7 +104,7 @@ fn rx(
     let layout = ChannelLayoutRx::SISO(RxChannel::Rx0);
 
     let rx = device
-        .rx_streamer::<ComplexI16>(&config, layout)
+        .rx_streamer::<ComplexI16>(config, layout)
         .context("Receive samples")?;
 
     rx.enable().context("Failed to enable rx")?;
@@ -443,8 +443,8 @@ fn tui_app() -> anyhow::Result<()> {
         {
             let ui = ui_state.lock();
 
-            use crossterm::{cursor, QueueableCommand};
-            use std::io::{stdout, Write};
+            use crossterm::{QueueableCommand, cursor};
+            use std::io::{Write, stdout};
 
             let mut stdout = stdout();
 
@@ -487,8 +487,8 @@ fn tui_app() -> anyhow::Result<()> {
                     KeyCode::Char('q') => {
                         RUNNING.store(false, Ordering::Release);
 
-                        use crossterm::{cursor, QueueableCommand};
-                        use std::io::{stdout, Write};
+                        use crossterm::{QueueableCommand, cursor};
+                        use std::io::{Write, stdout};
                         let mut stdout = stdout();
 
                         stdout

@@ -109,7 +109,7 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| "Cannot Create Sync Config")?;
     let layout = ChannelLayoutRx::SISO(channel);
     let reciever = dev
-        .rx_streamer::<ComplexI16>(&config, layout)
+        .rx_streamer::<ComplexI16>(config, layout)
         .with_context(|| "Cannot Get Streamer")?;
 
     let file = File::create(args.outfile).with_context(|| "Cannot Open Output File")?;
