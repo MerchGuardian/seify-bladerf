@@ -3,7 +3,8 @@
 use std::{thread, time::Duration};
 
 use bladerf::{
-    BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI16, Error, Result, RxChannel, SyncConfig,
+    BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI12, ComplexI16, Error, Result, RxChannel,
+    SyncConfig,
 };
 use serial_test::serial;
 
@@ -220,6 +221,24 @@ fn rx_streamer_toggle_enabled() -> Result<()> {
     rx_streamer.enable()?;
 
     rx_streamer.read(&mut [ComplexI16::ZERO; 1024], Duration::from_secs(1))?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn rx_streamer_reconfigure() -> Result<()> {
+    let device = BladeRfAny::open_first()?;
+    let rx_streamer = device
+        .rx_streamer::<ComplexI16>(SyncConfig::default(), ChannelLayoutRx::SISO(RxChannel::Rx0))?;
+
+    rx_streamer.enable()?;
+
+    let new_rxstreamer = rx_streamer
+        .reconfigure::<ComplexI12>(SyncConfig::default(), ChannelLayoutRx::SISO(RxChannel::Rx0))?;
+
+    new_rxstreamer.enable()?;
+    new_rxstreamer.disable()?;
 
     Ok(())
 }
