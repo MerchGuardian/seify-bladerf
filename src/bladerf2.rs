@@ -46,7 +46,7 @@ impl BladeRf2 {
 
     pub fn rx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<&Self, T, BladeRf2>> {
         // TODO: Decide Ordering

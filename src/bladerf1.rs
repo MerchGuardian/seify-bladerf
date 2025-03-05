@@ -124,7 +124,7 @@ impl BladeRf1 {
 
     pub fn rx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
     ) -> Result<RxSyncStream<&Self, T, BladeRf1>> {
         // TODO: Decide Ordering
         self.rx_stream_configured

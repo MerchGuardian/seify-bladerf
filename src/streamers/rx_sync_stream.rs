@@ -20,6 +20,7 @@ use super::SyncConfig;
 pub struct RxSyncStream<T: Borrow<D>, F: SampleFormat, D: BladeRF> {
     pub(crate) dev: T,
     pub(crate) layout: ChannelLayoutRx,
+    pub(crate) config: SyncConfig,
     pub(crate) _devtype: PhantomData<D>,
     pub(crate) _format: PhantomData<F>,
 }
@@ -43,16 +44,17 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> RxSyncStream<T, F, D> {
     /// Need to ensure multiple streamers are not configured since a reconfiguration of one can change the sample type leading to our of bounds memory accesses.
     pub(crate) unsafe fn new(
         dev: T,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<T, F, D>> {
         unsafe {
-            dev.borrow().set_sync_config::<F>(config, layout.into())?;
+            dev.borrow().set_sync_config::<F>(&config, layout.into())?;
         }
 
         Ok(RxSyncStream {
             dev,
             layout,
+            config,
             _devtype: PhantomData,
             _format: PhantomData,
         })
@@ -62,7 +64,7 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> RxSyncStream<T, F, D> {
 impl<'a, F: SampleFormat, D: BladeRF> RxSyncStream<&'a D, F, D> {
     fn reconfigure_inner<NF: SampleFormat>(
         self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<&'a D, NF, D>> {
         let dev = self.dev;
@@ -77,7 +79,7 @@ impl<'a, F: SampleFormat, D: BladeRF> RxSyncStream<&'a D, F, D> {
 impl<F: SampleFormat, D: BladeRF> RxSyncStream<Arc<D>, F, D> {
     fn reconfigure_inner<NF: SampleFormat>(
         self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<Arc<D>, NF, D>> {
         let dev = self.dev.clone();
@@ -102,6 +104,12 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> Drop for RxSyncStream<T, F, D> {
 
 impl<T: Borrow<BladeRf1> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRf1> {
     pub fn enable(&self) -> Result<()> {
+        // Safety, should be find to do a reconfigure here, nothing changes about the config, we just need to do this because disable will uninitialize the config
+        unsafe {
+            self.dev
+                .borrow()
+                .set_sync_config::<F>(&self.config, self.layout.into())?;
+        }
         self.dev.borrow().set_enable_module(Channel::Rx0, true)
     }
 
@@ -113,7 +121,7 @@ impl<T: Borrow<BladeRf1> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRf1> 
 impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf1, F, BladeRf1> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: &SyncConfig,
+        config: SyncConfig,
     ) -> Result<RxSyncStream<&'a BladeRf1, NF, BladeRf1>> {
         self.reconfigure_inner(config, ChannelLayoutRx::SISO(RxChannel::Rx0))
     }
@@ -122,7 +130,7 @@ impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf1, F, BladeRf1> {
 impl<F: SampleFormat> RxSyncStream<Arc<BladeRf1>, F, BladeRf1> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: &SyncConfig,
+        config: SyncConfig,
     ) -> Result<RxSyncStream<Arc<BladeRf1>, NF, BladeRf1>> {
         self.reconfigure_inner(config, ChannelLayoutRx::SISO(RxChannel::Rx0))
     }
@@ -133,6 +141,13 @@ impl<F: SampleFormat> RxSyncStream<Arc<BladeRf1>, F, BladeRf1> {
 
 impl<T: Borrow<BladeRf2> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRf2> {
     pub fn enable(&self) -> Result<()> {
+        // Safety, should be find to do a reconfigure here, nothing changes about the config, we just need to do this because disable will uninitialize the config
+        unsafe {
+            self.dev
+                .borrow()
+                .set_sync_config::<F>(&self.config, self.layout.into())?;
+        }
+
         match self.layout {
             ChannelLayoutRx::SISO(ch) => self.dev.borrow().set_enable_module(ch.into(), true),
             ChannelLayoutRx::MIMO => {
@@ -158,7 +173,7 @@ impl<T: Borrow<BladeRf2> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRf2> 
 impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf2, F, BladeRf2> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<&'a BladeRf2, NF, BladeRf2>> {
         self.reconfigure_inner(config, layout)
@@ -168,7 +183,7 @@ impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf2, F, BladeRf2> {
 impl<F: SampleFormat> RxSyncStream<Arc<BladeRf2>, F, BladeRf2> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<Arc<BladeRf2>, NF, BladeRf2>> {
         self.reconfigure_inner(config, layout)
@@ -180,6 +195,12 @@ impl<F: SampleFormat> RxSyncStream<Arc<BladeRf2>, F, BladeRf2> {
 
 impl<T: Borrow<BladeRfAny> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRfAny> {
     pub fn enable(&self) -> Result<()> {
+        // Safety, should be find to do a reconfigure here, nothing changes about the config, we just need to do this because disable will uninitialize the config
+        unsafe {
+            self.dev
+                .borrow()
+                .set_sync_config::<F>(&self.config, self.layout.into())?;
+        }
         match self.layout {
             ChannelLayoutRx::SISO(ch) => self.dev.borrow().set_enable_module(ch.into(), true),
             ChannelLayoutRx::MIMO => {
@@ -205,7 +226,7 @@ impl<T: Borrow<BladeRfAny> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRfA
 impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<&'a BladeRfAny, NF, BladeRfAny>> {
         self.reconfigure_inner(config, layout)
@@ -215,7 +236,7 @@ impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
 impl<F: SampleFormat> RxSyncStream<Arc<BladeRfAny>, F, BladeRfAny> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<Arc<BladeRfAny>, NF, BladeRfAny>> {
         self.reconfigure_inner(config, layout)

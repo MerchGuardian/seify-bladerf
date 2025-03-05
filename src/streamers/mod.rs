@@ -9,6 +9,7 @@ pub use rx_sync_stream::*;
 mod tx_sync_stream;
 pub use tx_sync_stream::*;
 
+#[derive(Debug, Clone, Copy)]
 pub struct SyncConfig {
     pub(crate) num_buffers: u32,
     pub(crate) buffer_size: u32,
