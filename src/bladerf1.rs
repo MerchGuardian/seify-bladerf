@@ -1,6 +1,6 @@
 use crate::expansion_boards::Xb200;
 use crate::streamers::{RxSyncStream, SyncConfig, TxSyncStream};
-use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
+use crate::{BladeRF, BladeRfAny, error::*, sys::*, types::*};
 use mem::ManuallyDrop;
 use std::*;
 use sync::atomic::{AtomicBool, Ordering};
@@ -109,7 +109,7 @@ impl BladeRf1 {
 
     pub fn tx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
     ) -> Result<TxSyncStream<&Self, T, BladeRf1>> {
         // TODO: Decide Ordering
         self.tx_stream_configured

@@ -67,7 +67,7 @@ impl BladeRfAny {
 
     pub fn tx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<&Self, T, Self>> {
         // TODO: Decide Ordering

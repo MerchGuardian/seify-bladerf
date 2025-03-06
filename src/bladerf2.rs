@@ -1,5 +1,5 @@
 use crate::streamers::{RxSyncStream, SyncConfig, TxSyncStream};
-use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
+use crate::{BladeRF, BladeRfAny, error::*, sys::*, types::*};
 use mem::ManuallyDrop;
 use std::*;
 use sync::atomic::{AtomicBool, Ordering};
@@ -30,7 +30,7 @@ impl BladeRf2 {
 
     pub fn tx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<&Self, T, BladeRf2>> {
         // TODO: Decide Ordering

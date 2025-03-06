@@ -248,7 +248,7 @@ fn tx(
     let layout = ChannelLayoutTx::SISO(TxChannel::Tx0);
 
     let tx = device
-        .tx_streamer::<ComplexI16>(&config, layout)
+        .tx_streamer::<ComplexI16>(config, layout)
         .context("Transmit samples")?;
 
     tx.enable().context("Failed to enable tx")?;
