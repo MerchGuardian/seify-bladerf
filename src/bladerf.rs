@@ -1,5 +1,5 @@
-use crate::{RxSyncStream, SyncConfig, TxSyncStream, error::*, sys::*, types::*};
-use ffi::{CStr, CString, c_char};
+use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig, TxSyncStream};
+use ffi::{c_char, CStr, CString};
 use path::Path;
 use std::{mem::ManuallyDrop, *};
 use sync::atomic::{AtomicBool, Ordering};

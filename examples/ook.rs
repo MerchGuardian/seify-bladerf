@@ -1,8 +1,8 @@
 use std::{
     io::stdout,
     sync::{
-        Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc,
     },
     thread,
     time::{Duration, Instant},
@@ -443,8 +443,8 @@ fn tui_app() -> anyhow::Result<()> {
         {
             let ui = ui_state.lock();
 
-            use crossterm::{QueueableCommand, cursor};
-            use std::io::{Write, stdout};
+            use crossterm::{cursor, QueueableCommand};
+            use std::io::{stdout, Write};
 
             let mut stdout = stdout();
 
@@ -487,8 +487,8 @@ fn tui_app() -> anyhow::Result<()> {
                     KeyCode::Char('q') => {
                         RUNNING.store(false, Ordering::Release);
 
-                        use crossterm::{QueueableCommand, cursor};
-                        use std::io::{Write, stdout};
+                        use crossterm::{cursor, QueueableCommand};
+                        use std::io::{stdout, Write};
                         let mut stdout = stdout();
 
                         stdout

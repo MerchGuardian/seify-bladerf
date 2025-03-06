@@ -1,6 +1,6 @@
 use crate::expansion_boards::Xb200;
 use crate::streamers::{RxSyncStream, SyncConfig, TxSyncStream};
-use crate::{BladeRF, BladeRfAny, error::*, sys::*, types::*};
+use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use mem::ManuallyDrop;
 use std::*;
 use sync::atomic::{AtomicBool, Ordering};
