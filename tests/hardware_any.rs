@@ -70,7 +70,7 @@ fn print_fpga_size() -> Result<()> {
 #[serial]
 fn print_firmware_version() -> Result<()> {
     let device = BladeRfAny::open_first()?;
-    let version = device.firmware_version()?;
+    let version = device.get_firmware_version()?;
     println!("{:?}", version);
     Ok(())
 }
@@ -79,7 +79,7 @@ fn print_firmware_version() -> Result<()> {
 #[serial]
 fn print_fpga_version() -> Result<()> {
     let device = BladeRfAny::open_first()?;
-    let version = device.fpga_version()?;
+    let version = device.get_fpga_version()?;
     println!("FPGA Version: {:?}", version);
     Ok(())
 }
