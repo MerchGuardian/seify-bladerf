@@ -1,7 +1,7 @@
 // Allow clippy::unnecessary_cast since the cast is needed for when bindgen runs on windows. The enum variants get cast to i32 on windows.
 #![allow(clippy::unnecessary_cast)]
 use fixed::{types::extra::U11, FixedI16};
-use num_complex::Complex;
+use num_complex::{Complex, Complex32};
 use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
@@ -91,6 +91,13 @@ unsafe impl SampleFormat for ComplexI12 {
     fn is_compatible(format: Format) -> bool {
         matches!(format, Format::Sc16Q11)
     }
+}
+
+#[inline]
+pub fn brf_ci12_to_cf32(sample: ComplexI12) -> Complex32 {
+    let re: f32 = sample.re.to_num::<f32>();
+    let im: f32 = sample.im.to_num::<f32>();
+    Complex::new(re, im)
 }
 
 #[cfg(test)]

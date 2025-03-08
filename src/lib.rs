@@ -19,8 +19,8 @@ mod bladerf1;
 pub use bladerf1::*;
 mod bladerf2;
 pub use bladerf2::*;
-mod stream;
-pub use stream::*;
+mod streamers;
+pub use streamers::*;
 
 pub mod expansion_boards;
 

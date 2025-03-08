@@ -23,6 +23,7 @@ fixed = "1.28.0"
 libbladerf-sys = { version = "0.1.0", path = "./libbladerf-sys" }
 log = "0.4.22"
 num-complex = "0.4.6"
+num-traits = "0.2.19"
 parking_lot = "0.12.3"
 strum = { version = "0.26.3", features = ["derive", "strum_macros"] }
 thiserror = "2"

@@ -1,6 +1,5 @@
-use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
+use crate::streamers::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
-use marker::PhantomData;
 use mem::ManuallyDrop;
 use std::*;
 use sync::atomic::{AtomicBool, Ordering};
@@ -31,31 +30,25 @@ impl BladeRf2 {
 
     pub fn tx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutTx,
-    ) -> Result<TxSyncStream<T, BladeRf2>> {
+    ) -> Result<TxSyncStream<&Self, T, BladeRf2>> {
         // TODO: Decide Ordering
         self.tx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
             .map_err(|_err| {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
-        unsafe {
-            self.set_sync_config::<T>(config, layout.into())?;
-        }
 
-        Ok(TxSyncStream {
-            dev: self,
-            layout,
-            _format: PhantomData,
-        })
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { TxSyncStream::new(self, config, layout) }
     }
 
     pub fn rx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
-    ) -> Result<RxSyncStream<T, BladeRf2>> {
+    ) -> Result<RxSyncStream<&Self, T, BladeRf2>> {
         // TODO: Decide Ordering
         self.rx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -63,15 +56,8 @@ impl BladeRf2 {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe {
-            self.set_sync_config::<T>(config, layout.into())?;
-        }
-
-        Ok(RxSyncStream {
-            dev: self,
-            layout,
-            _format: PhantomData,
-        })
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { RxSyncStream::new(self, config, layout) }
     }
 }
 

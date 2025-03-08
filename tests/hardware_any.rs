@@ -2,7 +2,10 @@
 
 use std::{thread, time::Duration};
 
-use bladerf::{BladeRF, BladeRfAny, Error, Result};
+use bladerf::{
+    BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI12, ComplexI16, Error, Result, RxChannel,
+    SyncConfig,
+};
 use serial_test::serial;
 
 #[test]
@@ -67,7 +70,7 @@ fn print_fpga_size() -> Result<()> {
 #[serial]
 fn print_firmware_version() -> Result<()> {
     let device = BladeRfAny::open_first()?;
-    let version = device.firmware_version()?;
+    let version = device.get_firmware_version()?;
     println!("{:?}", version);
     Ok(())
 }
@@ -76,7 +79,7 @@ fn print_firmware_version() -> Result<()> {
 #[serial]
 fn print_fpga_version() -> Result<()> {
     let device = BladeRfAny::open_first()?;
-    let version = device.fpga_version()?;
+    let version = device.get_fpga_version()?;
     println!("FPGA Version: {:?}", version);
     Ok(())
 }
@@ -202,5 +205,40 @@ fn get_board_name() -> Result<()> {
     let device = BladeRfAny::open_first()?;
     let board_name = device.get_board_name();
     println!("{:?}", board_name);
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn rx_streamer_toggle_enabled() -> Result<()> {
+    let device = BladeRfAny::open_first()?;
+    let rx_streamer = device
+        .rx_streamer::<ComplexI16>(SyncConfig::default(), ChannelLayoutRx::SISO(RxChannel::Rx0))?;
+
+    // Make sure that we can enable, disable and reenable again as well as read some samples.
+    rx_streamer.enable()?;
+    rx_streamer.disable()?;
+    rx_streamer.enable()?;
+
+    rx_streamer.read(&mut [ComplexI16::ZERO; 1024], Duration::from_secs(1))?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn rx_streamer_reconfigure() -> Result<()> {
+    let device = BladeRfAny::open_first()?;
+    let rx_streamer = device
+        .rx_streamer::<ComplexI16>(SyncConfig::default(), ChannelLayoutRx::SISO(RxChannel::Rx0))?;
+
+    rx_streamer.enable()?;
+
+    let new_rxstreamer = rx_streamer
+        .reconfigure::<ComplexI12>(SyncConfig::default(), ChannelLayoutRx::SISO(RxChannel::Rx0))?;
+
+    new_rxstreamer.enable()?;
+    new_rxstreamer.disable()?;
+
     Ok(())
 }
