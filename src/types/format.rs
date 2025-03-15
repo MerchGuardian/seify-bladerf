@@ -100,6 +100,27 @@ pub fn brf_ci12_to_cf32(sample: ComplexI12) -> Complex32 {
     Complex::new(re, im)
 }
 
+#[inline]
+pub fn brf_cf32_to_ci12(sample: Complex32) -> ComplexI12 {
+    let re = FixedI11F::from_num(sample.re);
+    let im = FixedI11F::from_num(sample.im);
+    ComplexI12::new(re, im)
+}
+
+#[inline]
+pub fn brf_ci16_to_cf32(sample: ComplexI16) -> Complex32 {
+    let re: f32 = f32::from(sample.re) / 4096.0;
+    let im: f32 = f32::from(sample.im) / 4096.0;
+    Complex::new(re, im)
+}
+
+#[inline]
+pub fn brf_cf32_to_ci16(sample: Complex32) -> ComplexI16 {
+    let re = (sample.re * 4096.0) as i16;
+    let im = (sample.im * 4096.0) as i16;
+    Complex::new(re, im)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
