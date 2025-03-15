@@ -10,14 +10,14 @@ mod tx_sync_stream;
 pub use tx_sync_stream::*;
 
 #[derive(Debug, Clone, Copy)]
-pub struct SyncConfig {
+pub struct StreamConfig {
     pub(crate) num_buffers: u32,
     pub(crate) buffer_size: u32,
     pub(crate) num_transfers: u32,
     pub(crate) stream_timeout: u32,
 }
 
-impl SyncConfig {
+impl StreamConfig {
     pub fn new(
         num_buffers: u32,
         buffer_size: usize,
@@ -52,7 +52,7 @@ impl SyncConfig {
     }
 }
 
-impl Default for SyncConfig {
+impl Default for StreamConfig {
     /// Values taken from <https://www.nuand.com/libbladeRF-doc/v2.5.0/sync_no_meta.html>
     fn default() -> Self {
         Self {

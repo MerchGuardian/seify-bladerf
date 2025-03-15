@@ -1,5 +1,5 @@
 use anyhow::{Context, Ok};
-use bladerf::{BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI16, RxChannel, SyncConfig};
+use bladerf::{BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI16, RxChannel, StreamConfig};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_complex::Complex;
 use std::{
@@ -105,7 +105,7 @@ fn main() -> anyhow::Result<()> {
 
     log::debug!("Sample rate set to {}", args.samplerate);
 
-    let config = SyncConfig::new(16, SAMPLES_PER_BLOCK, 8, Duration::from_secs(3))
+    let config = StreamConfig::new(16, SAMPLES_PER_BLOCK, 8, Duration::from_secs(3))
         .with_context(|| "Cannot Create Sync Config")?;
     let layout = ChannelLayoutRx::SISO(channel);
     let reciever = dev
