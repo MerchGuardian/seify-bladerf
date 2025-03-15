@@ -1,3 +1,4 @@
+use embedded_hal::digital::ErrorKind;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -88,5 +89,11 @@ impl Error {
             -19 => Error::NotInit,
             code => Error::BladeRfCode(code),
         }
+    }
+}
+
+impl embedded_hal::digital::Error for Error {
+    fn kind(&self) -> embedded_hal::digital::ErrorKind {
+        ErrorKind::Other
     }
 }

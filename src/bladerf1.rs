@@ -1,7 +1,6 @@
 use crate::expansion_boards::Xb200;
-use crate::stream::{RxSyncStream, SyncConfig, TxSyncStream};
+use crate::streamers::{RxSyncStream, SyncConfig, TxSyncStream};
 use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
-use marker::PhantomData;
 use mem::ManuallyDrop;
 use std::*;
 use sync::atomic::{AtomicBool, Ordering};
@@ -110,8 +109,8 @@ impl BladeRf1 {
 
     pub fn tx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
-    ) -> Result<TxSyncStream<T, BladeRf1>> {
+        config: SyncConfig,
+    ) -> Result<TxSyncStream<&Self, T, BladeRf1>> {
         // TODO: Decide Ordering
         self.tx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -119,19 +118,14 @@ impl BladeRf1 {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe { self.set_sync_config::<T>(config, ChannelLayout::TxSISO)? };
-
-        Ok(TxSyncStream {
-            dev: self,
-            layout: ChannelLayoutTx::SISO(TxChannel::Tx0),
-            _format: PhantomData,
-        })
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { TxSyncStream::new(self, config, ChannelLayoutTx::SISO(TxChannel::Tx0)) }
     }
 
     pub fn rx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
-    ) -> Result<RxSyncStream<T, BladeRf1>> {
+        config: SyncConfig,
+    ) -> Result<RxSyncStream<&Self, T, BladeRf1>> {
         // TODO: Decide Ordering
         self.rx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -139,13 +133,8 @@ impl BladeRf1 {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe { self.set_sync_config::<T>(config, ChannelLayout::RxSISO)? };
-
-        Ok(RxSyncStream {
-            dev: self,
-            layout: ChannelLayoutRx::SISO(RxChannel::Rx0),
-            _format: PhantomData,
-        })
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { RxSyncStream::new(self, config, ChannelLayoutRx::SISO(RxChannel::Rx0)) }
     }
 
     fn expansion_attach(&self, module: ExpansionModule) -> Result<()> {
@@ -163,7 +152,10 @@ impl BladeRf1 {
 
     pub fn get_xb200(&self) -> Result<Xb200> {
         self.expansion_attach(ExpansionModule::Xb200)?;
-        Ok(Xb200 { device: self })
+        Ok(Xb200 {
+            device: self,
+            periph_taken: false,
+        })
     }
 }
 

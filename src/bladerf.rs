@@ -1,6 +1,5 @@
 use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig, TxSyncStream};
 use ffi::{c_char, CStr, CString};
-use marker::PhantomData;
 use path::Path;
 use std::{mem::ManuallyDrop, *};
 use sync::atomic::{AtomicBool, Ordering};
@@ -68,9 +67,9 @@ impl BladeRfAny {
 
     pub fn tx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutTx,
-    ) -> Result<TxSyncStream<T, Self>> {
+    ) -> Result<TxSyncStream<&Self, T, Self>> {
         // TODO: Decide Ordering
         self.tx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -78,22 +77,15 @@ impl BladeRfAny {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe {
-            self.set_sync_config::<T>(config, layout.into())?;
-        }
-
-        Ok(TxSyncStream {
-            dev: self,
-            layout,
-            _format: PhantomData,
-        })
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { TxSyncStream::new(self, config, layout) }
     }
 
     pub fn rx_streamer<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: SyncConfig,
         layout: ChannelLayoutRx,
-    ) -> Result<RxSyncStream<T, BladeRfAny>> {
+    ) -> Result<RxSyncStream<&Self, T, BladeRfAny>> {
         // TODO: Decide Ordering
         self.rx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -101,15 +93,8 @@ impl BladeRfAny {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
 
-        unsafe {
-            self.set_sync_config::<T>(config, layout.into())?;
-        }
-
-        Ok(RxSyncStream {
-            dev: self,
-            layout,
-            _format: PhantomData,
-        })
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { RxSyncStream::new(self, config, layout) }
     }
 }
 
