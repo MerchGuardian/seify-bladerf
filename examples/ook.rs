@@ -10,7 +10,7 @@ use std::{
 
 use anyhow::Context;
 use bladerf::{
-    BladeRF, Channel, ChannelLayoutRx, ChannelLayoutTx, ComplexI16, RxChannel, SyncConfig,
+    BladeRF, Channel, ChannelLayoutRx, ChannelLayoutTx, ComplexI16, RxChannel, StreamConfig,
     TxChannel,
 };
 use crossterm::{
@@ -94,7 +94,7 @@ fn rx(
     let mut sample_buffer = Vec::new();
     let mut bits = Vec::new();
 
-    let config = SyncConfig::new(
+    let config = StreamConfig::new(
         c.num_buffers,
         c.buffer_size,
         c.num_transfers,
@@ -238,7 +238,7 @@ fn tx(
     let mut sample_count = 0;
     let mut bytes = 0;
 
-    let config = SyncConfig::new(
+    let config = StreamConfig::new(
         c.num_buffers,
         c.buffer_size,
         c.num_transfers,

@@ -15,12 +15,12 @@ use crate::Result;
 use crate::SampleFormat;
 use crate::TxChannel;
 
-use super::SyncConfig;
+use super::StreamConfig;
 
 pub struct TxSyncStream<T: Borrow<D>, F: SampleFormat, D: BladeRF> {
     pub(crate) dev: T,
     pub(crate) layout: ChannelLayoutTx,
-    pub(crate) config: SyncConfig,
+    pub(crate) config: StreamConfig,
     pub(crate) _devtype: PhantomData<D>,
     pub(crate) _format: PhantomData<F>,
 }
@@ -44,7 +44,7 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> TxSyncStream<T, F, D> {
     /// Need to ensure multiple streamers are not configured since a reconfiguration of one can change the sample type leading to our of bounds memory accesses.
     pub(crate) unsafe fn new(
         dev: T,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<T, F, D>> {
         unsafe {
@@ -64,7 +64,7 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> TxSyncStream<T, F, D> {
 impl<'a, F: SampleFormat, D: BladeRF> TxSyncStream<&'a D, F, D> {
     fn reconfigure_inner<NF: SampleFormat>(
         self,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<&'a D, NF, D>> {
         // Safety: the previous streamer is moved, and is dropped so we are save to construct a new one.
@@ -75,7 +75,7 @@ impl<'a, F: SampleFormat, D: BladeRF> TxSyncStream<&'a D, F, D> {
 impl<F: SampleFormat, D: BladeRF> TxSyncStream<Arc<D>, F, D> {
     fn reconfigure_inner<NF: SampleFormat>(
         self,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<Arc<D>, NF, D>> {
         // Safety: the previous streamer is moved, and is dropped so we are save to construct a new one.
@@ -113,7 +113,7 @@ impl<T: Borrow<BladeRf1>, F: SampleFormat> TxSyncStream<T, F, BladeRf1> {
 impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRf1, F, BladeRf1> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: SyncConfig,
+        config: StreamConfig,
     ) -> Result<TxSyncStream<&'a BladeRf1, NF, BladeRf1>> {
         self.reconfigure_inner(config, ChannelLayoutTx::SISO(TxChannel::Tx0))
     }
@@ -122,7 +122,7 @@ impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRf1, F, BladeRf1> {
 impl<F: SampleFormat> TxSyncStream<Arc<BladeRf1>, F, BladeRf1> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: SyncConfig,
+        config: StreamConfig,
     ) -> Result<TxSyncStream<Arc<BladeRf1>, NF, BladeRf1>> {
         self.reconfigure_inner(config, ChannelLayoutTx::SISO(TxChannel::Tx0))
     }
@@ -164,7 +164,7 @@ impl<T: Borrow<BladeRf2> + Clone, F: SampleFormat> TxSyncStream<T, F, BladeRf2> 
 impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRf2, F, BladeRf2> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<&'a BladeRf2, NF, BladeRf2>> {
         self.reconfigure_inner(config, layout)
@@ -174,7 +174,7 @@ impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRf2, F, BladeRf2> {
 impl<F: SampleFormat> TxSyncStream<Arc<BladeRf2>, F, BladeRf2> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<Arc<BladeRf2>, NF, BladeRf2>> {
         self.reconfigure_inner(config, layout)
@@ -217,7 +217,7 @@ impl<T: Borrow<BladeRfAny> + Clone, F: SampleFormat> TxSyncStream<T, F, BladeRfA
 impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<&'a BladeRfAny, NF, BladeRfAny>> {
         self.reconfigure_inner(config, layout)
@@ -227,7 +227,7 @@ impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
 impl<F: SampleFormat> TxSyncStream<Arc<BladeRfAny>, F, BladeRfAny> {
     pub fn reconfigure<NF: SampleFormat>(
         self,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<Arc<BladeRfAny>, NF, BladeRfAny>> {
         self.reconfigure_inner(config, layout)
