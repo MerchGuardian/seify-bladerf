@@ -9,6 +9,11 @@ pub use rx_sync_stream::*;
 mod tx_sync_stream;
 pub use tx_sync_stream::*;
 
+/// Configuration parameters for a stream of samples.
+///
+/// # Related Links on Nuand's Site
+/// - <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_t_r_e_a_m_i_n_g___s_y_n_c.html#ga6f76857ec83bc56d485842dd55eebe65>
+/// - <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_t_r_e_a_m_i_n_g___a_s_y_n_c.html#ga72752f2a047b95544e7686596a409abd>
 #[derive(Debug, Clone, Copy)]
 pub struct SyncConfig {
     pub(crate) num_buffers: u32,
@@ -18,6 +23,15 @@ pub struct SyncConfig {
 }
 
 impl SyncConfig {
+    /// Creates a new [SyncConfig] that can be used to configure streams like [RxSyncStream] and [TxSyncStream]
+    ///
+    /// # Errors
+    /// - The `buffer_size` must be a multiple of 1024.
+    /// - `num_buffers` must be >= `num_transfers`
+    /// - When the parameters are not able to be properly converted into a [u32] since that is what is used by `libbladerf` internally.
+    ///
+    /// It is reccomended to look at Nuand's docs for [`bladerf_init_stream()`](https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_t_r_e_a_m_i_n_g___a_s_y_n_c.html#ga72752f2a047b95544e7686596a409abd)
+    /// to get some more information on setting those parameters.
     pub fn new(
         num_buffers: u32,
         buffer_size: usize,

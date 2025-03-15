@@ -17,6 +17,34 @@ use crate::TxChannel;
 
 use super::SyncConfig;
 
+/// A synchronous stream from transmitting samples with the BladeRF
+///
+/// This can be configured with a few different sample formats depending on your use-case.
+///
+/// Obtained from a call to [BladeRfAny::tx_streamer()] as well as a similar method on other devices.
+/// ```no_run
+/// use bladerf::{BladeRfAny, ComplexI12, ChannelLayoutTx, TxChannel, SyncConfig};
+/// let dev = BladeRfAny::open_first().unwrap();
+/// let conf = SyncConfig::default();
+/// let layout = ChannelLayoutTx::SISO(TxChannel::Tx0);
+///
+/// let tx_stream = dev.tx_streamer::<ComplexI12>(conf, layout).unwrap();
+/// ```
+///
+/// If the sample format needs to be changed, a call to [TxSyncStream::reconfigure()] can be made:
+/// ```no_run
+/// use bladerf::{BladeRfAny, ComplexI12, ChannelLayoutTx, TxChannel, SyncConfig, ComplexI8};
+/// let dev = BladeRfAny::open_first().unwrap();
+/// let conf = SyncConfig::default();
+/// let layout = ChannelLayoutTx::SISO(TxChannel::Tx0);
+///
+/// let tx_stream_a = dev.tx_streamer::<ComplexI12>(conf, layout).unwrap();
+///
+/// let tx_stream_b = tx_stream_a.reconfigure::<ComplexI8>(conf, layout).unwrap();
+/// ```
+///
+/// The methods for an [TxSyncStream] are a bit different for [BladeRf1] as they won't take the layout parameter.
+#[derive(Debug)]
 pub struct TxSyncStream<T: Borrow<D>, F: SampleFormat, D: BladeRF> {
     pub(crate) dev: T,
     pub(crate) layout: ChannelLayoutTx,
@@ -26,6 +54,11 @@ pub struct TxSyncStream<T: Borrow<D>, F: SampleFormat, D: BladeRF> {
 }
 
 impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> TxSyncStream<T, F, D> {
+    /// Writes IQ samples from a buffer of [[SampleFormat]].
+    ///
+    /// This method will error if a call to [TxSyncStream::enable()] as not been made.
+    ///
+    /// Relevant `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_t_r_e_a_m_i_n_g___s_y_n_c.html#ga9717092f3390080ed70f6dfb874a1dea>
     pub fn write(&self, buffer: &[F], timeout: Duration) -> Result<()> {
         let res = unsafe {
             sys::bladerf_sync_tx(
@@ -95,6 +128,7 @@ impl<T: Borrow<D>, F: SampleFormat, D: BladeRF> Drop for TxSyncStream<T, F, D> {
 // RX Stream Brf1
 
 impl<T: Borrow<BladeRf1>, F: SampleFormat> TxSyncStream<T, F, BladeRf1> {
+    /// Enables the stream (and the relevant hardware) so samples can be written.
     pub fn enable(&self) -> Result<()> {
         // Safety, should be find to do a reconfigure here, nothing changes about the config, we just need to do this because disable will uninitialize the config
         unsafe {
@@ -105,12 +139,16 @@ impl<T: Borrow<BladeRf1>, F: SampleFormat> TxSyncStream<T, F, BladeRf1> {
         self.dev.borrow().set_enable_module(Channel::Tx0, true)
     }
 
+    /// Disables the stream (and the relevant hardware).
     pub fn disable(&self) -> Result<()> {
         self.dev.borrow().set_enable_module(Channel::Tx0, false)
     }
 }
 
 impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRf1, F, BladeRf1> {
+    /// Allows reconfiguring a stream to change either the [SyncConfig] or [SampleFormat]
+    ///
+    /// See the general [TxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: SyncConfig,
@@ -120,6 +158,9 @@ impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRf1, F, BladeRf1> {
 }
 
 impl<F: SampleFormat> TxSyncStream<Arc<BladeRf1>, F, BladeRf1> {
+    /// Allows reconfiguring a stream to change either the [SyncConfig] or [SampleFormat]
+    ///
+    /// See the general [TxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: SyncConfig,
@@ -132,6 +173,7 @@ impl<F: SampleFormat> TxSyncStream<Arc<BladeRf1>, F, BladeRf1> {
 // RX Stream Brf2
 
 impl<T: Borrow<BladeRf2> + Clone, F: SampleFormat> TxSyncStream<T, F, BladeRf2> {
+    /// Enables the stream (and the relevant hardware) so samples can be written.
     pub fn enable(&self) -> Result<()> {
         // Safety, should be find to do a reconfigure here, nothing changes about the config, we just need to do this because disable will uninitialize the config
         unsafe {
@@ -149,6 +191,7 @@ impl<T: Borrow<BladeRf2> + Clone, F: SampleFormat> TxSyncStream<T, F, BladeRf2> 
         }
     }
 
+    /// Disables the stream (and the relevant hardware).
     pub fn disable(&self) -> Result<()> {
         match self.layout {
             ChannelLayoutTx::SISO(ch) => self.dev.borrow().set_enable_module(ch.into(), false),
@@ -162,6 +205,9 @@ impl<T: Borrow<BladeRf2> + Clone, F: SampleFormat> TxSyncStream<T, F, BladeRf2> 
 }
 
 impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRf2, F, BladeRf2> {
+    /// Allows reconfiguring a stream to change either the [SyncConfig]/[SampleFormat]/[ChannelLayoutTx]
+    ///
+    /// See the general [TxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: SyncConfig,
@@ -172,6 +218,9 @@ impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRf2, F, BladeRf2> {
 }
 
 impl<F: SampleFormat> TxSyncStream<Arc<BladeRf2>, F, BladeRf2> {
+    /// Allows reconfiguring a stream to change either the [SyncConfig]/[SampleFormat]/[ChannelLayoutTx]
+    ///
+    /// See the general [TxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: SyncConfig,
@@ -185,6 +234,7 @@ impl<F: SampleFormat> TxSyncStream<Arc<BladeRf2>, F, BladeRf2> {
 // RX Stream BrfAny
 
 impl<T: Borrow<BladeRfAny> + Clone, F: SampleFormat> TxSyncStream<T, F, BladeRfAny> {
+    /// Enables the stream (and the relevant hardware) so samples can be written.
     pub fn enable(&self) -> Result<()> {
         // Safety, should be find to do a reconfigure here, nothing changes about the config, we just need to do this because disable will uninitialize the config
         unsafe {
@@ -202,6 +252,7 @@ impl<T: Borrow<BladeRfAny> + Clone, F: SampleFormat> TxSyncStream<T, F, BladeRfA
         }
     }
 
+    /// Disables the stream (and the relevant hardware).
     pub fn disable(&self) -> Result<()> {
         match self.layout {
             ChannelLayoutTx::SISO(ch) => self.dev.borrow().set_enable_module(ch.into(), false),
@@ -215,6 +266,9 @@ impl<T: Borrow<BladeRfAny> + Clone, F: SampleFormat> TxSyncStream<T, F, BladeRfA
 }
 
 impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
+    /// Allows reconfiguring a stream to change either the [SyncConfig]/[SampleFormat]/[ChannelLayoutTx]
+    ///
+    /// See the general [TxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: SyncConfig,
@@ -225,6 +279,9 @@ impl<'a, F: SampleFormat> TxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
 }
 
 impl<F: SampleFormat> TxSyncStream<Arc<BladeRfAny>, F, BladeRfAny> {
+    /// Allows reconfiguring a stream to change either the [SyncConfig]/[SampleFormat]/[ChannelLayoutTx]
+    ///
+    /// See the general [TxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
         self,
         config: SyncConfig,
