@@ -6,7 +6,7 @@ use super::{Xb200Filter, Xb200Path};
 
 /// Structure to access functions related to the Xb200 Expansion board.
 ///
-/// This struct can be obtains by a call to [BladeRf1::get_xb200()]
+/// This struct can be obtained by a call to [BladeRf1::get_xb200()]
 ///
 /// ```no_run
 /// use bladerf::{BladeRf1, BladeRfAny};
