@@ -13,6 +13,22 @@ pub struct BladeRf2 {
     tx_stream_configured: AtomicBool,
 }
 
+impl core::fmt::Debug for BladeRf2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        let BladeRf2 {
+            device,
+            rx_stream_configured,
+            tx_stream_configured,
+        } = self;
+        f.debug_struct("BladeRf2")
+            .field("device_info", &self.info())
+            .field("device_ptr", &device)
+            .field("rx_stream_configured", &rx_stream_configured)
+            .field("tx_stream_configured", &tx_stream_configured)
+            .finish()
+    }
+}
+
 impl BladeRf2 {
     pub fn get_bias_tee(&self, channel: Channel) -> Result<bool> {
         let mut enable = false;

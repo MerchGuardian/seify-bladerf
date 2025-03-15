@@ -11,6 +11,22 @@ pub struct BladeRf1 {
     tx_stream_configured: AtomicBool,
 }
 
+impl core::fmt::Debug for BladeRf1 {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        let BladeRf1 {
+            device,
+            rx_stream_configured,
+            tx_stream_configured,
+        } = self;
+        f.debug_struct("BladeRf1")
+            .field("device_info", &self.info())
+            .field("device_ptr", &device)
+            .field("rx_stream_configured", &rx_stream_configured)
+            .field("tx_stream_configured", &tx_stream_configured)
+            .finish()
+    }
+}
+
 unsafe impl Send for BladeRf1 {}
 unsafe impl Sync for BladeRf1 {}
 

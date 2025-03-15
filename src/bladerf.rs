@@ -24,6 +24,22 @@ pub struct BladeRfAny {
     pub(crate) tx_stream_configured: AtomicBool,
 }
 
+impl core::fmt::Debug for BladeRfAny {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        let BladeRfAny {
+            device,
+            rx_stream_configured,
+            tx_stream_configured,
+        } = self;
+        f.debug_struct("BladeRfAny")
+            .field("device_info", &self.info())
+            .field("device_ptr", &device)
+            .field("rx_stream_configured", &rx_stream_configured)
+            .field("tx_stream_configured", &tx_stream_configured)
+            .finish()
+    }
+}
+
 impl BladeRfAny {
     pub fn open_first() -> Result<Self> {
         log::info!("Opening first bladerf");
