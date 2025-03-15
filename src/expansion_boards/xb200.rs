@@ -42,7 +42,7 @@ impl Xb200<'_> {
 
     /// Gets the filterbank configured for use on the given channel/direction: either [TX](Direction::TX) or [RX](Direction::RX)
     ///
-    /// Relavent libbladerf docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f1___x_b.html#gaba2e36d32776518c120d701b8336981b>
+    /// Relevant libbladerf docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f1___x_b.html#gaba2e36d32776518c120d701b8336981b>
     pub fn get_filterbank(&self, path: Direction) -> Result<Xb200Filter> {
         let mut filter = bladerf_xb200_filter_BLADERF_XB200_CUSTOM;
         let res = unsafe {
@@ -59,7 +59,7 @@ impl Xb200<'_> {
 
     /// Sets weather to [Mix](Xb200Path::Mix) or [Bypass](Xb200Path::Bypass) the XB200 board for the given channel/direction: either [TX](Direction::TX) or [RX](Direction::RX)
     ///
-    /// Relavent libbladerf docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f1___x_b.html#ga8dcfc287d01256c476967fe4a964de25>
+    /// Relevant libbladerf docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f1___x_b.html#ga8dcfc287d01256c476967fe4a964de25>
     pub fn set_path(&self, direction: Direction, path: Xb200Path) -> Result<()> {
         let res = unsafe {
             bladerf_xb200_set_path(
@@ -75,7 +75,7 @@ impl Xb200<'_> {
 
     /// Gets weather the given channel/direction is configured to [Mix](Xb200Path::Mix) or [Bypass](Xb200Path::Bypass) the signal.
     ///
-    /// Relavent libbladerf docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f1___x_b.html#gaa4948d0705c8b4de0b58cceff75f0194>
+    /// Relevant libbladerf docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f1___x_b.html#gaa4948d0705c8b4de0b58cceff75f0194>
     pub fn get_path(&self, direction: Direction) -> Result<Xb200Path> {
         let mut path = bladerf_xb200_path_BLADERF_XB200_BYPASS;
         let res = unsafe {
