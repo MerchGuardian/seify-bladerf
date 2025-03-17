@@ -4,7 +4,7 @@ use std::{thread, time::Duration};
 
 use bladerf::{
     BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI12, ComplexI16, Error, Result, RxChannel,
-    SyncConfig,
+    StreamConfig,
 };
 use serial_test::serial;
 
@@ -212,8 +212,10 @@ fn get_board_name() -> Result<()> {
 #[serial]
 fn rx_streamer_toggle_enabled() -> Result<()> {
     let device = BladeRfAny::open_first()?;
-    let rx_streamer = device
-        .rx_streamer::<ComplexI16>(SyncConfig::default(), ChannelLayoutRx::SISO(RxChannel::Rx0))?;
+    let rx_streamer = device.rx_streamer::<ComplexI16>(
+        StreamConfig::default(),
+        ChannelLayoutRx::SISO(RxChannel::Rx0),
+    )?;
 
     // Make sure that we can enable, disable and reenable again as well as read some samples.
     rx_streamer.enable()?;
@@ -229,13 +231,17 @@ fn rx_streamer_toggle_enabled() -> Result<()> {
 #[serial]
 fn rx_streamer_reconfigure() -> Result<()> {
     let device = BladeRfAny::open_first()?;
-    let rx_streamer = device
-        .rx_streamer::<ComplexI16>(SyncConfig::default(), ChannelLayoutRx::SISO(RxChannel::Rx0))?;
+    let rx_streamer = device.rx_streamer::<ComplexI16>(
+        StreamConfig::default(),
+        ChannelLayoutRx::SISO(RxChannel::Rx0),
+    )?;
 
     rx_streamer.enable()?;
 
-    let new_rxstreamer = rx_streamer
-        .reconfigure::<ComplexI12>(SyncConfig::default(), ChannelLayoutRx::SISO(RxChannel::Rx0))?;
+    let new_rxstreamer = rx_streamer.reconfigure::<ComplexI12>(
+        StreamConfig::default(),
+        ChannelLayoutRx::SISO(RxChannel::Rx0),
+    )?;
 
     new_rxstreamer.enable()?;
     new_rxstreamer.disable()?;

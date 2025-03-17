@@ -1,4 +1,4 @@
-use crate::{error::*, sys::*, types::*, RxSyncStream, SyncConfig, TxSyncStream};
+use crate::{error::*, sys::*, types::*, RxSyncStream, StreamConfig, TxSyncStream};
 use ffi::{c_char, CStr, CString};
 use path::Path;
 use std::{mem::ManuallyDrop, *};
@@ -83,7 +83,7 @@ impl BladeRfAny {
 
     pub fn tx_streamer<T: SampleFormat>(
         &self,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutTx,
     ) -> Result<TxSyncStream<&Self, T, Self>> {
         // TODO: Decide Ordering
@@ -99,7 +99,7 @@ impl BladeRfAny {
 
     pub fn rx_streamer<T: SampleFormat>(
         &self,
-        config: SyncConfig,
+        config: StreamConfig,
         layout: ChannelLayoutRx,
     ) -> Result<RxSyncStream<&Self, T, BladeRfAny>> {
         // TODO: Decide Ordering
@@ -331,7 +331,7 @@ pub trait BladeRF: Sized + Drop {
     #[doc(hidden)]
     unsafe fn set_sync_config<T: SampleFormat>(
         &self,
-        config: &SyncConfig,
+        config: &StreamConfig,
         layout: ChannelLayout,
     ) -> Result<()> {
         let res = unsafe {

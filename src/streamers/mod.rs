@@ -15,14 +15,14 @@ pub use tx_sync_stream::*;
 /// - <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_t_r_e_a_m_i_n_g___s_y_n_c.html#ga6f76857ec83bc56d485842dd55eebe65>
 /// - <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_t_r_e_a_m_i_n_g___a_s_y_n_c.html#ga72752f2a047b95544e7686596a409abd>
 #[derive(Debug, Clone, Copy)]
-pub struct SyncConfig {
+pub struct StreamConfig {
     pub(crate) num_buffers: u32,
     pub(crate) buffer_size: u32,
     pub(crate) num_transfers: u32,
     pub(crate) stream_timeout: u32,
 }
 
-impl SyncConfig {
+impl StreamConfig {
     /// Creates a new [SyncConfig] that can be used to configure streams like [RxSyncStream] and [TxSyncStream]
     ///
     /// # Errors
@@ -66,7 +66,7 @@ impl SyncConfig {
     }
 }
 
-impl Default for SyncConfig {
+impl Default for StreamConfig {
     /// Values taken from <https://www.nuand.com/libbladeRF-doc/v2.5.0/sync_no_meta.html>
     fn default() -> Self {
         Self {
