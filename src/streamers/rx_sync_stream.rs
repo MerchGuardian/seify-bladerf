@@ -23,9 +23,9 @@ use super::StreamConfig;
 ///
 /// Obtained from a call to [BladeRfAny::rx_streamer()] as well as a similar method on other devices.
 /// ```no_run
-/// use bladerf::{BladeRfAny, ComplexI12, ChannelLayoutRx, RxChannel, SyncConfig};
+/// use bladerf::{BladeRfAny, ComplexI12, ChannelLayoutRx, RxChannel, StreamConfig};
 /// let dev = BladeRfAny::open_first().unwrap();
-/// let conf = SyncConfig::default();
+/// let conf = StreamConfig::default();
 /// let layout = ChannelLayoutRx::SISO(RxChannel::Rx0);
 ///
 /// let rx_stream = dev.rx_streamer::<ComplexI12>(conf, layout).unwrap();
@@ -33,9 +33,9 @@ use super::StreamConfig;
 ///
 /// If the sample format needs to be changed, a call to [RxSyncStream::reconfigure()] can be made:
 /// ```no_run
-/// use bladerf::{BladeRfAny, ComplexI12, ChannelLayoutRx, RxChannel, SyncConfig, ComplexI8};
+/// use bladerf::{BladeRfAny, ComplexI12, ChannelLayoutRx, RxChannel, StreamConfig, ComplexI8};
 /// let dev = BladeRfAny::open_first().unwrap();
-/// let conf = SyncConfig::default();
+/// let conf = StreamConfig::default();
 /// let layout = ChannelLayoutRx::SISO(RxChannel::Rx0);
 ///
 /// let rx_stream_a = dev.rx_streamer::<ComplexI12>(conf, layout).unwrap();
@@ -154,7 +154,7 @@ impl<T: Borrow<BladeRf1> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRf1> 
 }
 
 impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf1, F, BladeRf1> {
-    /// Allows reconfiguring a stream to change either the [SyncConfig] or [SampleFormat]
+    /// Allows reconfiguring a stream to change either the [StreamConfig] or [SampleFormat]
     ///
     /// See the general [RxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
@@ -166,7 +166,7 @@ impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf1, F, BladeRf1> {
 }
 
 impl<F: SampleFormat> RxSyncStream<Arc<BladeRf1>, F, BladeRf1> {
-    /// Allows reconfiguring a stream to change either the [SyncConfig] or [SampleFormat]
+    /// Allows reconfiguring a stream to change either the [StreamConfig] or [SampleFormat]
     ///
     /// See the general [RxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
@@ -214,7 +214,7 @@ impl<T: Borrow<BladeRf2> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRf2> 
 }
 
 impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf2, F, BladeRf2> {
-    /// Allows reconfiguring a stream to change either the [SyncConfig]/[SampleFormat]/[ChannelLayoutRx]
+    /// Allows reconfiguring a stream to change either the [StreamConfig]/[SampleFormat]/[ChannelLayoutRx]
     ///
     /// See the general [RxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
@@ -227,7 +227,7 @@ impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRf2, F, BladeRf2> {
 }
 
 impl<F: SampleFormat> RxSyncStream<Arc<BladeRf2>, F, BladeRf2> {
-    /// Allows reconfiguring a stream to change either the [SyncConfig]/[SampleFormat]/[ChannelLayoutRx]
+    /// Allows reconfiguring a stream to change either the [StreamConfig]/[SampleFormat]/[ChannelLayoutRx]
     ///
     /// See the general [RxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
@@ -275,7 +275,7 @@ impl<T: Borrow<BladeRfAny> + Clone, F: SampleFormat> RxSyncStream<T, F, BladeRfA
 }
 
 impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
-    /// Allows reconfiguring a stream to change either the [SyncConfig]/[SampleFormat]/[ChannelLayoutRx]
+    /// Allows reconfiguring a stream to change either the [StreamConfig]/[SampleFormat]/[ChannelLayoutRx]
     ///
     /// See the general [RxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(
@@ -288,7 +288,7 @@ impl<'a, F: SampleFormat> RxSyncStream<&'a BladeRfAny, F, BladeRfAny> {
 }
 
 impl<F: SampleFormat> RxSyncStream<Arc<BladeRfAny>, F, BladeRfAny> {
-    /// Allows reconfiguring a stream to change either the [SyncConfig]/[SampleFormat]/[ChannelLayoutRx]
+    /// Allows reconfiguring a stream to change either the [StreamConfig]/[SampleFormat]/[ChannelLayoutRx]
     ///
     /// See the general [RxSyncStream] docs for usage example.
     pub fn reconfigure<NF: SampleFormat>(

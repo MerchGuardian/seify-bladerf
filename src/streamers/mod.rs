@@ -23,7 +23,7 @@ pub struct StreamConfig {
 }
 
 impl StreamConfig {
-    /// Creates a new [SyncConfig] that can be used to configure streams like [RxSyncStream] and [TxSyncStream]
+    /// Creates a new [StreamConfig] that can be used to configure streams like [RxSyncStream] and [TxSyncStream]
     ///
     /// # Errors
     /// - The `buffer_size` must be a multiple of 1024.
