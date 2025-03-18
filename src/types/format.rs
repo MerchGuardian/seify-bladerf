@@ -1,6 +1,6 @@
 // Allow clippy::unnecessary_cast since the cast is needed for when bindgen runs on windows. The enum variants get cast to i32 on windows.
 #![allow(clippy::unnecessary_cast)]
-use fixed::{types::extra::U11, FixedI16};
+use fixed::types::I5F11;
 use num_complex::{Complex, Complex32};
 use strum::FromRepr;
 
@@ -14,11 +14,9 @@ const BRF_CI16_SCALAR: f32 = (BRF_CI16_SAMPLE_MAX + 1) as f32;
 pub type ComplexI16 = Complex<i16>;
 pub type ComplexI8 = Complex<i8>;
 
-type FixedI11F = FixedI16<U11>;
-
 /// Complex fixed point type with 11 fractional bits to match the 12 bit samples.
 /// This way i16 values in the range [-2048, 2048) map to [-1.0, 1.0)
-pub type ComplexI12 = Complex<FixedI11F>;
+pub type ComplexI12 = Complex<I5F11>;
 
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(u32)]
@@ -107,8 +105,8 @@ pub fn brf_ci12_to_cf32(sample: ComplexI12) -> Complex32 {
 
 #[inline]
 pub fn brf_cf32_to_ci12(sample: Complex32) -> ComplexI12 {
-    let re = FixedI11F::from_num(sample.re);
-    let im = FixedI11F::from_num(sample.im);
+    let re = I5F11::from_num(sample.re);
+    let im = I5F11::from_num(sample.im);
     ComplexI12::new(re, im)
 }
 
@@ -146,14 +144,14 @@ mod tests {
 
     #[test]
     fn sanity_check_fixed_i11() {
-        let neg_one = FixedI11F::from_num(-1);
+        let neg_one = I5F11::from_num(-1);
         let inner = neg_one.to_bits();
         assert_eq!(inner, BRF_CI16_SAMPLE_MIN);
 
         assert_eq!(neg_one.to_num::<f32>(), -1.0_f32);
 
         // This value would not actually be represented/output by the bladeRF.
-        let pos_one = FixedI11F::from_num(1);
+        let pos_one = I5F11::from_num(1);
         let inner = pos_one.to_bits();
         // In practice, `pos_one` should never be read or written to the bladerf since it has a representation of
         // 0b0001_0000_0000_0000 which is out of the range of the BladeRF's DAC.
