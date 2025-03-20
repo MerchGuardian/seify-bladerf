@@ -187,7 +187,7 @@ impl BladeRf1 {
 
     /// Read the SMB connector output frequency in Hz
     ///
-    /// https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_m_b___c_l_o_c_k.html#ga76f183a914d500fc335f207c573cfdf4
+    /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_m_b___c_l_o_c_k.html#ga76f183a914d500fc335f207c573cfdf4>
     pub fn get_smb_frequency(&self) -> Result<u32> {
         let mut freq = 0;
         let res = unsafe { bladerf_get_smb_frequency(self.device, &mut freq) };

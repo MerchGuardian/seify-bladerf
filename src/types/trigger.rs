@@ -39,11 +39,11 @@ impl TryFrom<bladerf_trigger_role> for TriggerRole {
 pub enum TriggerSignal {
     /// Invalid selection
     Invalid = bladerf_trigger_signal_BLADERF_TRIGGER_INVALID,
-    /// J71 pin 4, mini_exp[1] on x40/x115
+    /// J71 pin 4, mini_exp\[1] on x40/x115
     J71_4 = bladerf_trigger_signal_BLADERF_TRIGGER_J71_4,
-    /// J51 pin 1, mini_exp[1] on xA4/xA5/xA9
+    /// J51 pin 1, mini_exp\[1] on xA4/xA5/xA9
     J51_1 = bladerf_trigger_signal_BLADERF_TRIGGER_J51_1,
-    /// mini_exp[1], hardware-independent
+    /// mini_exp\[1], hardware-independent
     MiniExp1 = bladerf_trigger_signal_BLADERF_TRIGGER_MINI_EXP_1,
     /// Reserved for user SW/HW customizations
     User0 = bladerf_trigger_signal_BLADERF_TRIGGER_USER_0,

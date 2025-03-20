@@ -1,7 +1,7 @@
 use embedded_hal::digital::ErrorKind;
 use thiserror::Error;
 
-/// A convenience type with [Err] variant set to be the [Error] type from this crate.
+/// A convenience type with [Err] variant set to be the [enum@Error] type from this crate.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error type for the operations of BladeRF.
