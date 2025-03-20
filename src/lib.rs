@@ -60,6 +60,8 @@ pub fn set_usb_reset_on_open(enabled: bool) {
 }
 
 /// List attached BladeRF devices
+///
+/// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___i_n_i_t.html#ga21537e871d943798142176d9a29a5c46>
 pub fn get_device_list() -> Result<Vec<DevInfo>> {
     let mut devices: *mut bladerf_devinfo = std::ptr::null_mut();
 

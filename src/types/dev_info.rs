@@ -6,6 +6,7 @@ use super::Backend;
 /// Information about a bladerf device connected to the system
 ///
 /// Relevant `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/structbladerf__devinfo.html>
+// TODO: Create a constructure so we can create an instance of this struct, all the fields should be Option<> to serve as "wildcard" values
 #[derive(Clone, Debug)]
 pub struct DevInfo(pub(crate) bladerf_devinfo);
 
