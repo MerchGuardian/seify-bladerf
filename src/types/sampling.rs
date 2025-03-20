@@ -6,8 +6,9 @@ use crate::{sys::*, Error, Result};
 ///
 /// This allows the user to switch between the "normal" sampling and direct samplling from the DACs and ADCs
 ///
+/// Only for use with [BladeRf1][crate::BladeRf1] see [BladeRf1::set_sampling][crate::BladeRf1::set_sampling]
+///
 /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f1___s_a_m_p_l_i_n_g___m_u_x.html#gac8be10b9045b236e2bd4d705bde4b5db>
-// TODO Does this apply for the BladeRF 2.0 Micro?
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Sampling {

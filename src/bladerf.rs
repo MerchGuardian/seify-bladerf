@@ -723,7 +723,7 @@ pub trait BladeRF: Sized + Drop {
     /// Apply specified loopback mode
     ///
     /// # Safety
-    ///     Loopback modes should only be enabled or disabled while the RX and TX channels are both disabled (and therefore, when no samples are being actively streamed). Otherwise, unexpected behavior may occur.
+    /// Loopback modes should only be enabled or disabled while the RX and TX channels are both disabled (and therefore, when no samples are being actively streamed). Otherwise, unexpected behavior may occur.
     ///
     /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___l_o_o_p_b_a_c_k.html#ga8d6398bfafd7541cabc9cab5ab2bd709>
     unsafe fn set_loopback(&self, loopback: Loopback) -> Result<()> {

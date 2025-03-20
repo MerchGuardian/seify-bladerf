@@ -15,8 +15,9 @@ pub const SMB_FREQUENCY_MIN: u32 = BLADERF_SMB_FREQUENCY_MIN;
 
 /// Represents the configuration of the SMB Clock port (J62)
 ///
+/// Only for use with [BladeRf1][crate::BladeRf1] see [BladeRf1::set_smb_mode][crate::BladeRf1::set_smb_mode]
+///
 /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_m_b___c_l_o_c_k.html#gad289c8e261a1f7342e9280f22a844563>
-// TODO: is this valid on the bladerf 2.0 micro?
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(i32)]
 pub enum SmbMode {
