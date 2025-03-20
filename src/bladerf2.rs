@@ -30,6 +30,9 @@ impl core::fmt::Debug for BladeRf2 {
 }
 
 impl BladeRf2 {
+    /// Get current bias tee state
+    ///
+    /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f2___b_i_a_s___t_e_e.html#ga308bc82fca6eaea01c714a772fd945db>
     pub fn get_bias_tee(&self, channel: Channel) -> Result<bool> {
         let mut enable = false;
         let res =
@@ -38,6 +41,9 @@ impl BladeRf2 {
         Ok(enable)
     }
 
+    /// Enable or disable the bias tee on the specified channel.
+    ///
+    /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___b_l_a_d_e_r_f2___b_i_a_s___t_e_e.html#ga6289800def08a0e8f6ef77ae628e70a1>
     pub fn set_bias_tee(&self, channel: Channel, enable: bool) -> Result<()> {
         let res = unsafe { bladerf_set_bias_tee(self.device, channel as bladerf_channel, enable) };
         check_res!(res);
