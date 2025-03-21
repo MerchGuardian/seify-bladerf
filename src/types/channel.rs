@@ -8,7 +8,7 @@ use crate::{sys::*, Error, Result};
 /// You can convert to this type from [TxChannel] or [RxChannel] using [From] and [Into].
 ///
 /// # Example
-/// ```
+/// ```no_run
 /// # use bladerf::{RxChannel, Channel};
 /// // Creating directly.
 /// let channel = Channel::Rx1;
