@@ -1,3 +1,7 @@
+//! Structs that contain BladeRF GPIO Pins.
+//!
+//! The pins can be used with the embedded_hal traits.
+
 use crate::{bladerf_gpio, BladeRf1};
 
 bladerf_gpio! {Xb200Pins<BladeRf1>,

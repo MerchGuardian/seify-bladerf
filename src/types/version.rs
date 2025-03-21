@@ -2,6 +2,9 @@ use std::{cmp, ffi::CStr};
 
 use libbladerf_sys::bladerf_version;
 
+/// Structure to convey the version of FPGA, firmware, libbladeRF, etc.
+///
+/// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/structbladerf__version.html>
 #[derive(Copy, Clone, Debug)]
 pub struct Version {
     pub major: u16,

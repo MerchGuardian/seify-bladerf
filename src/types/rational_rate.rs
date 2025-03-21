@@ -1,5 +1,10 @@
 use crate::sys::*;
 
+/// Rational sample rate representation
+///
+/// `rate = integer + (num/den)`
+///
+/// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/structbladerf__rational__rate.html>
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct RationalRate {
     /// Integer portion

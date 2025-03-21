@@ -1,8 +1,8 @@
 //! Safe bindings for libbladerf (wrapping bladerf-sys)
-//!
-//!
+
 #![allow(non_upper_case_globals)]
 #![deny(unsafe_op_in_unsafe_fn)]
+#![warn(missing_docs)]
 
 #[cfg(not(target_endian = "little"))]
 compile_error!("This library only supports little endian architecture");
@@ -28,6 +28,8 @@ pub use libbladerf_sys as sys;
 use sys::*;
 
 /// Returns the version of the linked `libbladerf` library.
+///
+/// Relavent libbladerf docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___l_i_b_r_a_r_y___v_e_r_s_i_o_n.html#ga1b726a123c60e6d7f999ad8958f20134>
 pub fn version() -> Result<Version> {
     let mut version = bladerf_version {
         major: 0,
@@ -41,15 +43,25 @@ pub fn version() -> Result<Version> {
     Ok(unsafe { Version::from_ffi(&version) })
 }
 
+/// Sets the logging level of `libbladerf`
+///
+/// Messages at and above the specified [LogLevel] will be printed.
+///
+/// Relavent `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___l_o_g_g_i_n_g.html#gae2de133be7904c2c11224f0b08bc0b36>
 pub fn set_log_level(level: LogLevel) {
     unsafe { bladerf_log_set_verbosity(level as bladerf_log_level) }
 }
 
+/// Configures if the USB device will reset after a call to `open()` without reseting the configured parameters.
+///
+/// Relavent `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___i_n_i_t.html#ga0c69671b4b2a8fb45848b22a76efd83d>
 pub fn set_usb_reset_on_open(enabled: bool) {
     unsafe { bladerf_set_usb_reset_on_open(enabled) };
 }
 
 /// List attached BladeRF devices
+///
+/// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___i_n_i_t.html#ga21537e871d943798142176d9a29a5c46>
 pub fn get_device_list() -> Result<Vec<DevInfo>> {
     let mut devices: *mut bladerf_devinfo = std::ptr::null_mut();
 
