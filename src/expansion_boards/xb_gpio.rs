@@ -4,13 +4,22 @@ use crate::{BladeRF, Error, Result};
 use embedded_hal::digital::{ErrorType, InputPin, OutputPin, PinState};
 use libbladerf_sys as sys;
 
+/// Helper macro for creating a struct that hold gpio pins. For internal library use only.
+///
+/// Created so it is easy to create a new struct for a new expansion board.
+/// See the [Xb200Pins](crate::expansion_boards::xb_gpio_impls::Xb200Pins) implementation for an example
+#[doc(hidden)]
 #[macro_export]
 macro_rules! bladerf_gpio {
     ($struct_name:ident<$dev:ty>, $( $physical_name:ident = $pin_id:literal ),+) => {
         use $crate::expansion_boards::xb_gpio::{Disabled, XbGpioPin};
 
+        /// Pins for this expansion board. Pin names should match what exist on Nuand's schematics for an expansion board.
+        ///
+        /// To get this structure, you can find a corresponsing function for a given board. (Writing doc comments in macros is annoying)
         pub struct $struct_name<'a> {
-            $(pub $physical_name: XbGpioPin<'a, Disabled, $dev>,)+
+            $(/// A GPIO pin that implements traits from `embedded_hal`
+            pub $physical_name: XbGpioPin<'a, Disabled, $dev>,)+
         }
 
         impl $struct_name<'_> {
@@ -52,6 +61,7 @@ impl<'a, T, D: BladeRF> XbGpioPin<'a, T, D> {
             _direction: PhantomData,
         }
     }
+
     pub fn into_input(self) -> Result<XbGpioPin<'a, Input, D>> {
         gpio_dir_masked_write(self.device, pin_to_bitmask(self.pin), 0)?;
         Ok(XbGpioPin {

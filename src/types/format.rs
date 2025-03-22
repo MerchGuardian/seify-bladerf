@@ -6,12 +6,16 @@ use strum::FromRepr;
 
 use crate::{sys::*, Error, Result};
 
+/// The maximum value an [i16] can be for use as a sample for the BladeRF
 pub const BRF_CI16_SAMPLE_MAX: i16 = 2047;
+/// The minimum value an [i16] can be for use as a sample for the BladeRF
 pub const BRF_CI16_SAMPLE_MIN: i16 = -2048;
 
 const BRF_CI16_SCALAR: f32 = (BRF_CI16_SAMPLE_MAX + 1) as f32;
 
+/// A convenience type defined since it is one of the data types returned by the BladeRF when reading IQ samples
 pub type ComplexI16 = Complex<i16>;
+/// A convenience type defined since it is one of the data types returned by the BladeRF when reading IQ samples
 pub type ComplexI8 = Complex<i8>;
 
 /// Complex fixed point type with 11 fractional bits to match the 12 bit samples.
@@ -96,6 +100,14 @@ unsafe impl SampleFormat for ComplexI12 {
     }
 }
 
+/// This is a function to convert [ComplexI12] into `Complex<f32>` specifically for use with the bladerf.
+///
+/// Since [ComplexI12] uses the [fixed::types::I5F11] type, the fixed point values are directly mapped to their [f32] equivalents.
+/// Specifically, the fixed point values of [-1.0, 1.0] are mapped to the floating point values of [-1.0, 1.0]
+///
+/// Internally the [ComplexI12] type is still a 16 bit integer, so when used with the BladeRF, the values still need to be constrained to [-1.0, 1.0) (note the non-inclusive bounds.)
+///
+/// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___s_t_r_e_a_m_i_n_g___f_o_r_m_a_t.html#ga4c61587834fd4de51a8e2d34e14a73b2>
 #[inline]
 pub fn brf_ci12_to_cf32(sample: ComplexI12) -> Complex32 {
     let re: f32 = sample.re.to_num::<f32>();
@@ -103,6 +115,14 @@ pub fn brf_ci12_to_cf32(sample: ComplexI12) -> Complex32 {
     Complex::new(re, im)
 }
 
+/// This is a function to convert `Complex<f32>` into [ComplexI12] specifically for use with the bladerf.
+///
+/// Since [ComplexI12] uses the [fixed::types::I5F11] type, the floating point values are directly mapped to their fixed point equivalents.
+/// Specifically, the floating point values of [-1.0, 1.0] are mapped to the fixed point values of [-1.0, 1.0]
+///
+/// Internally the [ComplexI12] type is still a 16 bit integer, so when used with the BladeRF, the values still need to be constrained to [-1.0, 1.0) (note the non-inclusive bounds.)
+///
+/// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___s_t_r_e_a_m_i_n_g___f_o_r_m_a_t.html#ga4c61587834fd4de51a8e2d34e14a73b2>
 #[inline]
 pub fn brf_cf32_to_ci12(sample: Complex32) -> ComplexI12 {
     let re = I5F11::from_num(sample.re);

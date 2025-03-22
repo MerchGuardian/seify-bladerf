@@ -155,12 +155,14 @@ fn get_set_frequency() -> Result<()> {
 fn get_set_loopback() -> Result<()> {
     let device = BladeRfAny::open_first()?;
     let set_loopback = bladerf::Loopback::Firmware;
-    device.set_loopback(set_loopback)?;
+    // Safety: No TX or RX Channels enabled.
+    unsafe { device.set_loopback(set_loopback) }?;
     let getter_loopback = device.get_loopback()?;
     assert_eq!(set_loopback, getter_loopback);
 
     let set_loopback = bladerf::Loopback::None;
-    device.set_loopback(set_loopback)?;
+    // Safety: No TX or RX Channels enabled.
+    unsafe { device.set_loopback(set_loopback) }?;
     let getter_loopback = device.get_loopback()?;
     assert_eq!(set_loopback, getter_loopback);
     Ok(())

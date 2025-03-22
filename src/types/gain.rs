@@ -8,6 +8,8 @@ use crate::{sys::*, Error, Result};
 pub type Gain = i32;
 
 /// Gain control modes
+///
+/// Relevant `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___g_a_i_n.html#gae7632e9f6b3a5a182ef012c214be0f78>
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]
 #[repr(i32)]
 pub enum GainMode {
