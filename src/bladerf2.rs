@@ -81,7 +81,7 @@ impl BladeRf2 {
             })?;
 
         // Safety: we check to make sure no other streamers are configured
-        unsafe { TxSyncStream::new(device.clone(), config, layout) }
+        unsafe { TxSyncStream::new(device, config, layout) }
     }
 
     pub fn rx_streamer<T: SampleFormat>(
@@ -114,7 +114,7 @@ impl BladeRf2 {
             })?;
 
         // Safety: we check to make sure no other streamers are configured
-        unsafe { RxSyncStream::new(device.clone(), config, layout) }
+        unsafe { RxSyncStream::new(device, config, layout) }
     }
 }
 

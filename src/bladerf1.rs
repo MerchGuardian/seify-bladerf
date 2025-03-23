@@ -224,13 +224,7 @@ impl BladeRf1 {
             })?;
 
         // Safety: we check to make sure no other streamers are configured
-        unsafe {
-            TxSyncStream::new(
-                device.clone(),
-                config,
-                ChannelLayoutTx::SISO(TxChannel::Tx0),
-            )
-        }
+        unsafe { TxSyncStream::new(device, config, ChannelLayoutTx::SISO(TxChannel::Tx0)) }
     }
 
     pub fn rx_streamer<T: SampleFormat>(
@@ -261,13 +255,7 @@ impl BladeRf1 {
             })?;
 
         // Safety: we check to make sure no other streamers are configured
-        unsafe {
-            RxSyncStream::new(
-                device.clone(),
-                config,
-                ChannelLayoutRx::SISO(RxChannel::Rx0),
-            )
-        }
+        unsafe { RxSyncStream::new(device, config, ChannelLayoutRx::SISO(RxChannel::Rx0)) }
     }
 
     // TODO move to BladeRF trait
