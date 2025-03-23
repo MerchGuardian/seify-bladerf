@@ -1,6 +1,7 @@
 use crate::streamers::{RxSyncStream, StreamConfig, TxSyncStream};
 use crate::{error::*, sys::*, types::*, BladeRF, BladeRfAny};
 use mem::ManuallyDrop;
+use std::sync::Arc;
 use std::*;
 use sync::atomic::{AtomicBool, Ordering};
 
@@ -66,11 +67,28 @@ impl BladeRf2 {
         unsafe { TxSyncStream::new(self, config, layout) }
     }
 
+    pub fn tx_streamer_arc<T: SampleFormat>(
+        device: Arc<Self>,
+        config: StreamConfig,
+        layout: ChannelLayoutTx,
+    ) -> Result<TxSyncStream<Arc<Self>, T, Self>> {
+        // TODO: Decide Ordering
+        device
+            .tx_stream_configured
+            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .map_err(|_err| {
+                Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
+            })?;
+
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { TxSyncStream::new(device.clone(), config, layout) }
+    }
+
     pub fn rx_streamer<T: SampleFormat>(
         &self,
         config: StreamConfig,
         layout: ChannelLayoutRx,
-    ) -> Result<RxSyncStream<&Self, T, BladeRf2>> {
+    ) -> Result<RxSyncStream<&Self, T, Self>> {
         // TODO: Decide Ordering
         self.rx_stream_configured
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -80,6 +98,23 @@ impl BladeRf2 {
 
         // Safety: we check to make sure no other streamers are configured
         unsafe { RxSyncStream::new(self, config, layout) }
+    }
+
+    pub fn rx_streamer_arc<T: SampleFormat>(
+        device: Arc<Self>,
+        config: StreamConfig,
+        layout: ChannelLayoutRx,
+    ) -> Result<RxSyncStream<Arc<Self>, T, Self>> {
+        // TODO: Decide Ordering
+        device
+            .rx_stream_configured
+            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .map_err(|_err| {
+                Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
+            })?;
+
+        // Safety: we check to make sure no other streamers are configured
+        unsafe { RxSyncStream::new(device.clone(), config, layout) }
     }
 }
 
