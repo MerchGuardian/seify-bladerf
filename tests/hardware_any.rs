@@ -3,8 +3,8 @@
 use std::{thread, time::Duration};
 
 use bladerf::{
-    BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI12, ComplexI16, Error, Result, RxChannel,
-    StreamConfig,
+    get_nearest_frequency, get_nearest_gain, BladeRF, BladeRfAny, Channel, ChannelLayoutRx,
+    ComplexI12, ComplexI16, Error, Result, RxChannel, StreamConfig,
 };
 use serial_test::serial;
 
@@ -89,13 +89,16 @@ fn print_fpga_version() -> Result<()> {
 #[test]
 #[serial]
 fn get_set_sample_rate() -> Result<()> {
+    const CHANNEL: Channel = Channel::Rx0;
+
     let device = BladeRfAny::open_first()?;
-    let actual_rate = device.set_sample_rate(bladerf::Channel::Rx0, 1_000_000)?;
-    let getter_rate = device.get_sample_rate(bladerf::Channel::Rx0)?;
+
+    let actual_rate = device.set_sample_rate(CHANNEL, 1_000_000)?;
+    let getter_rate = device.get_sample_rate(CHANNEL)?;
     assert_eq!(actual_rate, getter_rate);
 
-    let actual_rate = device.set_sample_rate(bladerf::Channel::Rx0, 2_000_000)?;
-    let getter_rate = device.get_sample_rate(bladerf::Channel::Rx0)?;
+    let actual_rate = device.set_sample_rate(CHANNEL, 2_000_000)?;
+    let getter_rate = device.get_sample_rate(CHANNEL)?;
     assert_eq!(actual_rate, getter_rate);
     Ok(())
 }
@@ -121,13 +124,15 @@ fn get_set_rx_mux() -> Result<()> {
 #[test]
 #[serial]
 fn get_set_bandwidth() -> Result<()> {
+    const CHANNEL: Channel = Channel::Rx0;
+
     let device = BladeRfAny::open_first()?;
-    let actual_bandwidth = device.set_bandwidth(bladerf::Channel::Rx0, 1_000_000)?;
-    let getter_bandwidth = device.get_bandwidth(bladerf::Channel::Rx0)?;
+    let actual_bandwidth = device.set_bandwidth(CHANNEL, 1_000_000)?;
+    let getter_bandwidth = device.get_bandwidth(CHANNEL)?;
     assert_eq!(actual_bandwidth, getter_bandwidth);
 
-    let actual_bandwidth = device.set_bandwidth(bladerf::Channel::Rx0, 2_000_000)?;
-    let getter_bandwidth = device.get_bandwidth(bladerf::Channel::Rx0)?;
+    let actual_bandwidth = device.set_bandwidth(CHANNEL, 2_000_000)?;
+    let getter_bandwidth = device.get_bandwidth(CHANNEL)?;
     assert_eq!(actual_bandwidth, getter_bandwidth);
     Ok(())
 }
@@ -137,15 +142,23 @@ fn get_set_bandwidth() -> Result<()> {
 #[test]
 #[serial]
 fn get_set_frequency() -> Result<()> {
+    const CHANNEL: Channel = Channel::Rx0;
     let device = BladeRfAny::open_first()?;
+
+    let frequency_range = device.get_frequency_range(CHANNEL)?;
+
     let set_frequency = 433_500_000;
-    device.set_frequency(bladerf::Channel::Rx0, set_frequency)?;
-    let getter_frequency = device.get_frequency(bladerf::Channel::Rx0)?;
+    let set_frequency = get_nearest_frequency(set_frequency, frequency_range);
+
+    device.set_frequency(CHANNEL, set_frequency)?;
+    let getter_frequency = device.get_frequency(CHANNEL)?;
     assert_eq!(set_frequency, getter_frequency);
 
     let set_frequency = 915_000_000;
-    device.set_frequency(bladerf::Channel::Rx0, set_frequency)?;
-    let getter_frequency = device.get_frequency(bladerf::Channel::Rx0)?;
+    let set_frequency = get_nearest_frequency(set_frequency, frequency_range);
+
+    device.set_frequency(CHANNEL, set_frequency)?;
+    let getter_frequency = device.get_frequency(CHANNEL)?;
     assert_eq!(set_frequency, getter_frequency);
     Ok(())
 }
@@ -173,15 +186,25 @@ fn get_set_loopback() -> Result<()> {
 #[test]
 #[serial]
 fn get_set_gain() -> Result<()> {
+    const CHANNEL: Channel = Channel::Rx0;
+
     let device = BladeRfAny::open_first()?;
+
+    let gain_range = device.get_gain_range(CHANNEL)?;
+
     let set_gain = 20;
-    device.set_gain(bladerf::Channel::Rx0, set_gain)?;
-    let getter_gain = device.get_gain(bladerf::Channel::Rx0)?;
+    let set_gain = get_nearest_gain(set_gain, gain_range);
+
+    device.set_gain(CHANNEL, set_gain)?;
+    let getter_gain = device.get_gain(CHANNEL)?;
     assert_eq!(set_gain, getter_gain);
 
     let set_gain = 40;
-    device.set_gain(bladerf::Channel::Rx0, set_gain)?;
-    let getter_gain = device.get_gain(bladerf::Channel::Rx0)?;
+    let set_gain = get_nearest_gain(set_gain, gain_range);
+
+    device.set_gain(CHANNEL, set_gain)?;
+    let getter_gain = device.get_gain(CHANNEL)?;
+
     assert_eq!(set_gain, getter_gain);
     Ok(())
 }

@@ -77,3 +77,43 @@ pub fn get_device_list() -> Result<Vec<DevInfo>> {
 
     Ok(devs)
 }
+
+/// Gets the closest frequency using the given range.
+pub fn get_nearest_frequency(frequency: u64, range: Range) -> u64 {
+    let desired_frequency = frequency as f64;
+    let multiplier = (desired_frequency - range.min) / range.step;
+
+    let integer_multiplier = multiplier.round();
+
+    (range.min + (integer_multiplier * range.step)) as u64
+}
+
+/// Gets the closest gain using the given range.
+pub fn get_nearest_gain(gain: Gain, range: Range) -> Gain {
+    let desired_gain = f64::from(gain);
+    let multiplier = (desired_gain - range.min) / range.step;
+
+    let integer_multiplier = multiplier.round();
+
+    (range.min + (integer_multiplier * range.step)) as Gain
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{get_nearest_frequency, Range};
+
+    #[test]
+    fn test_get_nearest_frequency() {
+        let range = Range {
+            min: 70_000_005.0,
+            max: 6e9,
+            step: 2.0,
+        };
+
+        let set_freq = 433_000_000;
+
+        let actual_freq = get_nearest_frequency(set_freq, range);
+
+        assert_eq!(actual_freq, 433_000_001);
+    }
+}
