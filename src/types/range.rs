@@ -1,7 +1,7 @@
 use crate::sys::*;
 
 /// Range struct to represent `bladerf_range`
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Range {
     pub min: f64,
     pub max: f64,
