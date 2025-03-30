@@ -1,6 +1,6 @@
 #![cfg(feature = "hwtest_any")]
 
-use std::{thread, time::Duration};
+use std::{sync::Arc, thread, time::Duration};
 
 use bladerf::{
     BladeRF, BladeRfAny, ChannelLayoutRx, ComplexI12, ComplexI16, Error, Result, RxChannel,
@@ -249,4 +249,33 @@ fn rx_streamer_reconfigure() -> Result<()> {
     new_rxstreamer.disable()?;
 
     Ok(())
+}
+
+#[test]
+#[serial]
+fn rx_streamer_arced() -> Result<()> {
+    let device = BladeRfAny::open_first()?;
+    let device = Arc::new(device);
+    let rx_streamer = BladeRfAny::rx_streamer_arc::<ComplexI16>(
+        device.clone(),
+        StreamConfig::default(),
+        ChannelLayoutRx::SISO(RxChannel::Rx0),
+    )?;
+
+    rx_streamer.enable()?;
+
+    let second_device = device.clone();
+    let new_rxstreamer = BladeRfAny::rx_streamer_arc::<ComplexI16>(
+        second_device,
+        StreamConfig::default(),
+        ChannelLayoutRx::SISO(RxChannel::Rx0),
+    );
+
+    match new_rxstreamer {
+        Ok(_) => Err(Error::Msg(
+            "Should not be able to open a second RX stream".into(),
+        )),
+        Err(err) if err == Error::Msg("Already have an RX stream open".into()) => Ok(()),
+        Err(err) => Err(err),
+    }
 }

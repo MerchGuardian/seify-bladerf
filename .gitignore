@@ -2,6 +2,9 @@
 target
 Cargo.lock
 
+# IQ Sample files
+*.iq
+
 # Compiled files
 *.o
 *.so
