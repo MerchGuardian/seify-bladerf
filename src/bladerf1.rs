@@ -258,21 +258,6 @@ impl BladeRf1 {
         unsafe { RxSyncStream::new(device, config, ChannelLayoutRx::SISO(RxChannel::Rx0)) }
     }
 
-    // TODO move to BladeRF trait
-    fn expansion_attach(&self, module: ExpansionModule) -> Result<()> {
-        let res = unsafe { bladerf_expansion_attach(self.device, module as bladerf_xb) };
-        check_res!(res);
-        Ok(())
-    }
-
-    // TODO move to BladeRF trait
-    pub fn get_attached_expansion(&self) -> Result<ExpansionModule> {
-        let mut module = bladerf_xb_BLADERF_XB_NONE;
-        let res = unsafe { bladerf_expansion_get_attached(self.device, &mut module) };
-        check_res!(res);
-        ExpansionModule::try_from(module)
-    }
-
     /// Gets the [Xb200] struct allowing for control of the XB200 transverter board
     pub fn get_xb200(&self) -> Result<Xb200> {
         self.expansion_attach(ExpansionModule::Xb200)?;
