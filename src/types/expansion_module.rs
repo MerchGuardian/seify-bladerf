@@ -6,7 +6,7 @@ use crate::{sys::*, Error, Result};
 
 /// Represents the different expansion boards.
 ///
-/// This is specifically for when querying what expansion board is attached with [BladeRf1::get_attached_expansion()][crate::BladeRf1::get_attached_expansion()]
+/// This is specifically for when querying what expansion board is attached with [BladeRf1::get_attached_expansion()][crate::BladeRF::get_attached_expansion()]
 ///
 /// Relevant `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___x_b.html#gaf5376b7092ea9750302429c2613529e7>
 #[derive(Copy, Clone, Debug, FromRepr, PartialEq, Eq)]

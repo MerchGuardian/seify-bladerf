@@ -1291,6 +1291,30 @@ pub trait BladeRF: Sized + Drop {
         name_raw.to_str().unwrap()
     }
 
+    /// Attempt to attach/connect to the given expansion module to use its features.
+    ///
+    /// In general this should not be used by users of this library as it is intended for intenal use only.
+    ///
+    /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___x_b.html#ga9fb4c2d62dcdc2f05b23098a35beacc5>
+    #[doc(hidden)]
+    fn expansion_attach(&self, module: ExpansionModule) -> Result<()> {
+        let res = unsafe { bladerf_expansion_attach(self.get_device_ptr(), module as bladerf_xb) };
+        check_res!(res);
+        Ok(())
+    }
+
+    /// Determine which expansion board is attached.
+    ///
+    /// See also the [expansion boards][crate::expansion_boards] module documentation.
+    ///
+    /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___x_b.html#gac9d4f9e8727ab2ffe8925495bc895ada>
+    fn get_attached_expansion(&self) -> Result<ExpansionModule> {
+        let mut module = bladerf_xb_BLADERF_XB_NONE;
+        let res = unsafe { bladerf_expansion_get_attached(self.get_device_ptr(), &mut module) };
+        check_res!(res);
+        ExpansionModule::try_from(module)
+    }
+
     /// # Safety
     /// Intended for internal use.
     ///
