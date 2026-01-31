@@ -58,7 +58,7 @@ impl BladeRf2 {
     ) -> Result<TxSyncStream<&Self, T, BladeRf2>> {
         // TODO: Decide Ordering
         self.tx_stream_configured
-            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map_err(|_err| {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
@@ -75,7 +75,7 @@ impl BladeRf2 {
         // TODO: Decide Ordering
         device
             .tx_stream_configured
-            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map_err(|_err| {
                 Error::Msg("Already have an TX stream open".to_owned().into_boxed_str())
             })?;
@@ -91,7 +91,7 @@ impl BladeRf2 {
     ) -> Result<RxSyncStream<&Self, T, Self>> {
         // TODO: Decide Ordering
         self.rx_stream_configured
-            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map_err(|_err| {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
@@ -108,7 +108,7 @@ impl BladeRf2 {
         // TODO: Decide Ordering
         device
             .rx_stream_configured
-            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map_err(|_err| {
                 Error::Msg("Already have an RX stream open".to_owned().into_boxed_str())
             })?;
