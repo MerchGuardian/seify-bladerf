@@ -75,6 +75,7 @@ impl TryFrom<bladerf_trigger_signal> for TriggerSignal {
 /// Trigger configuration
 ///
 /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/structbladerf__trigger.html>
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Trigger {
     /// The channel associated with this trigger
     pub channel: Channel,
@@ -84,6 +85,17 @@ pub struct Trigger {
     pub signal: TriggerSignal,
     /// Reserved for future use, should be set to zero.
     pub options: u64,
+}
+
+impl From<&Trigger> for bladerf_trigger {
+    fn from(value: &Trigger) -> Self {
+        bladerf_trigger {
+            channel: value.channel as bladerf_channel,
+            role: value.role as bladerf_trigger_role,
+            signal: value.signal as bladerf_trigger_signal,
+            options: value.options,
+        }
+    }
 }
 
 impl TryFrom<bladerf_trigger> for Trigger {

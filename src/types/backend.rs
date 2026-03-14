@@ -34,3 +34,49 @@ impl From<Backend> for bladerf_backend {
         value as i32 as bladerf_backend
     }
 }
+
+#[cfg(test)]
+mod test {
+    use libbladerf_sys::bladerf_backend;
+
+    use crate::Backend;
+
+    #[test]
+    /// Precautionary test since the From<Backend> impl has 2 casts as I believe the [bladerf_backend] type is not consistent across platforms.
+    fn backend_enum_conversion_test() {
+        let bk = Backend::Any;
+        let bk_int: i64 = (bk as i32).into();
+        assert_eq!(
+            bk_int,
+            <bladerf_backend as std::convert::Into<i64>>::into(bk.into())
+        );
+
+        let bk = Backend::LibUsb;
+        let bk_int: i64 = (bk as i32).into();
+        assert_eq!(
+            bk_int,
+            <bladerf_backend as std::convert::Into<i64>>::into(bk.into())
+        );
+
+        let bk = Backend::Linux;
+        let bk_int: i64 = (bk as i32).into();
+        assert_eq!(
+            bk_int,
+            <bladerf_backend as std::convert::Into<i64>>::into(bk.into())
+        );
+
+        let bk = Backend::Cypress;
+        let bk_int: i64 = (bk as i32).into();
+        assert_eq!(
+            bk_int,
+            <bladerf_backend as std::convert::Into<i64>>::into(bk.into())
+        );
+
+        let bk = Backend::Dummy;
+        let bk_int: i64 = (bk as i32).into();
+        assert_eq!(
+            bk_int,
+            <bladerf_backend as std::convert::Into<i64>>::into(bk.into())
+        );
+    }
+}
