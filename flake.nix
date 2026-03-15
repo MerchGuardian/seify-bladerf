@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/release-24.05";
+    nixpkgs.url = "github:nixos/nixpkgs/release-25.11";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -23,7 +23,7 @@
             (import rust-overlay)
           ];
         };
-        rust-pkgs = pkgs.rust-bin.nightly.latest.default.override {
+        rust-pkgs = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
         };
         ndkVersion = "25.1.8937393";
@@ -62,7 +62,7 @@
             inputsFrom = [ bladerf.libbladerf ];
 
             shellHook = ''
-              export LIBCLANG_PATH="${llvmPackages_14.clang.cc.lib}/lib";
+              export LIBCLANG_PATH="${llvmPackages.clang.cc.lib}/lib";
 
               export BLADERF_INCLUDE_PATH="${bladerf.libbladerf}/include";
               export BLADERF_RS_FPGA_BITSTREAM_PATH="${bladerf.xa4-bitstream}";

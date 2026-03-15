@@ -50,7 +50,7 @@ rec {
     ];
 
     env = lib.optionalAttrs stdenv.cc.isClang {
-      NIX_CFLAGS_COMPILE = "-Wno-error=unused-but-set-variable";
+      NIX_CFLAGS_COMPILE = "-Wno-error=unused-but-set-variable -Wno-error=tautological-overlap-compare";
     };
 
     hardeningDisable = [ "fortify" ];
