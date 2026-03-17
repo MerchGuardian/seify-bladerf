@@ -45,6 +45,8 @@ rec {
       "-DUDEV_RULES_PATH=etc/udev/rules.d"
       "-DINSTALL_UDEV_RULES=ON"
       "-DBLADERF_GROUP=bladerf"
+    ] ++ lib.optionals stdenv.hostPlatform.isLinux [
+      "-DCMAKE_C_FLAGS=-Wno-error=maybe-uninitialized"
     ] ++ lib.optionals stdenv.hostPlatform.isDarwin [
       "-DCMAKE_C_FLAGS=-Wno-error=format"
     ];
