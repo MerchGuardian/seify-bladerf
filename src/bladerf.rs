@@ -634,7 +634,11 @@ pub trait BladeRF: Sized + Drop {
     /// TODO: Get this moved over as a method to the streamer structs once we add the ability to do metadata
     ///
     /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_c_h_e_d_u_l_e_d___t_u_n_i_n_g.html#gad7bd11c5784e78af7ae8fab26f4605fa>
-    fn schedule_retune(
+    ///
+    /// # Safety
+    /// At the moment, the conversion from the [QuickTune] struct to the [bladerf_quick_tune] only handles one of the two cases it could be.
+    /// This neeed to be fixed. Look at the source code and the bladerf docs as if you had to use the C ABI directly.
+    unsafe fn schedule_retune(
         &self,
         channel: Channel,
         time: u64,
@@ -679,7 +683,10 @@ pub trait BladeRF: Sized + Drop {
     /// </div>
     ///
     /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___s_c_h_e_d_u_l_e_d___t_u_n_i_n_g.html#ga5cb5018f2acc2b25e2690e96439a029c>
-    fn get_quick_tune(&self, channel: Channel) -> Result<QuickTune> {
+    /// # Safety
+    /// At the moment, the conversion from the [QuickTune] struct to the [bladerf_quick_tune] only handles one of the two cases it could be.
+    /// This neeed to be fixed. Look at the source code and the bladerf docs as if you had to use the C ABI directly.
+    unsafe fn get_quick_tune(&self, channel: Channel) -> Result<QuickTune> {
         let mut quick_tune = QuickTune {
             freqsel: 0,
             vcocap: 0,
@@ -1063,15 +1070,9 @@ pub trait BladeRF: Sized + Drop {
     ///
     /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___t_r_i_g.html#ga14afff57873c8ae591a4142d7851a869>
     unsafe fn trigger_arm(&self, trigger: &Trigger, arm: bool) -> Result<()> {
-        let res = unsafe {
-            bladerf_trigger_arm(
-                self.get_device_ptr(),
-                trigger as *const Trigger as *const bladerf_trigger,
-                arm,
-                0,
-                0,
-            )
-        };
+        let brf_trigger = trigger.into();
+
+        let res = unsafe { bladerf_trigger_arm(self.get_device_ptr(), &brf_trigger, arm, 0, 0) };
         check_res!(res);
         Ok(())
     }
@@ -1088,12 +1089,9 @@ pub trait BladeRF: Sized + Drop {
     ///
     /// Related `libbladerf` docs: <https://www.nuand.com/libbladeRF-doc/v2.5.0/group___f_n___t_r_i_g.html#gaaa2b932a3b810203952bb49c1673c124>
     unsafe fn trigger_fire(&self, trigger: &Trigger) -> Result<()> {
-        let res = unsafe {
-            bladerf_trigger_fire(
-                self.get_device_ptr(),
-                trigger as *const Trigger as *const bladerf_trigger,
-            )
-        };
+        let brf_trigger = trigger.into();
+
+        let res = unsafe { bladerf_trigger_fire(self.get_device_ptr(), &brf_trigger) };
         check_res!(res);
         Ok(())
     }
@@ -1112,10 +1110,13 @@ pub trait BladeRF: Sized + Drop {
         let mut fire_requested = false;
         let mut resv1 = 0u64;
         let mut resv2 = 0u64;
+
+        let brf_trigger = trigger.into();
+
         let res = unsafe {
             bladerf_trigger_state(
                 self.get_device_ptr(),
-                trigger as *const Trigger as *const bladerf_trigger,
+                &brf_trigger,
                 &mut is_armed,
                 &mut has_fired,
                 &mut fire_requested,
